@@ -1,0 +1,44 @@
+@layer components {
+  .glass-panel {
+    background: var(--color-panel);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--color-panel-border);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  }
+
+  .auth-btn {
+    background: var(--color-primary);
+    color: #0f2223;
+    box-shadow:
+      0 0 10px rgba(6, 237, 249, 0.3),
+      0 0 20px rgba(6, 237, 249, 0.1);
+  }
+
+  .auth-btn:hover {
+    background: #3fffff;
+    box-shadow:
+      0 0 15px rgba(6, 237, 249, 0.5),
+      0 0 30px rgba(6, 237, 249, 0.2);
+  }
+
+  .auth-btn:active {
+    background: #00dce8;
+  }
+
+  .glass-sidebar {
+    background: rgba(11, 16, 26, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .active-nav-item {
+    background: linear-gradient(90deg, rgba(6, 237, 249, 0.1) 0%, rgba(6, 237, 249, 0) 100%);
+    border-left: 2px solid #06edf9;
+  }
+
+  .btn-glow:hover {
+    box-shadow: 0 0 20px rgba(6, 237, 249, 0.4);
+  }
+}

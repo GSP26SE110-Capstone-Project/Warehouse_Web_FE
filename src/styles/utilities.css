@@ -1,0 +1,84 @@
+@layer utilities {
+  .scanline {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(to right, transparent, #06edf9, transparent);
+    opacity: 0.5;
+    animation: scan 4s linear infinite;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .input-glow:focus-within {
+    box-shadow: 0 0 15px rgba(6, 237, 249, 0.15);
+    border-color: #06edf9 !important;
+  }
+
+  .input-glow:focus-within .input-icon {
+    color: #06edf9;
+  }
+
+  .shimmer {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to right,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    transform: translateX(-100%);
+    transition: transform 0.7s ease-in-out;
+  }
+
+  .auth-btn:hover .shimmer {
+    transform: translateX(100%);
+  }
+
+  .table-row-hover:hover {
+    background: linear-gradient(90deg, rgba(6, 237, 249, 0.05) 0%, rgba(6, 237, 249, 0) 100%);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #0b101a;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #1f2937;
+    border-radius: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #374151;
+  }
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 0.8;
+  }
+
+  90% {
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translateY(800px);
+    opacity: 0;
+  }
+
+  
+}

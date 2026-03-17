@@ -1,0 +1,41 @@
+@theme {
+  --color-primary: #06edf9;
+  --color-deep-space: #050b0b;
+  --color-panel: rgba(15, 34, 35, 0.65);
+  --color-panel-border: rgba(255, 255, 255, 0.1);
+  --color-input-border: #3a5455;
+  --color-input-bg: rgba(11, 22, 23, 0.8);
+  --color-muted: #9bb9bb;
+  --color-footer: rgba(5, 11, 11, 0.5);
+
+  --font-display: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-deep-space);
+    color: white;
+    font-family: var(--font-display);
+  }
+
+  .material-symbols-outlined {
+    font-family: "Material Symbols Outlined";
+    font-variation-settings: "FILL" 0, "wght" 500, "GRAD" 0, "opsz" 24;
+    font-style: normal;
+    font-size: 24px;
+    line-height: 1;
+    display: inline-block;
+    white-space: nowrap;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+}
