@@ -6,7 +6,7 @@ type AdminHeaderProps = {
 }
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({
-  title = 'warehouse sector ', 
+  title = 'Admin Dashboard', 
   onSearchChange,
 }) => {
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {

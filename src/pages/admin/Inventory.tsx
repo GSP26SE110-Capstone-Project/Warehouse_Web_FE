@@ -1,7 +1,5 @@
 import { useState } from 'react'
-import {SidebarNav} from '../../components/common/SidebarNav'
-import {StatsCard}  from '../../components/ui/StatCard'
-import {AdminHeader}  from '../../components/common/header/AdminHeader'
+import { StatsCard } from '../../components/ui/StatCard'
 
 type InventoryItem = {
   sku: string
@@ -17,52 +15,6 @@ type InventoryItem = {
   updatedAt: string
   striped?: boolean
 }
-
-// const stats = [
-//   {
-//     title: 'Total Stock',
-//     value: '14,205',
-//     badge: (
-//       <span className="flex items-center rounded bg-emerald-400/10 px-1.5 py-0.5 text-xs font-medium text-emerald-400">
-//         <span className="material-symbols-outlined mr-0.5 text-[14px]">trending_up</span>
-//         2.5%
-//       </span>
-//     ),
-//     glowClassName: 'bg-cyan-500/5 group-hover:bg-cyan-500/10',
-//   },
-//   {
-//     title: 'Pending Inbound',
-//     value: '340',
-//     badge: (
-//       <span className="flex items-center rounded bg-emerald-400/10 px-1.5 py-0.5 text-xs font-medium text-emerald-400">
-//         <span className="material-symbols-outlined mr-0.5 text-[14px]">trending_up</span>
-//         12%
-//       </span>
-//     ),
-//     glowClassName: 'bg-blue-500/5 group-hover:bg-blue-500/10',
-//   },
-//   {
-//     title: 'Critical Low',
-//     value: '12',
-//     badge: (
-//       <span className="flex items-center rounded bg-red-400/10 px-1.5 py-0.5 text-xs font-medium text-red-400">
-//         <span className="material-symbols-outlined mr-0.5 text-[14px]">warning</span>
-//         Alert
-//       </span>
-//     ),
-//     glowClassName: 'bg-orange-500/5 group-hover:bg-orange-500/10',
-//     className: 'border-orange-500/20',
-//   },
-//   {
-//     title: 'Uptime',
-//     value: (
-//       <>
-//         99.9<span className="text-lg">%</span>
-//       </>
-//     ),
-//     glowClassName: 'bg-indigo-500/5 group-hover:bg-indigo-500/10',
-//   },
-// ]
 
 const inventoryItems: InventoryItem[] = [
   {
@@ -142,49 +94,47 @@ function getStatusDotClass(status: InventoryItem['status']) {
 }
 
 export const Inventory: React.FC = () => {
-    const [collapsed, setCollapsed] = useState(false)
-
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0b101a] text-slate-100">
+    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100 pb-15">
 
       <main className="relative flex h-full flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop')] bg-cover bg-center">
         <div className="absolute inset-0 z-0 bg-[#0b101a]/90 backdrop-blur-sm" />
-        <div className="custom-scrollbar relative z-10 flex-1 overflow-y-auto p-8">
+        <div className="relative z-10 flex-1 p-8">
           <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
-             {/* Stats Cards */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <StatsCard
-                          title="Tổng hàng trong kho"
-                          value={14205}
-                          unit="units"
-                          icon="inventory_2"
-                          accentColor="primary"
-                          trend={{ direction: 'up', percentage: 2.5, text: 'vs last week' }}
-                        />
-                        <StatsCard
-                          title="Đơn hàng đang vận chuyển"
-                          value={42}
-                          unit="active"
-                          icon="local_shipping"
-                          accentColor="primary"
-                          trend={{ direction: 'up', percentage: 0, text: '12 arriving today' }}
-                        />
-                        <StatsCard
-                          title="Điểm hiệu suất AI"
-                          value="98.4%"
-                          icon="memory"
-                          accentColor="primary"
-                          trend={{ direction: 'up', percentage: 0.8, text: 'optimization' }}
-                        />
-                        <StatsCard
-                          title="Cảnh báo đang chờ"
-                          value={3}
-                          unit="critical"
-                          icon="warning"
-                          accentColor="orange"
-                          trend={{ direction: 'down', percentage: 0, text: 'Action required' }}
-                        />
-                      </div>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatsCard
+                title="Tổng hàng trong kho"
+                value={14205}
+                unit="units"
+                icon="inventory_2"
+                accentColor="primary"
+                trend={{ direction: 'up', percentage: 2.5, text: 'vs last week' }}
+              />
+              <StatsCard
+                title="Đơn hàng đang vận chuyển"
+                value={42}
+                unit="active"
+                icon="local_shipping"
+                accentColor="primary"
+                trend={{ direction: 'up', percentage: 0, text: '12 arriving today' }}
+              />
+              <StatsCard
+                title="Điểm hiệu suất AI"
+                value="98.4%"
+                icon="memory"
+                accentColor="primary"
+                trend={{ direction: 'up', percentage: 0.8, text: 'optimization' }}
+              />
+              <StatsCard
+                title="Cảnh báo đang chờ"
+                value={3}
+                unit="critical"
+                icon="warning"
+                accentColor="orange"
+                trend={{ direction: 'down', percentage: 0, text: 'Action required' }}
+              />
+            </div>
 
             <section className="glass-panel flex flex-col overflow-hidden rounded-xl border border-white/5">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 bg-white/[0.02] px-6 py-5">

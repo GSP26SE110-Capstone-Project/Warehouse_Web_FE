@@ -11,7 +11,7 @@ export const AdminLayout: React.FC = () => {
     };
 
     return (
-        <div className="flex bg-gray-50 w-full h-screen overflow-hidden">
+        <div className="flex bg-gray-500 w-full h-screen overflow-hidden">
             {/* Sidebar */}
             <SidebarNav collapsed={sidebarCollapsed} onToggle={handleToggleSidebar} />
 
@@ -25,7 +25,7 @@ export const AdminLayout: React.FC = () => {
                     <AdminHeader />
                 </div>
                 {/* Main Content */}
-                <main className="flex-1 mt-16 overflow-auto bg-gray-50">
+                <main className="flex-1 mt-16 overflow-auto bg-gray-500">
                     <Outlet />
                 </main>
             </div>

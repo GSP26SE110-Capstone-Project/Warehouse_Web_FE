@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { navigationService } from '../../utils/NavigationService'
+import logo from '../../assets/logo.png'
 
 type NavItem = {
   label: string
@@ -11,9 +12,11 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', icon: 'grid_view', key: 'dashboard', href: '/admin' },
-  { label: 'Inventory', icon: 'inventory_2', key: 'inventory', href: '/admin/inventory' },
-  { label: 'Inbound', icon: 'input', key: 'inbound', href: '/admin/inbound' },
-  { label: 'Outbound', icon: 'output', key: 'outbound', href: '/admin/outbound' },
+  { label: 'Manage Warehouse', icon: 'warehouse', key: 'warehouse', href: '/admin/warehouse' },
+  { label: 'Manage Inventory', icon: 'inventory_2', key: 'inventory', href: '/admin/inventory' },
+  { label: 'Manage Contracts', icon: 'description', key: 'contracts', href: '/admin/contract' },
+  { label: 'Manage Inbound', icon: 'input', key: 'inbound', href: '/admin/inbound' },
+  { label: 'Manage Outbound', icon: 'output', key: 'outbound', href: '/admin/outbound' },
   { label: 'Reports', icon: 'bar_chart', key: 'reports', href: '/admin/reports' },
 ]
 
@@ -58,21 +61,21 @@ export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg border border-cyan-500/30 bg-gradient-to-br from-cyan-900 to-slate-900">
-              <span className="material-symbols-outlined text-[#06edf9]">hub</span>
+            <div className="flex size-15 items-center justify-center flex size-10 items-center justify-center rounded-lg border border-cyan-500/30 bg-gradient-to-br from-cyan-900 to-slate-900">
+              <img src={logo} alt="Logo" className="h-10 w-10" />
             </div>
 
             {!collapsed && (
               <div className="flex flex-col">
-                <h1 className="text-lg font-bold text-white">OPS_PORTAL</h1>
-                <p className="font-mono text-xs text-cyan-400/60">v2.4.0</p>
+                <h1 className="text-lg font-bold text-white">NEXSPACE</h1>
+                <p className="font-mono text-xs text-cyan-400/60">Warehouse</p>
               </div>
             )}
           </div>
 
           {/* Toggle button */}
-          <button 
-          onClick={onToggle}>
+          <button
+            onClick={onToggle}>
             <span className="material-symbols-outlined text-slate-400 hover:text-white">
               {collapsed ? 'chevron_right' : 'chevron_left'}
             </span>
