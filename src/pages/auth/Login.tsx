@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import logo from '../../assets/logo.png'
 
 export const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false)
@@ -38,39 +39,22 @@ export const Login: React.FC = () => {
 
             {/* Header */}
             <div className="p-8 pb-4 border-b border-white/5">
-              <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="material-symbols-outlined animate-pulse text-3xl" style={{ color: '#06edf9' }}>
-                      warehouse
-                    </span>
-                    <h1 className="text-3xl font-black tracking-[-0.02em] text-white m-0">
-                      Next-Gen Warehouse
-                    </h1>
-                  </div>
-                  <p className="text-sm font-medium tracking-widest uppercase pl-1" style={{ color: '#9bb9bb' }}>
-                   Hệ thống điều phối kho hàng
-                  </p>
+              <div className="flex flex-col items-center justify-center text-center gap-2 mb-2">
+
+                <div className="flex items-center gap-2 mb-1 justify-center">
+                  <img src={logo} alt="Logo" className="h-10 w-10" />
+                  <h1 className="text-3xl font-black tracking-[-0.02em] text-white m-0">
+                    NEXSPACE
+                  </h1>
                 </div>
 
-                <div
-                  className="flex items-center gap-2 rounded-full px-3 py-1"
-                  style={{
-                    background: 'rgba(6,237,249,0.1)',
-                    border: '1px solid rgba(6,237,249,0.2)',
-                  }}
+                <p
+                  className="text-sm font-medium tracking-widest uppercase"
+                  style={{ color: '#9bb9bb' }}
                 >
-                  <div
-                    className="w-2 h-2 rounded-full animate-pulse"
-                    style={{ background: '#06edf9', boxShadow: '0 0 8px #06edf9' }}
-                  />
-                  <span
-                    className="text-xs font-bold tracking-wider"
-                    style={{ color: '#06edf9', fontFamily: "'JetBrains Mono', monospace" }}
-                  >
-                    SYSTEM ONLINE
-                  </span>
-                </div>
+                  Next-Gen Warehouse
+                </p>
+
               </div>
             </div>
 
@@ -111,7 +95,7 @@ export const Login: React.FC = () => {
                     Mật khẩu
                   </label>
                   <a
-                    href="#"
+                    href="/forgot-password"
                     className="text-xs transition-colors hover:underline"
                     style={{ color: 'rgba(6,237,249,0.7)' }}
                     onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = '#06edf9')}

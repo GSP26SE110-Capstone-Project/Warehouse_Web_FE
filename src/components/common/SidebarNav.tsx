@@ -11,13 +11,14 @@ type NavItem = {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', icon: 'grid_view', key: 'dashboard', href: '/admin' },
-  { label: 'Manage Warehouse', icon: 'warehouse', key: 'warehouse', href: '/admin/warehouse' },
-  { label: 'Manage Inventory', icon: 'inventory_2', key: 'inventory', href: '/admin/inventory' },
-  { label: 'Manage Contracts', icon: 'description', key: 'contracts', href: '/admin/contract' },
-  { label: 'Manage Inbound', icon: 'input', key: 'inbound', href: '/admin/inbound' },
-  { label: 'Manage Outbound', icon: 'output', key: 'outbound', href: '/admin/outbound' },
-  { label: 'Reports', icon: 'bar_chart', key: 'reports', href: '/admin/reports' },
+  { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/admin' },
+  { label: 'Quản lý Tài khoản', icon: 'people', key: 'accounts', href: '/admin/accounts' },
+  { label: 'Quản lý Kho', icon: 'warehouse', key: 'warehouse', href: '/admin/warehouse' },
+  { label: 'Quản lý Kho hàng', icon: 'inventory_2', key: 'inventory', href: '/admin/inventory' },
+  { label: 'Quản lý Hợp đồng', icon: 'description', key: 'contracts', href: '/admin/contract' },
+  { label: 'Vận chuyển', icon: 'local_shipping', key: 'transportation', href: '/admin/transportation' },
+  { label: 'Xuất nhập Kho', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
+  { label: 'Báo cáo', icon: 'bar_chart', key: 'reports', href: '/admin/reports' },
 ]
 
 type BottomAction = {

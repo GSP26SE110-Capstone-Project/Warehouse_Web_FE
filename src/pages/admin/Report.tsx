@@ -1,0 +1,185 @@
+import { useState, useMemo } from 'react'
+import { StatsCard } from '../../components/ui/StatCard'
+
+type Report = {
+  id: string
+  staffName: string
+  title: string
+  type: 'Incident' | 'Inventory' | 'Delivery'
+  typeClassName: string
+  status: 'Pending' | 'Reviewed' | 'Rejected'
+  statusClassName: string
+  createdAt: string
+  priority: 'Low' | 'Medium' | 'High'
+  priorityClassName: string
+  striped?: boolean
+}
+
+const reports: Report[] = [
+  {
+    id: '#REP-001',
+    staffName: 'Nguyễn Văn A',
+    title: 'Thiếu hàng SKU-9021',
+    type: 'Inventory',
+    typeClassName: 'bg-blue-400/10 text-blue-400 ring-blue-400/20',
+    status: 'Pending',
+    statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
+    createdAt: '10m ago',
+    priority: 'High',
+    priorityClassName: 'bg-red-400/10 text-red-400 ring-red-400/20',
+    striped: true,
+  },
+  {
+    id: '#REP-002',
+    staffName: 'Trần Thị B',
+    title: 'Giao hàng trễ đơn #ORD-8822',
+    type: 'Delivery',
+    typeClassName: 'bg-purple-400/10 text-purple-400 ring-purple-400/20',
+    status: 'Reviewed',
+    statusClassName: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20',
+    createdAt: '1h ago',
+    priority: 'Medium',
+    priorityClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
+  },
+  {
+    id: '#REP-003',
+    staffName: 'Lê Văn C',
+    title: 'Hư hỏng hàng hóa',
+    type: 'Incident',
+    typeClassName: 'bg-red-400/10 text-red-400 ring-red-400/20',
+    status: 'Rejected',
+    statusClassName: 'bg-gray-400/10 text-gray-400 ring-gray-400/20',
+    createdAt: '2h ago',
+    priority: 'High',
+    priorityClassName: 'bg-red-400/10 text-red-400 ring-red-400/20',
+    striped: true,
+  },
+]
+
+function getStatusDot(status: Report['status']) {
+  if (status === 'Pending') return 'bg-orange-400 animate-pulse'
+  if (status === 'Rejected') return 'bg-gray-400'
+  return 'bg-emerald-400'
+}
+
+export const Reports: React.FC = () => {
+  const [search, setSearch] = useState('')
+
+  const filteredReports = useMemo(() => {
+    return reports.filter(r =>
+      r.staffName.toLowerCase().includes(search.toLowerCase()) ||
+      r.title.toLowerCase().includes(search.toLowerCase()) ||
+      r.id.toLowerCase().includes(search.toLowerCase())
+    )
+  }, [search])
+
+  return (
+    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100 pb-15">
+
+      <main className="relative flex flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072')] bg-cover bg-center">
+        <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" />
+
+        <div className="relative z-10 p-8">
+          <div className="max-w-[1400px] mx-auto flex flex-col gap-8">
+
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatsCard title="Tổng báo cáo" value={86} icon="description" accentColor="primary" trend={{ direction: 'up', percentage: 3.5, text: 'this week' }} />
+              <StatsCard title="Chờ duyệt" value={12} icon="hourglass_top" accentColor="orange" trend={{ direction: 'down', percentage: 1.2, text: 'pending' }} />
+              <StatsCard title="Đã xử lý" value={60} icon="check_circle" accentColor="primary" trend={{ direction: 'up', percentage: 2.1, text: 'reviewed' }} />
+              <StatsCard title="Bị từ chối" value={14} icon="cancel" accentColor="orange" trend={{ direction: 'down', percentage: 0.5, text: 'rejected' }} />
+            </div>
+
+            {/* Table */}
+            <section className="glass-panel rounded-xl border border-white/5 overflow-hidden flex flex-col">
+
+              {/* Header */}
+              <div className="flex justify-between items-center px-6 py-5 border-b border-white/5 bg-white/[0.02]">
+                <h3 className="text-lg font-bold text-white">
+                  BÁO CÁO NHÂN VIÊN
+                </h3>
+
+                <div className="flex items-center gap-3">
+                  {/* Search */}
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      search
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Tìm báo cáo..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="pl-10 pr-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+
+                  <button className="flex items-center gap-2 px-4 py-2 bg-[#1a2333] border border-white/10 rounded-lg text-sm text-slate-300 hover:text-white">
+                    <span className="material-symbols-outlined">filter_list</span>
+                    Lọc
+                  </button>
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead>
+                    <tr className="bg-[#131b29] text-xs uppercase text-slate-400 border-b border-white/5">
+                      <th className="px-6 py-4">ID</th>
+                      <th className="px-6 py-4">Nhân viên</th>
+                      <th className="px-6 py-4">Tiêu đề</th>
+                      <th className="px-6 py-4">Loại</th>
+                      <th className="px-6 py-4">Ngày tạo</th>
+                      <th className="px-6 py-4 text-right">Hành động</th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-white/5">
+                    {filteredReports.length > 0 ? (
+                      filteredReports.map((r) => (
+                        <tr key={r.id} className={`${r.striped ? 'bg-white/[0.02]' : ''}`}>
+                          <td className="px-6 py-4 text-cyan-400 font-mono">{r.id}</td>
+                          <td className="px-6 py-4 text-white">{r.staffName}</td>
+                          <td className="px-6 py-4">{r.title}</td>
+
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 text-xs rounded ring-1 ${r.typeClassName}`}>
+                              {r.type}
+                            </span>
+                          </td>
+
+                          <td className="px-6 py-4 text-xs text-slate-500">{r.createdAt}</td>
+
+                          <td className="px-6 py-4">
+                            <div className="flex ml-30 gap-2 opacity-60 hover:opacity-100">
+                              <button className=" hover:bg-white/10 rounded">
+                                <span className="material-symbols-outlined">visibility</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={8} className="text-center py-10 text-slate-400">
+                          Không tìm thấy báo cáo
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 border-t border-white/5 text-xs text-slate-400">
+                Showing {filteredReports.length} of {reports.length} reports
+              </div>
+
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}

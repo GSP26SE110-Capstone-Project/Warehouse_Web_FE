@@ -11,7 +11,7 @@ export const AdminLayout: React.FC = () => {
     };
 
     return (
-        <div className="flex bg-gray-500 w-full h-screen overflow-hidden">
+        <div className="flex bg-[#0b101a] w-full h-screen overflow-hidden">
             {/* Sidebar */}
             <SidebarNav collapsed={sidebarCollapsed} onToggle={handleToggleSidebar} />
 
@@ -19,13 +19,13 @@ export const AdminLayout: React.FC = () => {
             <div className={`flex-1 flex flex-col transition-all duration-300 
                 }`}>
                 {/* Top Header */}
-                <div className="fixed top-0 right-0 left-0 z-20" style={{
+                <div className=" fixed top-0 right-0 left-0 z-20" style={{
                     marginLeft: sidebarCollapsed ? '4rem' : '16rem'
                 }}>
                     <AdminHeader />
                 </div>
                 {/* Main Content */}
-                <main className="flex-1 mt-16 overflow-auto bg-gray-500">
+                <main className="flex-1 mt-16 overflow-auto bg-black-500">
                     <Outlet />
                 </main>
             </div>

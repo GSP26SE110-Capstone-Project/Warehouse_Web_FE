@@ -1,4 +1,6 @@
 import type { ChangeEvent } from 'react'
+import { navigationService } from '../../../utils/NavigationService'
+
 
 type AdminHeaderProps = {
   title?: string
@@ -43,7 +45,9 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-[#06edf9] shadow-[0_0_8px_rgba(6,237,249,0.8)]" />
         </button>
 
-        <div className="flex items-center gap-3 border-l border-white/10 pl-6">
+        <div
+        onClick={() => navigationService.goTo('/profile')}
+        className="flex items-center gap-3 border-l border-white/10 pl-6">
           <div className="hidden text-right sm:block">
             <p className="text-sm font-medium text-white">Cmdr. Shepard</p>
             <p className="text-xs text-slate-400">Logistics Lead</p>
