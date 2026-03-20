@@ -144,8 +144,6 @@ export const AccountManagement: React.FC = () => {
                       <th className="px-6 py-4">Email</th>
                       <th className="px-6 py-4">Vai trò</th>
                       <th className="px-6 py-4">Trạng thái</th>
-                      <th className="px-6 py-4">Last Login</th>
-                      <th className="px-6 py-4">Ngày tạo</th>
                       <th className="px-6 py-4 text-right">Hành động</th>
                     </tr>
                   </thead>
@@ -153,10 +151,7 @@ export const AccountManagement: React.FC = () => {
                   <tbody className="divide-y divide-white/5">
                     {filteredAccounts.length > 0 ? (
                       filteredAccounts.map((acc) => (
-                        <tr
-                          key={acc.id}
-                          className={`group ${acc.striped ? 'bg-white/[0.02]' : ''}`}
-                        >
+                        <tr key={acc.id} >
                           <td className="px-6 py-4 text-cyan-400 font-mono">{acc.id}</td>
                           <td className="px-6 py-4 text-white">{acc.name}</td>
                           <td className="px-6 py-4 text-slate-400">{acc.email}</td>
@@ -167,15 +162,11 @@ export const AccountManagement: React.FC = () => {
                             </span>
                           </td>
 
-                          <td className="px-6 py-4">
-                            <span className={`flex items-center gap-1 px-2 py-1 text-xs rounded-full ring-1 ${acc.statusClassName}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(acc.status)}`} />
+                          <td className="px-6 py-4 ">
+                            <span className={`flex items-center justify-center  gap-1 px-2 py-1 text-xs rounded-full ring-1 ${acc.statusClassName}`}>
                               {acc.status}
                             </span>
                           </td>
-
-                          <td className="px-6 py-4 text-xs text-slate-400">{acc.lastLogin}</td>
-                          <td className="px-6 py-4 text-xs text-slate-500">{acc.createdAt}</td>
 
                           <td className="px-6 py-4 text-right">
                             <div className="flex justify-end gap-2 opacity-60 group-hover:opacity-100">

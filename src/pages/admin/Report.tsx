@@ -1,5 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
+import { ReportViewModal } from '../../components/ui/modal/ReportDetailModal'
+import { Pagination } from '../../components/ui/Pagination'
 
 type Report = {
   id: string
@@ -64,6 +66,8 @@ function getStatusDot(status: Report['status']) {
 
 export const Reports: React.FC = () => {
   const [search, setSearch] = useState('')
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null)
+
 
   const filteredReports = useMemo(() => {
     return reports.filter(r =>
@@ -72,6 +76,27 @@ export const Reports: React.FC = () => {
       r.id.toLowerCase().includes(search.toLowerCase())
     )
   }, [search])
+
+  // ESC để đóng modal
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedReport(null)
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [])
+
+  // Pagination state
+    const [currentPage, setCurrentPage] = useState(1)
+    const pageSize = 5
+    const totalItems = reports.length
+    const totalPages = Math.ceil(totalItems / pageSize)
+    const paginatedData = reports.slice(
+      (currentPage - 1) * pageSize,
+      currentPage * pageSize
+    )
+    const start = (currentPage - 1) * pageSize + 1
+    const end = Math.min(currentPage * pageSize, totalItems)
 
   return (
     <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100 pb-15">
@@ -131,11 +156,11 @@ export const Reports: React.FC = () => {
                       <th className="px-6 py-4">Tiêu đề</th>
                       <th className="px-6 py-4">Loại</th>
                       <th className="px-6 py-4">Ngày tạo</th>
-                      <th className="px-6 py-4 text-right">Hành động</th>
+                      <th className="px-6 py-4">Hành động</th>
                     </tr>
                   </thead>
 
-                  <tbody className="divide-y divide-white/5">
+                  {/* <tbody className="divide-y divide-white/5">
                     {filteredReports.length > 0 ? (
                       filteredReports.map((r) => (
                         <tr key={r.id} className={`${r.striped ? 'bg-white/[0.02]' : ''}`}>
@@ -167,19 +192,60 @@ export const Reports: React.FC = () => {
                         </td>
                       </tr>
                     )}
+                  </tbody> */}
+                  <tbody className="divide-y divide-white/5">
+                    {filteredReports.map((r) => (
+                      <tr key={r.id} className={`${r.striped ? 'bg-white/[0.02]' : ''}`}>
+                        <td className="px-6 py-4 text-cyan-400 font-mono">{r.id}</td>
+                        <td className="px-6 py-4">{r.staffName}</td>
+                        <td className="px-6 py-4">{r.title}</td>
+
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 rounded ring-1 ${r.typeClassName}`}>
+                            {r.type}
+                          </span>
+                        </td>
+
+                        <td className="px-6 py-4">{r.createdAt}</td>
+
+                        <td className="px-6 py-4 opacity-60 hover:opacity-100">
+                          <button
+                            onClick={() => setSelectedReport(r)}
+                            className="hover:bg-white/10 rounded p-1 ml-5"
+                          >
+                            <span className="material-symbols-outlined ">visibility</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 border-t border-white/5 text-xs text-slate-400">
-                Showing {filteredReports.length} of {reports.length} reports
-              </div>
+               <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-4">
+                              <p className="font-mono text-xs text-slate-400">
+                                Showing <span className="text-white">{start}-{end}</span> of{' '}
+                                <span className="text-white">{totalItems}</span> items
+                              </p>
+              
+                              <Pagination
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                onPageChange={setCurrentPage}
+                              />
+                            </div>
 
             </section>
           </div>
         </div>
       </main>
+      {selectedReport && (
+        <ReportViewModal
+          report={selectedReport}
+          onClose={() => setSelectedReport(null)}
+        />
+      )}
     </div>
   )
 }

@@ -5,7 +5,7 @@ import { Dashboard } from './pages/admin/Dashboard'
 import { Inventory } from './pages/admin/Inventory'
 import { AdminLayout } from './components/common/layout/AdminLayout'
 import { Warehouse } from './pages/admin/Warehouse'
-import { Contract } from './pages/admin/Contract'
+import { ContractManagement } from './pages/admin/Contract'
 import { WarehouseDetailView } from './pages/admin/WarehouseDetail'
 import { ForgotPassword } from './pages/auth/ForgotPassword'
 import { ResetPassword } from './pages/auth/ResetPassword'
@@ -31,7 +31,7 @@ export const Router: React.FC = () => {
                         <Route path='/admin/dashboard' element={<Dashboard />} />
                         <Route path='/admin/warehouse' element={<Warehouse />} />
                         <Route path='/admin/warehouse/detail' element={<WarehouseDetailView />} />
-                        <Route path='/admin/contract' element={<Contract />} />
+                        <Route path='/admin/contract' element={<ContractManagement />} />
                         <Route path='/admin/inventory' element={<Inventory />} />
                         <Route path='/admin/accounts' element={<AccountManagement />} />
                         <Route path='/admin/stock-movements' element={<StockMovement />} />

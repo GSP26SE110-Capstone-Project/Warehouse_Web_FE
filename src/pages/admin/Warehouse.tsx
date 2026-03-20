@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
+import { Pagination } from '../../components/ui/Pagination'
 
 type Warehouse = {
   warehouseId: string         // mã kho
@@ -46,10 +47,67 @@ const warehouses: Warehouse[] = [
     lastUpdated: '3h ago',
 
   },
+  {
+    warehouseId: 'W-1006',
+    warehouseName: 'Kho E',
+    address: '202 Đường MNO, Quận PQR, TP. HCM',
+    numberOfPallets: 0,
+    lastUpdated: '3h ago',
+
+  },
+  {
+    warehouseId: 'W-1007',
+    warehouseName: 'Kho E',
+    address: '202 Đường MNO, Quận PQR, TP. HCM',
+    numberOfPallets: 0,
+    lastUpdated: '3h ago',
+
+  },
+  {
+    warehouseId: 'W-1008',
+    warehouseName: 'Kho E',
+    address: '202 Đường MNO, Quận PQR, TP. HCM',
+    numberOfPallets: 0,
+    lastUpdated: '3h ago',
+
+  },
+  {
+    warehouseId: 'W-1009',
+    warehouseName: 'Kho E',
+    address: '202 Đường MNO, Quận PQR, TP. HCM',
+    numberOfPallets: 0,
+    lastUpdated: '3h ago',
+
+  },
+  {
+    warehouseId: 'W-1010',
+    warehouseName: 'Kho E',
+    address: '202 Đường MNO, Quận PQR, TP. HCM',
+    numberOfPallets: 0,
+    lastUpdated: '3h ago',
+
+  },
 ]
 
 
 export const Warehouse: React.FC = () => {
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 5
+  const totalItems = warehouses.length
+  const totalPages = Math.ceil(totalItems / pageSize)
+  const paginatedWarehouses = warehouses.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  )
+  const start = (currentPage - 1) * pageSize + 1
+  const end = Math.min(currentPage * pageSize, totalItems)
+  useEffect(() => {
+  setCurrentPage(1)
+}, [warehouses.length])
+
+
   return (
     <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100 pb-15">
       <main className="relative flex h-full flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop')] bg-cover bg-center">
@@ -88,7 +146,7 @@ export const Warehouse: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5 text-sm">
-                    {warehouses.map((item) => {
+                    {paginatedWarehouses.map((item) => {
                       return (
                         <tr
                           key={item.warehouseId}
@@ -119,7 +177,7 @@ export const Warehouse: React.FC = () => {
                 </table>
               </div>
 
-              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-4">
+              {/* <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-4">
                 <p className="font-mono text-xs text-slate-400">
                   Showing <span className="text-white">1-5</span> of <span className="text-white">458</span> items
                 </p>
@@ -141,6 +199,18 @@ export const Warehouse: React.FC = () => {
                     <span className="material-symbols-outlined text-sm">chevron_right</span>
                   </button>
                 </div>
+              </div> */}
+              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-4">
+                <p className="font-mono text-xs text-slate-400">
+                  Showing <span className="text-white">{start}-{end}</span> of{' '}
+                  <span className="text-white">{totalItems}</span> items
+                </p>
+
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
               </div>
             </section>
           </div>
