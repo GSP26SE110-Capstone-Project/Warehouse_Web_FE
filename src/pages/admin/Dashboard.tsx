@@ -57,35 +57,28 @@ export const Dashboard: React.FC = () => {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatsCard
-            title="Tổng hàng trong kho"
+            title="Tổng hàng hóa"
             value={14205}
-            unit="units"
             icon="inventory_2"
-            accentColor="primary"
-            trend={{ direction: 'up', percentage: 2.5, text: 'vs last week' }}
+            accentColor="emerald"
           />
           <StatsCard
-            title="Đơn hàng đang vận chuyển"
+            title="đang vận chuyển"
             value={42}
-            unit="active"
             icon="local_shipping"
             accentColor="primary"
-            trend={{ direction: 'up', percentage: 0, text: '12 arriving today' }}
           />
           <StatsCard
-            title="Hàng tồn kho"
+            title="Tổng hợp đồng"
             value="98.4%"
             icon="memory"
-            accentColor="primary"
-            trend={{ direction: 'up', percentage: 0.8, text: 'optimization' }}
+            accentColor="orange"
           />
           <StatsCard
-            title="Hợp đồng sắp hết hạn"
+            title="HĐ sắp hết hạn"
             value={3}
-            unit="critical"
             icon="warning"
-            accentColor="orange"
-            trend={{ direction: 'down', percentage: 0, text: 'Action required' }}
+            accentColor="purple"
           />
         </div>
 

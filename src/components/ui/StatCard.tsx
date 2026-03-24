@@ -24,7 +24,7 @@ export const StatsCard: React.FC<StatsCardProps> = ({
 }) => {
   const colorMap = {
     primary: { bg: 'from-primary', text: 'text-primary' },
-    orange: { bg: 'from-neon-orange', text: 'text-neon-orange' },
+    orange: { bg: 'from-orange-500', text: 'text-orange-500' },
     purple: { bg: 'from-purple-500', text: 'text-purple-500' },
     emerald: { bg: 'from-emerald-500', text: 'text-emerald-500' },
   }
@@ -34,13 +34,13 @@ export const StatsCard: React.FC<StatsCardProps> = ({
   return (
     <div className="glass-panel p-6 rounded-2xl relative overflow-hidden group">
       <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity">
-        <span className="material-symbols-outlined text-6xl text-primary">
+        <span className="material-symbols-outlinedDashboard text-6xl text-emerald-500">
           {icon}
         </span>
       </div>
 
       <div className="relative z-10">
-        <p className="text-slate-400 text-sm font-medium mb-1">{title}</p>
+        <p className="text-slate-400 text-xl font-medium mb-1">{title}</p>
         <h3 className="text-3xl font-bold text-white tracking-tight">
           {value} <span className="text-lg text-slate-500 font-normal">{unit}</span>
         </h3>

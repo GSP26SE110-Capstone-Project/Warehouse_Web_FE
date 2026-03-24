@@ -1,101 +1,45 @@
-import { useState } from 'react'
-
-// --- Types ---
-interface InventoryItem {
-    id: string
-    skuCode: string
-    name: string
-    quantity: number
-    totalCapacity: number
-    category: string
-    status: 'In Stock' | 'Low Stock' | 'Critical' | 'Expiring'
-    statusColor: 'emerald' | 'orange' | 'red' | 'yellow'
-    imageUrl: string
-    expiresIn?: string
-}
-
-interface Rack {
-    rackId: string
-    row: number
-    col: number
-    shelves: number
-    status: 'healthy' | 'warning' | 'maintenance'
-    occupancyPercentage: number
-    capacity: string
-    items: InventoryItem[]
-    topBarColor: 'green' | 'orange' | 'gray'
-}
-
-interface Zone {
-    zoneId: string
-    zoneName: string
-    subZone: string
-    rows: number
-    cols: number
-    racks: Rack[]
-}
-
-// --- Sample Data ---
-const mockZoneData: Zone = {
-    zoneId: 'A-4',
-    zoneName: 'Zone A-4',
-    subZone: 'Cold Storage',
-    rows: 3,
-    cols: 4,
-    racks: [
-        {
-            rackId: 'A-01',
-            row: 0,
-            col: 0,
-            shelves: 3,
-            status: 'healthy',
-            occupancyPercentage: 80,
-            capacity: 'Heavy',
-            topBarColor: 'green',
-            items: [
-                { id: '1', skuCode: 'Q-P X7', name: 'Quantum Unit X7', quantity: 50, totalCapacity: 100, category: 'Electronics', status: 'In Stock', statusColor: 'emerald', imageUrl: '' },
-                { id: '2', skuCode: 'CC-B', name: 'Cryo-Type B', quantity: 12, totalCapacity: 100, category: 'Coolant', status: 'Expiring', statusColor: 'orange', imageUrl: '', expiresIn: '12h' }
-            ],
-        },
-        {
-            rackId: 'A-02',
-            row: 0,
-            col: 1,
-            shelves: 3,
-            status: 'warning',
-            occupancyPercentage: 40,
-            capacity: 'Medium',
-            topBarColor: 'orange',
-            items: [],
-        },
-        {
-            rackId: 'B-01',
-            row: 1,
-            col: 0,
-            shelves: 3,
-            status: 'healthy',
-            occupancyPercentage: 20,
-            capacity: 'Heavy',
-            topBarColor: 'green',
-            items: [
-                { id: '3', skuCode: 'FOOD-1', name: 'Food Pack', quantity: 10, totalCapacity: 50, category: 'Food', status: 'Low Stock', statusColor: 'orange', imageUrl: '' }
-            ],
-        },
-    ],
-}
+import { useState, useEffect } from 'react'
+import { useParams, useLocation } from 'react-router-dom'
+import type { Warehouse as WarehouseType, Zone } from '../../types/Warehouse'
+import { warehouses } from '../../types/Warehouse'
+import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 
 export const WarehouseDetailView: React.FC = () => {
-    const [zone] = useState<Zone>(mockZoneData)
+    const { id } = useParams()
+    const location = useLocation()
+
+
+    const [warehouse, setWarehouse] = useState<WarehouseType | null>(
+        location.state || null
+    )
+
+    const [zone, setZone] = useState<Zone | null>(null)
+
     const [selectedRackId, setSelectedRackId] = useState<string | null>(null)
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
     const [zoom, setZoom] = useState(1)
     const [position, setPosition] = useState({ x: 0, y: 0 })
     const [isDragging, setIsDragging] = useState(false)
     const [start, setStart] = useState({ x: 0, y: 0 })
 
-    const selectedRack = zone.racks.find(r => r.rackId === selectedRackId)
+    // fallback khi reload
+    useEffect(() => {
+        if (!warehouse) {
+            const found = warehouses.find(w => w.warehouseId === id)
+            if (found) setWarehouse(found)
+        }
+    }, [id])
 
-    // --- Handlers ---
+    // load zone
+    useEffect(() => {
+        if (warehouse?.zones?.length) {
+            setZone(warehouse.zones[0])
+        }
+    }, [warehouse])
+
+    const selectedRack = zone?.racks.find(r => r.rackId === selectedRackId)
+
     const handleRackClick = (rackId: string) => {
         setSelectedRackId(rackId)
         setIsSidebarOpen(true)
@@ -122,6 +66,16 @@ export const WarehouseDetailView: React.FC = () => {
     }
 
     const handleMouseUp = () => setIsDragging(false)
+const isLoading = !warehouse || !zone
+    if (!warehouse || !zone) {
+        return <>
+            <LoadingOverlay show={isLoading} text="LOADING WAREHOUSE..." />
+
+            <div className="flex h-screen w-full overflow-hidden bg-[#0b101a] text-white">
+                {/* toàn bộ layout cũ giữ nguyên */}
+            </div>
+        </>
+    }
 
     return (
         <div className="flex h-screen w-full overflow-hidden bg-[#0b101a] text-white">
@@ -129,11 +83,18 @@ export const WarehouseDetailView: React.FC = () => {
             {/* MAIN */}
             <main className={`relative flex flex-col ${isSidebarOpen ? 'mr-[420px]' : 'w-full'}`}>
 
+                {/* HEADER */}
+                <div className="absolute top-4 left-6 z-20">
+                    <h1 className="text-xl font-bold">
+                        {warehouse.warehouseName} ({warehouse.warehouseId})
+                    </h1>
+                    <p className="text-sm text-gray-400">{warehouse.address}</p>
+                </div>
+
                 {/* MAP */}
                 <div
-                    className={`flex-1 flex items-center justify-center overflow-hidden ${
-                        isDragging ? 'cursor-grabbing' : 'cursor-grab'
-                    }`}
+                    className={`flex-1 flex items-center justify-center overflow-hidden ${isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                        }`}
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
@@ -146,65 +107,82 @@ export const WarehouseDetailView: React.FC = () => {
                         }}
                     >
                         {/* GRID */}
-                        <div
-                            className="grid gap-6 p-20"
-                            style={{
-                                gridTemplateColumns: `repeat(${zone.cols}, 120px)`,
-                                gridTemplateRows: `repeat(${zone.rows}, 160px)`,
-                            }}
-                        >
-                            {Array.from({ length: zone.rows * zone.cols }).map((_, index) => {
-                                const r = Math.floor(index / zone.cols)
-                                const c = index % zone.cols
-                                const rack = zone.racks.find(rk => rk.row === r && rk.col === c)
+                        <div className="flex flex-col gap-8 p-20">
+                            {warehouse.zones.map((zone, zoneIndex) => {
+                                const rackMap = new Map(
+                                    zone.racks.map(r => [`${r.row}-${r.col}`, r])
+                                )
 
                                 return (
-                                    <div key={index} className="border border-white/5 rounded-lg flex items-center justify-center">
-                                        {rack ? (
-                                            <div
-                                                onClick={() => handleRackClick(rack.rackId)}
-                                                className={`group w-full h-full p-2 rounded border-2 flex flex-col justify-between cursor-pointer
-                                                    ${selectedRackId === rack.rackId ? 'border-cyan-400 scale-105' : 'border-[#3a5555]'}
-                                                `}
-                                            >
-                                                {/* Top bar */}
-                                                <div className={`h-1 w-full ${rack.topBarColor === 'green' ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                                    <div key={zone.zoneId} className="flex items-start gap-6">
 
-                                                <span className="text-[10px]">{rack.rackId}</span>
+                                        {/* LABEL ZONE */}
+                                        <div className="w-10 flex justify-center pt-2">
+                                            <span className="text-xl font-bold text-cyan-400">
+                                                {String.fromCharCode(65 + zoneIndex)}
+                                            </span>
+                                        </div>
 
-                                                {/* 🔥 SHELVES BOX */}
-                                                <div className="flex-1 flex flex-col-reverse gap-1 py-1">
-                                                    {Array.from({ length: rack.shelves }).map((_, i) => {
-                                                        const hasItem = rack.items.length > i
+                                        {/* GRID */}
+                                        <div
+                                            className="grid gap-3"
+                                            style={{
+                                                gridTemplateColumns: `repeat(${zone.cols}, 90px)`,
+                                            }}
+                                        >
+                                            {Array.from({ length: zone.rows * zone.cols }).map((_, index) => {
+                                                const r = Math.floor(index / zone.cols)
+                                                const c = index % zone.cols
+                                                const rack = rackMap.get(`${r}-${c}`)
 
-                                                        return (
-                                                            <div
-                                                                key={i}
-                                                                className={`flex items-center justify-center text-[9px] font-bold rounded border h-8 transition-all
-                                                                    ${
-                                                                        hasItem
-                                                                            ? 'bg-emerald-400/90 text-black border-emerald-300 shadow-[0_0_6px_rgba(16,185,129,0.7)]'
-                                                                            : 'bg-gray-700/40 text-gray-400 border-white/10'
-                                                                    }
-                                                                `}
-                                                            >
-                                                                L{i + 1}
-                                                            </div>
-                                                        )
-                                                    })}
-                                                </div>
-
-                                                {/* Progress */}
-                                                <div className="w-full h-1 bg-black/40 rounded">
+                                                return (
                                                     <div
-                                                        className="h-full bg-cyan-400"
-                                                        style={{ width: `${rack.occupancyPercentage}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <span className="text-white/10">+</span>
-                                        )}
+                                                        key={index}
+                                                        className="border border-white/10 rounded-md flex items-center justify-center"
+                                                    >
+                                                        {rack ? (
+                                                            <div
+                                                                onClick={() => handleRackClick(rack.rackId)}
+                                                                className={`w-full h-full p-1.5 rounded border flex flex-col justify-between cursor-pointer
+                      ${selectedRackId === rack.rackId
+                                                                        ? 'border-cyan-400 scale-105'
+                                                                        : 'border-[#3a5555]'
+                                                                    }
+                    `}
+                                                            >
+                                                                {/* ID */}
+                                                                <span className="text-[9px] text-center text-slate-300">
+                                                                    {rack.rackId}
+                                                                </span>
+
+                                                                {/* SHELVES */}
+                                                                <div className="flex-1 flex flex-col-reverse gap-[2px] py-1">
+                                                                    {Array.from({ length: rack.shelves }).map((_, i) => {
+                                                                        const hasItem = rack.items.length > i
+
+                                                                        return (
+                                                                            <div
+                                                                                key={i}
+                                                                                className={`h-5 flex items-center justify-center text-[8px] font-bold rounded
+                              ${hasItem
+                                                                                        ? 'bg-emerald-400 text-black'
+                                                                                        : 'bg-gray-600/40 text-gray-500'
+                                                                                    }
+                            `}
+                                                                            >
+                                                                                {i + 1}
+                                                                            </div>
+                                                                        )
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-white/10 text-xs">+</span>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
                                     </div>
                                 )
                             })}
@@ -222,39 +200,33 @@ export const WarehouseDetailView: React.FC = () => {
 
             {/* SIDEBAR */}
             <aside className={`mt-20 fixed right-0 top-0 w-[420px] h-full bg-[#0b101a] border-l border-white/10 transition-transform ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-    {selectedRack && (
-        <div className="p-6">
+                {selectedRack && (
+                    <div className="p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <div>
+                                <h2 className="text-xl font-bold">{selectedRack.rackId}</h2>
+                                <p className="text-sm text-gray-400">{selectedRack.shelves} Levels</p>
+                            </div>
 
-            {/* HEADER + NÚT CLOSE */}
-            <div className="flex justify-between items-center mb-4">
-                <div>
-                    <h2 className="text-xl font-bold">{selectedRack.rackId}</h2>
-                    <p className="text-sm text-gray-400">{selectedRack.shelves} Levels</p>
-                </div>
-
-                <button
-                    onClick={() => setIsSidebarOpen(false)}
-                    className="size-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
-                >
-                    <span className="material-symbols-outlined text-gray-400">close</span>
-                </button>
-            </div>
-
-            {/* CONTENT */}
-            <div className="mt-4 space-y-2">
-                {selectedRack.items.length > 0 ? (
-                    selectedRack.items.map(item => (
-                        <div key={item.id} className="p-2 bg-white/5 rounded">
-                            {item.name} (x{item.quantity})
+                            <button onClick={() => setIsSidebarOpen(false)}>
+                                ✕
+                            </button>
                         </div>
-                    ))
-                ) : (
-                    <p className="text-gray-500">Empty</p>
+
+                        <div className="mt-4 space-y-2">
+                            {selectedRack.items.length > 0 ? (
+                                selectedRack.items.map(item => (
+                                    <div key={item.id} className="p-2 bg-white/5 rounded">
+                                        {item.name} (x{item.quantity})
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-gray-500">Empty</p>
+                            )}
+                        </div>
+                    </div>
                 )}
-            </div>
-        </div>
-    )}
-</aside>
+            </aside>
         </div>
     )
 }

@@ -1,99 +1,174 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
-
-type InventoryItem = {
-  sku: string
-  name: string
-  category: string
-  categoryClassName: string
-  stock: number
-  total: number
-  status: 'In Stock' | 'Low Stock' | 'Critical'
-  statusClassName: string
-  progressClassName: string
-  location: string
-  updatedAt: string
-  striped?: boolean
-}
+import type { InventoryItem } from '../../types/Warehouse'
+import { Pagination } from '../../components/ui/Pagination'
+import { InventoryModal } from '../../components/ui/modal/InventoryModal'
+import { AlertModal } from '../../components/ui/modal/AlertModal'
 
 const inventoryItems: InventoryItem[] = [
   {
     sku: '#SKU-9021',
     name: 'Quantum Chipset X1',
     category: 'Electronics',
-    categoryClassName: 'bg-blue-400/10 text-blue-400 ring-blue-400/20',
     stock: 75,
     total: 100,
-    status: 'In Stock',
-    statusClassName: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20',
-    progressClassName: 'bg-gradient-to-r from-cyan-400 to-blue-500',
     location: 'Zone A-12',
-    updatedAt: '10m ago',
-    striped: true,
+    importDate: '2024-05-15',
+    warehouse: 'In Stock',
   },
   {
     sku: '#SKU-8822',
     name: 'Neural Interface Unit',
     category: 'Bio-Tech',
-    categoryClassName: 'bg-purple-400/10 text-purple-400 ring-purple-400/20',
     stock: 12,
     total: 100,
-    status: 'Low Stock',
-    statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
-    progressClassName: 'bg-gradient-to-r from-orange-400 to-red-500',
     location: 'Zone B-04',
-    updatedAt: '25m ago',
+    importDate: '2026-03-20',
+    warehouse: 'In Stock',
   },
   {
     sku: '#SKU-7731',
     name: 'Optic Fiber Cabling',
     category: 'Infrastructure',
-    categoryClassName: 'bg-slate-400/10 text-slate-300 ring-slate-400/20',
     stock: 100,
     total: 100,
-    status: 'In Stock',
-    statusClassName: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20',
-    progressClassName: 'bg-gradient-to-r from-cyan-400 to-blue-500',
     location: 'Zone C-01',
-    updatedAt: '1h ago',
-    striped: true,
+    importDate: '2024-06-01',
+    warehouse: 'In Stock',
   },
   {
     sku: '#SKU-6619',
     name: 'Fusion Battery Cell',
     category: 'Energy',
-    categoryClassName: 'bg-amber-400/10 text-amber-400 ring-amber-400/20',
     stock: 5,
     total: 100,
-    status: 'Critical',
-    statusClassName: 'bg-red-400/10 text-red-400 ring-red-400/20',
-    progressClassName: 'bg-red-500',
     location: 'Zone A-09',
-    updatedAt: '2h ago',
+    importDate: '2024-03-10',
+    warehouse: 'In Stock',
   },
   {
     sku: '#SKU-5501',
     name: 'Holographic Emitter',
     category: 'Displays',
-    categoryClassName: 'bg-indigo-400/10 text-indigo-400 ring-indigo-400/20',
     stock: 45,
     total: 100,
-    status: 'In Stock',
-    statusClassName: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20',
-    progressClassName: 'bg-gradient-to-r from-cyan-400 to-blue-500',
     location: 'Zone D-22',
-    updatedAt: '4h ago',
-    striped: true,
+    importDate: '2024-05-01',
+    warehouse: 'In Stock',
   },
 ]
 
-function getStatusDotClass(status: InventoryItem['status']) {
-  if (status === 'Critical') return 'bg-red-400 animate-pulse'
-  if (status === 'Low Stock') return 'bg-orange-400'
-  return 'bg-emerald-400'
-}
-
 export const Inventory: React.FC = () => {
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'old'>('all')
+
+  const [inventory, setInventory] = useState<InventoryItem[]>(inventoryItems)
+
+  const [modal, setModal] = useState<{
+    open: boolean
+    mode: 'create' | 'edit' | 'view'
+    data?: InventoryItem
+  }>({ open: false, mode: 'view' })
+
+  const [alert, setAlert] = useState<{
+    open: boolean
+    type: 'success' | 'confirm'
+    message: string
+    onConfirm?: () => void
+  }>({ open: false, type: 'success', message: '' })
+
+  const handleSubmit = (form: any) => {
+    if (modal.mode === 'create') {
+      const newItem: InventoryItem = {
+        sku: `#SKU-${Math.floor(Math.random() * 1000)}`,
+        importDate: new Date().toISOString().slice(0, 10),
+        warehouse: 'Warehouse A',
+        ...form,
+      }
+
+      setInventory([newItem, ...inventory])
+
+      setAlert({ open: true, type: 'success', message: 'Tạo thành công' })
+    }
+
+    if (modal.mode === 'edit' && modal.data) {
+      const updated = inventory.map((item) =>
+        item.sku === modal.data!.sku ? { ...item, ...form } : item
+      )
+
+      setInventory(updated)
+
+      setAlert({ open: true, type: 'success', message: 'Cập nhật thành công' })
+    }
+  }
+
+  const handleDelete = (sku: string) => {
+    setInventory(inventory.filter((item) => item.sku !== sku))
+    setAlert({ open: true, type: 'success', message: 'Xóa thành công' })
+  }
+
+  // ===== STATUS =====
+  const getInventoryStatus = (item: InventoryItem) => {
+    const now = new Date()
+    const importDate = new Date(item.importDate)
+
+    const diffMonths =
+      (now.getFullYear() - importDate.getFullYear()) * 12 +
+      (now.getMonth() - importDate.getMonth())
+
+    if (diffMonths >= 3) {
+      return {
+        label: 'Tồn lâu',
+        className: 'bg-yellow-400/10 text-yellow-400 ring-yellow-400/20',
+        dot: 'bg-yellow-400',
+      }
+    }
+
+    return {
+      label: 'Mới',
+      className: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20',
+      dot: 'bg-emerald-400',
+    }
+  }
+
+  // ===== FILTER + SEARCH =====
+  const filteredInventory = useMemo(() => {
+    return inventory.filter((item) => {
+      const matchSearch =
+        item.name.toLowerCase().includes(search.toLowerCase()) ||
+        item.location.toLowerCase().includes(search.toLowerCase())
+
+      const status = getInventoryStatus(item)
+
+      const matchStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'new' && status.label === 'Mới') ||
+        (statusFilter === 'old' && status.label === 'Tồn lâu')
+
+      return matchSearch && matchStatus
+    })
+  }, [search, statusFilter, inventory])
+
+  // ===== PAGINATION =====
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 4
+
+  const totalItems = filteredInventory.length
+  const totalPages = Math.ceil(totalItems / pageSize)
+
+  const paginatedInventory = filteredInventory.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  )
+
+  const start = (currentPage - 1) * pageSize + 1
+  const end = Math.min(currentPage * pageSize, totalItems)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, statusFilter])
+
+
   return (
     <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100 pb-15">
 
@@ -102,37 +177,18 @@ export const Inventory: React.FC = () => {
         <div className="relative z-10 flex-1 p-8">
           <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
               <StatsCard
-                title="Tổng hàng trong kho"
+                title="Tổng hàng hóa"
                 value={14205}
-                unit="units"
                 icon="inventory_2"
-                accentColor="primary"
-                trend={{ direction: 'up', percentage: 2.5, text: 'vs last week' }}
+                accentColor="emerald"
               />
               <StatsCard
-                title="Đơn hàng đang vận chuyển"
-                value={42}
-                unit="active"
-                icon="local_shipping"
-                accentColor="primary"
-                trend={{ direction: 'up', percentage: 0, text: '12 arriving today' }}
-              />
-              <StatsCard
-                title="Điểm hiệu suất AI"
-                value="98.4%"
-                icon="memory"
-                accentColor="primary"
-                trend={{ direction: 'up', percentage: 0.8, text: 'optimization' }}
-              />
-              <StatsCard
-                title="Cảnh báo đang chờ"
+                title="Cảnh báo tồn kho"
                 value={3}
-                unit="critical"
                 icon="warning"
-                accentColor="orange"
-                trend={{ direction: 'down', percentage: 0, text: 'Action required' }}
+                accentColor="primary"
               />
             </div>
 
@@ -140,15 +196,35 @@ export const Inventory: React.FC = () => {
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 bg-white/[0.02] px-6 py-5">
                 <h3 className="text-lg font-bold tracking-wide text-white">HÀNG TRONG KHO HIỆN TẠI</h3>
                 <div className="flex gap-3">
-                  <button className="flex items-center gap-2 rounded-lg border border-white/10 bg-[#1a2333] px-4 py-2 text-sm text-slate-300 transition-all hover:border-white/20 hover:text-white">
-                    <span className="material-symbols-outlined text-lg">filter_list</span>
-                    <span>Lọc</span>
-                  </button>
-                  <button className="flex items-center gap-2 rounded-lg border border-white/10 bg-[#1a2333] px-4 py-2 text-sm text-slate-300 transition-all hover:border-white/20 hover:text-white">
-                    <span className="material-symbols-outlined text-lg">download</span>
-                    <span>Xuất báo cáo</span>
-                  </button>
-                  <button className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold tracking-wide text-black shadow-lg shadow-cyan-500/20 transition-all hover:shadow-cyan-500/40">
+                  {/* Search */}
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      search
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Tìm theo tên,..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="pl-10 pr-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                    className="bg-[#1a2333] border border-white/10 text-sm text-white px-3 py-2 rounded-lg"
+                  >
+                    <option value="all">Tất cả</option>
+                    <option value="new">Mới</option>
+                    <option value="old">Tồn lâu</option>
+                  </select>
+
+                  <button
+                    onClick={() => {
+                      setModal({ open: true, mode: 'create' })
+                    }}
+                    className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold tracking-wide text-black shadow-lg shadow-cyan-500/20 transition-all hover:shadow-cyan-500/40">
                     <span className="material-symbols-outlined text-lg">add</span>
                     <span>THÊM MẶT HÀNG</span>
                   </button>
@@ -159,55 +235,101 @@ export const Inventory: React.FC = () => {
                 <table className="w-full border-collapse text-left">
                   <thead>
                     <tr className="border-b border-white/5 bg-[#131b29] text-xs uppercase tracking-wider text-slate-400">
-                      <th className="px-6 py-4 font-medium">ID / SKU</th>
+                      <th className="px-6 py-4 font-medium">SKU</th>
                       <th className="px-6 py-4 font-medium">Tên sản phẩm</th>
                       <th className="px-6 py-4 font-medium">Danh mục</th>
-                      <th className="px-6 py-4 font-medium">Mức tồn kho</th>
+                      <th className="px-6 py-4 font-medium">Nhà kho</th>
+                      <th className="px-6 py-4 font-medium">Ngày nhập kho</th>
                       <th className="px-6 py-4 font-medium">Trạng thái</th>
                       <th className="px-6 py-4 font-medium">Vị trí</th>
-                      <th className="px-6 py-4 font-medium">Lần cập nhật cuối cùng</th>
                       <th className="px-6 py-4 text-right font-medium">Hoạt động</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5 text-sm">
-                    {inventoryItems.map((item) => {
-                      const percentage = `${(item.stock / item.total) * 100}%`
-
+                    {paginatedInventory.map((item) => {
+                      const status = getInventoryStatus(item)
                       return (
                         <tr
                           key={item.sku}
-                          className={`group table-row-hover transition-colors ${item.striped ? 'bg-white/[0.02]' : 'bg-transparent'}`}
+                          className={`group transition-colors ${item.sku ? 'bg-white/[0.02]' : 'bg-transparent'
+                            }`}
                         >
-                          <td className="px-6 py-4 font-mono text-cyan-400">{item.sku}</td>
-                          <td className="px-6 py-4 font-medium text-white">{item.name}</td>
+                          {/* SKU */}
+                          <td className="px-6 py-4 font-mono text-cyan-400">
+                            {item.sku}
+                          </td>
+
+                          {/* NAME */}
+                          <td className="px-6 py-4 font-medium text-white">
+                            {item.name}
+                          </td>
+
+                          {/* CATEGORY */}
                           <td className="px-6 py-4">
-                            <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${item.categoryClassName}`}>
+                            <span
+                              className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${item.category}`}
+                            >
                               {item.category}
                             </span>
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="h-1.5 w-32 overflow-hidden rounded-full bg-slate-700/50">
-                              <div className={`h-1.5 rounded-full ${item.progressClassName}`} style={{ width: percentage }} />
-                            </div>
-                            <div className={`mt-1 font-mono text-xs ${item.status === 'Critical' ? 'font-bold text-red-400' : 'text-slate-400'}`}>
-                              {item.stock} / {item.total}
-                            </div>
+
+                          {/* NHÀ KHO */}
+                          <td className="px-6 py-4 text-slate-300">
+                            {item.warehouse || 'Warehouse A'} {/* hoặc item.warehouse nếu có */}
                           </td>
+
+                          {/* NGÀY NHẬP KHO */}
+                          <td className="px-6 py-4 text-slate-400 font-mono text-xs">
+                            {item.importDate || '2024-06-01'} {/* hoặc item.importDate nếu có */}
+                          </td>
+
+                          {/* TRẠNG THÁI */}
                           <td className="px-6 py-4">
-                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${item.statusClassName}`}>
-                              <span className={`size-1.5 rounded-full ${getStatusDotClass(item.status)}`} />
-                              {item.status}
+                            <span
+                              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${status.className}`}
+                            >
+                              <span className={`size-1.5 rounded-full ${status.dot}`} />
+                              {status.label}
                             </span>
                           </td>
-                          <td className="px-6 py-4 font-mono text-slate-400">{item.location}</td>
-                          <td className="px-6 py-4 font-mono text-xs text-slate-500">{item.updatedAt}</td>
+
+                          {/* VỊ TRÍ */}
+                          <td className="px-6 py-4 font-mono text-slate-400">
+                            {item.location}
+                          </td>
+
+                          {/* ACTION */}
                           <td className="px-6 py-4 text-right">
-                            <div className="flex items-center justify-end gap-2 opacity-60 transition-opacity group-hover:opacity-100">
-                              <button className="rounded p-1.5 text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
-                                <span className="material-symbols-outlined text-lg">edit</span>
+                            <div className="flex items-center justify-end gap-3 opacity-60 transition-opacity group-hover:opacity-100">
+                              <button
+                                onClick={() => {
+                                  setModal({ open: true, mode: 'edit', data: item })
+                                }} className="rounded p-1.5 text-slate-300 hover:bg-white/10 hover:text-white">
+                                <span className="material-symbols-outlined text-lg">
+                                  edit
+                                </span>
                               </button>
-                              <button className="rounded p-1.5 text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
-                                <span className="material-symbols-outlined text-lg">qr_code</span>
+                              <button
+                                onClick={() => {
+                                  setAlert({
+                                    open: true,
+                                    message: 'Bạn có chắc chắn muốn xóa mặt hàng này?',
+                                    type: 'confirm',
+                                    onConfirm: () => {
+                                      handleDelete(item.sku)
+                                    }
+                                  })
+                                }}
+                                className="rounded p-1.5 text-slate-300 hover:bg-white/10 hover:text-white"
+                              >
+                                <span className="material-symbols-outlined text-lg">
+                                  delete
+                                </span>
+                              </button>
+                              <button className="rounded p-1.5 text-slate-300 hover:bg-white/10 hover:text-white">
+                                <span className="material-symbols-outlined text-lg">
+                                  qr_code
+                                </span>
                               </button>
                             </div>
                           </td>
@@ -218,33 +340,40 @@ export const Inventory: React.FC = () => {
                 </table>
               </div>
 
+              {/* Pagination */}
               <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-4">
                 <p className="font-mono text-xs text-slate-400">
-                  Showing <span className="text-white">1-5</span> of <span className="text-white">458</span> items
+                  Showing <span className="text-white">{start}-{end}</span> of{' '}
+                  <span className="text-white">{totalItems}</span> items
                 </p>
-                <div className="flex gap-2">
-                  <button className="rounded-md p-1.5 text-slate-400 hover:bg-white/10 hover:text-white disabled:opacity-50">
-                    <span className="material-symbols-outlined text-sm">chevron_left</span>
-                  </button>
-                  <button className="rounded-md border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs font-bold text-cyan-400">
-                    1
-                  </button>
-                  <button className="rounded-md px-3 py-1 text-xs font-medium text-slate-400 hover:bg-white/5">
-                    2
-                  </button>
-                  <button className="rounded-md px-3 py-1 text-xs font-medium text-slate-400 hover:bg-white/5">
-                    3
-                  </button>
-                  <span className="px-2 py-1 text-xs text-slate-600">...</span>
-                  <button className="rounded-md p-1.5 text-slate-400 hover:bg-white/10 hover:text-white">
-                    <span className="material-symbols-outlined text-sm">chevron_right</span>
-                  </button>
-                </div>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
               </div>
             </section>
           </div>
         </div>
       </main>
+      {modal.open && (
+        <InventoryModal
+          mode={modal.mode}
+          data={modal.data}
+          onClose={() => setModal({ ...modal, open: false })}
+          onSubmit={handleSubmit}
+        />
+      )}
+      {/* Alert */}
+      {alert.open && (
+        <AlertModal
+          title="Thông báo"
+          message={alert.message}
+          type={alert.type}
+          onConfirm={alert.onConfirm}
+          onClose={() => setAlert({ ...alert, open: false })}
+        />
+      )}
     </div>
   )
 }

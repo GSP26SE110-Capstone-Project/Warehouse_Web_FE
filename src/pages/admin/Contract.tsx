@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
 import { ContractModal } from '../../components/ui/modal/ContractModal'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import type { Contract } from '../../types/Contract'
+import { Pagination } from '../../components/ui/Pagination'
 
 /* ================= DATA ================= */
 
@@ -20,6 +21,39 @@ const initialContracts: Contract[] = [
   },
   {
     id: '#CTR-002',
+    customerName: 'Công ty XYZ',
+    warehouse: 'Kho B - Zone 3',
+    startDate: '2024-01-01',
+    endDate: '2024-12-31',
+    status: 'Expired',
+    statusClassName: 'bg-gray-400/10 text-gray-400 ring-gray-400/20',
+    price: 30000000,
+    createdAt: '1d ago',
+  },
+  {
+    id: '#CTR-003',
+    customerName: 'Công ty XYZ',
+    warehouse: 'Kho B - Zone 3',
+    startDate: '2024-01-01',
+    endDate: '2024-12-31',
+    status: 'Expired',
+    statusClassName: 'bg-gray-400/10 text-gray-400 ring-gray-400/20',
+    price: 30000000,
+    createdAt: '1d ago',
+  },
+  {
+    id: '#CTR-004',
+    customerName: 'Công ty XYZ',
+    warehouse: 'Kho B - Zone 3',
+    startDate: '2024-01-01',
+    endDate: '2024-12-31',
+    status: 'Expired',
+    statusClassName: 'bg-gray-400/10 text-gray-400 ring-gray-400/20',
+    price: 30000000,
+    createdAt: '1d ago',
+  },
+  {
+    id: '#CTR-005',
     customerName: 'Công ty XYZ',
     warehouse: 'Kho B - Zone 3',
     startDate: '2024-01-01',
@@ -95,21 +129,49 @@ export const ContractManagement: React.FC = () => {
     })
   }
   const [search, setSearch] = useState('')
-    const [selectedContract, setSelectedContract] = useState<Contract | null>(null)
-  
-  
-    const filteredContracts = useMemo(() => {
-      return contracts.filter(r =>
+  const [statusFilter, setStatusFilter] = useState('All')
+
+
+   /* ================= FILTER ================= */
+
+  const filteredContracts = useMemo(() => {
+    return contracts.filter((r) => {
+      const matchSearch =
         r.customerName.toLowerCase().includes(search.toLowerCase()) ||
         r.warehouse.toLowerCase().includes(search.toLowerCase()) ||
         r.id.toLowerCase().includes(search.toLowerCase())
-      )
-    }, [search])
+
+      const matchStatus =
+        statusFilter === 'All' || r.status === statusFilter
+
+      return matchSearch && matchStatus
+    })
+  }, [contracts, search, statusFilter])
+
+  /* ================= PAGINATION ================= */
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 4
+
+  const totalItems = filteredContracts.length
+  const totalPages = Math.ceil(totalItems / pageSize)
+
+  const paginatedContracts = filteredContracts.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  )
+
+  const start = (currentPage - 1) * pageSize + 1
+  const end = Math.min(currentPage * pageSize, totalItems)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, statusFilter])
 
   /* ================= UI ================= */
 
   return (
-    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100 pb-15">
+    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100 ">
 
       <main className="relative flex flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072')] bg-cover bg-center">
         <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" />
@@ -119,9 +181,9 @@ export const ContractManagement: React.FC = () => {
 
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <StatsCard title="Tổng hợp đồng" value={contracts.length} icon="description" accentColor="primary" />
-              <StatsCard title="Đang hoạt động" value={contracts.filter(c => c.status === 'Active').length} icon="check_circle" />
-              <StatsCard title="Hết hạn" value={contracts.filter(c => c.status === 'Expired').length} icon="cancel" accentColor="orange" />
+              <StatsCard title="Tổng hợp đồng" value={contracts.length} icon="description" accentColor="emerald" />
+              <StatsCard title="Đang hoạt động" value={contracts.filter(c => c.status === 'Active').length} icon="check_circle" accentColor='primary' />
+              <StatsCard title="Hết hạn" value={contracts.filter(c => c.status === 'Expired').length} icon="cancel" accentColor="purple" />
               <StatsCard title="Chờ xử lý" value={contracts.filter(c => c.status === 'Pending').length} icon="hourglass_top" accentColor="orange" />
             </div>
 
@@ -131,25 +193,32 @@ export const ContractManagement: React.FC = () => {
               {/* Header */}
               <div className="flex justify-between items-center px-6 py-5 border-b border-white/5 bg-white/[0.02]">
                 <h3 className="text-lg font-bold text-white">HỢP ĐỒNG</h3>
+                <div className="flex gap-3">
+                {/* Search */}
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                    search
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Tìm báo cáo..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-10 pr-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
 
-                 {/* Search */}
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                      search
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="Tìm báo cáo..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="pl-10 pr-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
-                    />
-                  </div>
-
-                  <button className="flex items-center gap-2 px-4 py-2 bg-[#1a2333] border border-white/10 rounded-lg text-sm text-slate-300 hover:text-white">
-                    <span className="material-symbols-outlined">filter_list</span>
-                    Lọc
-                  </button>
+                 {/* Filter */}
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="px-3 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm"
+                  >
+                    <option value="All">Tất cả</option>
+                    <option value="Active">Đang hoạt động</option>
+                    <option value="Expired">Hết hạn</option>
+                    <option value="Pending">Chờ xử lý</option>
+                  </select>
 
                 <button
                   onClick={() => setModal({ open: true, mode: 'create' })}
@@ -159,7 +228,7 @@ export const ContractManagement: React.FC = () => {
                   Tạo hợp đồng
                 </button>
               </div>
-
+</div>
               {/* Table */}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
@@ -176,7 +245,7 @@ export const ContractManagement: React.FC = () => {
                   </thead>
 
                   <tbody className="divide-y divide-white/5">
-                    {contracts.map((c) => (
+                    {paginatedContracts.map((c) => (
                       <tr key={c.id}>
                         <td className="px-6 py-4 text-cyan-400">{c.id}</td>
                         <td className="px-6 py-4">{c.customerName}</td>
@@ -233,6 +302,18 @@ export const ContractManagement: React.FC = () => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-4">
+                <p className="font-mono text-xs text-slate-400">
+                  Showing <span className="text-white">{start}-{end}</span> of{' '}
+                  <span className="text-white">{totalItems}</span> items
+                </p>
+
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
               </div>
 
             </section>

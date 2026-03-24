@@ -1,20 +1,12 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
+import { AlertModal } from '../../components/ui/modal/AlertModal'
+import { AccountModal } from '../../components/ui/modal/AccountModal'
+import type { Account } from '../../types/Account'
+import { Pagination } from '../../components/ui/Pagination'
 
-type Account = {
-  id: string
-  name: string
-  email: string
-  role: 'Admin' | 'Manager' | 'Staff'
-  roleClassName: string
-  status: 'Active' | 'Inactive' | 'Suspended'
-  statusClassName: string
-  lastLogin: string
-  createdAt: string
-  striped?: boolean
-}
-
-const accounts: Account[] = [
+/* ================= DATA ================= */
+const initialAccounts: Account[] = [
   {
     id: '#ACC-001',
     name: 'Nguyễn Văn A',
@@ -61,27 +53,135 @@ const accounts: Account[] = [
     lastLogin: '1 week ago',
     createdAt: '2025-01-20',
   },
+  {
+    id: '#ACC-005',
+    name: 'Phạm Văn D',
+    email: 'user@nexspace.com',
+    role: 'Staff',
+    roleClassName: 'bg-slate-400/10 text-slate-300 ring-slate-400/20',
+    status: 'Suspended',
+    statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
+    lastLogin: '1 week ago',
+    createdAt: '2025-01-20',
+  },
+  {
+    id: '#ACC-006',
+    name: 'Phạm Văn D',
+    email: 'user@nexspace.com',
+    role: 'Staff',
+    roleClassName: 'bg-slate-400/10 text-slate-300 ring-slate-400/20',
+    status: 'Suspended',
+    statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
+    lastLogin: '1 week ago',
+    createdAt: '2025-01-20',
+  },
 ]
+/* ================= DATA ================= */
 
-function getStatusDot(status: Account['status']) {
-  if (status === 'Suspended') return 'bg-orange-400'
-  if (status === 'Inactive') return 'bg-gray-400'
-  return 'bg-emerald-400'
-}
 
 export const AccountManagement: React.FC = () => {
   const [search, setSearch] = useState('')
+  const [accounts, setAccounts] = useState<Account[]>(initialAccounts)
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'manager' | 'staff'>('all')
+
+  const [modal, setModal] = useState<{
+    open: boolean
+    mode: 'view' | 'edit' | 'create'
+    data?: Account
+  }>({ open: false, mode: 'view' })
+
+  const [alert, setAlert] = useState<{
+    open: boolean
+    type: 'success' | 'confirm'
+    message: string
+    onConfirm?: () => void
+  }>({ open: false, type: 'success', message: '' })
+
+  const handleSubmit = (form: any) => {
+    if (modal.mode === 'create') {
+      const newAccount: Account = {
+        id: `#ACC-${Math.floor(Math.random() * 1000)}`,
+        createdAt: 'now',
+        status: 'Pending',
+        statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
+        ...form,
+      }
+
+      setAccounts([newAccount, ...accounts])
+
+      setAlert({
+        open: true,
+        type: 'success',
+        message: 'Tạo tài khoản thành công',
+      })
+    }
+
+    if (modal.mode === 'edit' && modal.data) {
+      const updated = accounts.map((c) =>
+        c.id === modal.data!.id ? { ...c, ...form } : c
+      )
+
+      setAccounts(updated)
+
+      setAlert({
+        open: true,
+        type: 'success',
+        message: 'Cập nhật thành công',
+      })
+    }
+  }
+
+  const handleDelete = (id: string) => {
+    setAccounts(accounts.filter((c) => c.id !== id))
+
+    setAlert({
+      open: true,
+      type: 'success',
+      message: 'Xóa thành công',
+    })
+  }
 
   const filteredAccounts = useMemo(() => {
-    return accounts.filter(acc =>
-      acc.name.toLowerCase().includes(search.toLowerCase()) ||
-      acc.email.toLowerCase().includes(search.toLowerCase()) ||
-      acc.id.toLowerCase().includes(search.toLowerCase())
-    )
-  }, [search])
+    return accounts.filter(acc => {
+      const matchSearch =
+        acc.name.toLowerCase().includes(search.toLowerCase()) ||
+        acc.email.toLowerCase().includes(search.toLowerCase()) ||
+        acc.id.toLowerCase().includes(search.toLowerCase())
 
+      const matchRole =
+        roleFilter === 'all'
+          ? true
+          : roleFilter === 'admin'
+            ? acc.role === 'Admin'
+            : roleFilter === 'manager'
+              ? acc.role === 'Manager'
+              : acc.role === 'Staff'
+
+      return matchSearch && matchRole
+    })
+  }, [search, roleFilter, accounts])
+
+  /* ================= PAGINATION ================= */
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 4
+
+  const totalItems = filteredAccounts.length
+  const totalPages = Math.ceil(totalItems / pageSize)
+
+  const paginatedAccounts = filteredAccounts.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  )
+
+  const start = (currentPage - 1) * pageSize + 1
+  const end = Math.min(currentPage * pageSize, totalItems)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, roleFilter])
   return (
-    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100 pb-15">
+    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
 
       <main className="relative flex h-full flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop')] bg-cover bg-center">
         <div className="absolute inset-0 z-0 bg-[#0b101a]/90 backdrop-blur-sm" />
@@ -90,11 +190,10 @@ export const AccountManagement: React.FC = () => {
           <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
 
             {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <StatsCard title="Tổng tài khoản" value={124} icon="group" accentColor="primary" trend={{ direction: 'up', percentage: 5.2, text: 'this month' }} />
-              <StatsCard title="Đang hoạt động" value={98} icon="verified_user" accentColor="primary" trend={{ direction: 'up', percentage: 2.1, text: 'active users' }} />
-              <StatsCard title="Bị khóa" value={6} icon="block" accentColor="orange" trend={{ direction: 'down', percentage: 0, text: 'need review' }} />
-              <StatsCard title="Admin" value={4} icon="admin_panel_settings" accentColor="primary" trend={{ direction: 'up', percentage: 0, text: 'roles' }} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <StatsCard title="Tổng tài khoản" value={124} icon="group" accentColor="emerald" />
+              <StatsCard title="Đang hoạt động" value={98} icon="verified_user" accentColor="primary" />
+              <StatsCard title="Bị khóa" value={6} icon="block" accentColor="orange" />
             </div>
 
             {/* Table */}
@@ -122,12 +221,20 @@ export const AccountManagement: React.FC = () => {
                     />
                   </div>
 
-                  <button className="flex items-center gap-2 rounded-lg border border-white/10 bg-[#1a2333] px-4 py-2 text-sm text-slate-300 hover:text-white">
-                    <span className="material-symbols-outlined text-lg">filter_list</span>
-                    Lọc
-                  </button>
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value as any)}
+                    className="px-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
+                  >
+                    <option value="all">Tất cả vai trò</option>
+                    <option value="admin">Admin</option>
+                    <option value="manager">Manager</option>
+                    <option value="staff">Staff</option>
+                  </select>
+                  <button
+                    onClick={() => setModal({ open: true, mode: 'create' })}
 
-                  <button className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold text-black">
+                    className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold text-black">
                     <span className="material-symbols-outlined text-lg">person_add</span>
                     Thêm tài khoản
                   </button>
@@ -149,8 +256,8 @@ export const AccountManagement: React.FC = () => {
                   </thead>
 
                   <tbody className="divide-y divide-white/5">
-                    {filteredAccounts.length > 0 ? (
-                      filteredAccounts.map((acc) => (
+                    {paginatedAccounts.length > 0 ? (
+                      paginatedAccounts.map((acc) => (
                         <tr key={acc.id} >
                           <td className="px-6 py-4 text-cyan-400 font-mono">{acc.id}</td>
                           <td className="px-6 py-4 text-white">{acc.name}</td>
@@ -170,10 +277,21 @@ export const AccountManagement: React.FC = () => {
 
                           <td className="px-6 py-4 text-right">
                             <div className="flex justify-end gap-2 opacity-60 group-hover:opacity-100">
-                              <button className="p-1.5 hover:bg-white/10 rounded">
+                              <button
+                                onClick={() => setModal({ open: true, mode: 'edit', data: acc })}
+                                className="p-1.5 hover:bg-white/10 rounded">
                                 <span className="material-symbols-outlined text-lg">edit</span>
                               </button>
-                              <button className="p-1.5 hover:bg-white/10 rounded">
+                              <button
+                                onClick={() =>
+                                  setAlert({
+                                    open: true,
+                                    type: 'confirm',
+                                    message: 'Bạn có chắc muốn xóa?',
+                                    onConfirm: () => handleDelete(acc.id),
+                                  })
+                                }
+                                className="p-1.5 hover:bg-white/10 rounded">
                                 <span className="material-symbols-outlined text-lg">delete</span>
                               </button>
                             </div>
@@ -191,17 +309,44 @@ export const AccountManagement: React.FC = () => {
                 </table>
               </div>
 
-              {/* Footer */}
-              <div className="flex justify-between items-center border-t border-white/5 px-6 py-4 text-xs text-slate-400">
-                <span>
-                  Showing {filteredAccounts.length} of {accounts.length} accounts
-                </span>
+              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-4">
+                <p className="font-mono text-xs text-slate-400">
+                  Showing <span className="text-white">{start}-{end}</span> of{' '}
+                  <span className="text-white">{totalItems}</span> items
+                </p>
+
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
               </div>
 
             </section>
           </div>
         </div>
       </main>
+      {/* Modal */}
+      {modal.open && (
+        <AccountModal
+          mode={modal.mode}
+          data={modal.data}
+          onClose={() => setModal({ ...modal, open: false })}
+          onSubmit={handleSubmit}
+        />
+
+      )}
+
+      {/* Alert */}
+      {alert.open && (
+        <AlertModal
+          title="Thông báo"
+          message={alert.message}
+          type={alert.type}
+          onConfirm={alert.onConfirm}
+          onClose={() => setAlert({ ...alert, open: false })}
+        />
+      )}
     </div>
   )
 }

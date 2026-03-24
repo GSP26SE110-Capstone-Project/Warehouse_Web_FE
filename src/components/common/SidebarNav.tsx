@@ -14,7 +14,7 @@ const navItems: NavItem[] = [
   { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/admin' },
   { label: 'Quản lý Tài khoản', icon: 'people', key: 'accounts', href: '/admin/accounts' },
   { label: 'Quản lý Kho', icon: 'warehouse', key: 'warehouse', href: '/admin/warehouse' },
-  { label: 'Quản lý Kho hàng', icon: 'inventory_2', key: 'inventory', href: '/admin/inventory' },
+  { label: 'Quản lý Hàng', icon: 'inventory_2', key: 'inventory', href: '/admin/inventory' },
   { label: 'Quản lý Hợp đồng', icon: 'description', key: 'contracts', href: '/admin/contract' },
   { label: 'Vận chuyển', icon: 'local_shipping', key: 'transportation', href: '/admin/transportation' },
   { label: 'Xuất nhập Kho', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
