@@ -16,6 +16,9 @@ import { StockMovementManagement } from './pages/admin/StockMovement'
 import { Reports } from './pages/admin/Report'
 import { AdminSettings } from './pages/admin/Setting'
 import { Profile } from './pages/profile/Profile'
+import { RequestManagement } from './pages/admin/RequestManagement'
+import { StaffDashboard } from './pages/staff/Dashboard'
+import { StaffLayout } from './components/common/layout/StaffLayout'
 
 export const Router: React.FC = () => {
     return (
@@ -39,7 +42,16 @@ export const Router: React.FC = () => {
                         <Route path='/admin/reports' element={<Reports />} />
                         <Route path='/admin/settings' element={<AdminSettings />} />
                         <Route path='/profile' element={<Profile />} />
+                        <Route path='/admin/requests' element={<RequestManagement />} />
                     </Route>
+
+                    {/* Staff Routes with Layout */}
+                    <Route element={<StaffLayout />}>
+                        <Route path='/staff' element={<StaffDashboard />} />
+                        <Route path='/staff/dashboard' element={<StaffDashboard />} />
+                    </Route>
+
+
                 </Routes>
             </NavigationProvider>
         </BrowserRouter>

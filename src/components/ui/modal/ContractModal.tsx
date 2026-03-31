@@ -6,17 +6,25 @@ type Props = {
   mode: Mode
   data?: any
   onClose: () => void
-  onSubmit?: (data: any) => void
+  onSubmit?: (data: any) => Promise<void>
 }
 
-export const ContractModal: React.FC<Props> = ({ mode, data, onClose, onSubmit }) => {
+export const ContractModal: React.FC<Props> = ({
+  mode,
+  data,
+  onClose,
+  onSubmit
+}) => {
   const isView = mode === 'view'
+
+  const [loading, setLoading] = useState(false)
 
   const [form, setForm] = useState({
     contractNumber: `WMS-${new Date().getFullYear()}-001`,
     providerName: 'CÔNG TY CP LOGISTICS THÔNG MINH',
     providerAddress: 'Lô 45, Khu Công Nghiệp Cao, TP. Thủ Đức',
     customerName: '',
+    customerEmail: '',
     customerTaxCode: '',
     customerAddress: '',
     warehouse: '',
@@ -28,10 +36,21 @@ export const ContractModal: React.FC<Props> = ({ mode, data, onClose, onSubmit }
     notes: '',
   })
 
+  /* ===== MAP DATA TỪ REQUEST ===== */
   useEffect(() => {
-    if (data) setForm(data)
+    if (data) {
+      setForm(prev => ({
+        ...prev,
+        customerName: data.customer || '',
+        customerEmail: data.customerEmail || '',
+        warehouse: data.warehouse || '',
+        startDate: data.startDate || '',
+        endDate: data.endDate || '',
+      }))
+    }
   }, [data])
 
+  /* ===== AUTO TÍNH TIỀN ===== */
   useEffect(() => {
     setForm(prev => ({
       ...prev,
@@ -39,9 +58,16 @@ export const ContractModal: React.FC<Props> = ({ mode, data, onClose, onSubmit }
     }))
   }, [form.palletQuantity, form.pricePerPallet])
 
-  const handleSubmit = () => {
-    onSubmit?.(form)
-    onClose()
+  const handleSubmit = async () => {
+    if (!onSubmit) return
+
+    setLoading(true)
+    try {
+      await onSubmit(form)
+      onClose()
+    } finally {
+      setLoading(false)
+    }
   }
 
   const labelStyle =
@@ -52,7 +78,7 @@ export const ContractModal: React.FC<Props> = ({ mode, data, onClose, onSubmit }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      
+
       {/* Overlay */}
       <div
         className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm"
@@ -95,7 +121,7 @@ export const ContractModal: React.FC<Props> = ({ mode, data, onClose, onSubmit }
 
           {/* BÊN A & B */}
           <div className="grid grid-cols-2 gap-6">
-            
+
             {/* Bên A */}
             <div className="p-4 rounded-lg bg-white/[0.02] border border-white/5">
               <h3 className="text-sm font-semibold text-cyan-400 mb-3">
@@ -115,12 +141,18 @@ export const ContractModal: React.FC<Props> = ({ mode, data, onClose, onSubmit }
               <div>
                 <label className={labelStyle}>Tên khách hàng</label>
                 <input
-                  disabled={isView}
+                  disabled
                   className={inputStyle}
                   value={form.customerName}
-                  onChange={(e) =>
-                    setForm({ ...form, customerName: e.target.value })
-                  }
+                />
+              </div>
+
+              <div>
+                <label className={labelStyle}>Email</label>
+                <input
+                  disabled
+                  className={inputStyle}
+                  value={form.customerEmail}
                 />
               </div>
 
@@ -151,14 +183,7 @@ export const ContractModal: React.FC<Props> = ({ mode, data, onClose, onSubmit }
           <div className="grid grid-cols-4 gap-4">
             <div className="col-span-2">
               <label className={labelStyle}>Kho</label>
-              <input
-                disabled={isView}
-                className={inputStyle}
-                value={form.warehouse}
-                onChange={(e) =>
-                  setForm({ ...form, warehouse: e.target.value })
-                }
-              />
+              <input disabled className={inputStyle} value={form.warehouse} />
             </div>
 
             <input
@@ -210,7 +235,6 @@ export const ContractModal: React.FC<Props> = ({ mode, data, onClose, onSubmit }
               </div>
             </div>
           </div>
-
         </div>
 
         {/* Footer */}
@@ -229,10 +253,11 @@ export const ContractModal: React.FC<Props> = ({ mode, data, onClose, onSubmit }
 
             {!isView && (
               <button
+                disabled={loading}
                 onClick={handleSubmit}
-                className="btn-glow bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 rounded-lg text-sm font-bold text-black"
+                className="btn-glow bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 rounded-lg text-sm font-bold text-black disabled:opacity-50"
               >
-                {mode === 'create' ? 'Tạo' : 'Cập nhật'}
+                {loading ? 'Đang gửi...' : mode === 'create' ? 'Tạo & Gửi' : 'Cập nhật'}
               </button>
             )}
           </div>

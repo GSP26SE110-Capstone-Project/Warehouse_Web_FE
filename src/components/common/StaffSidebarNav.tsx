@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import type { ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { navigationService } from '../../utils/NavigationService'
 import logo from '../../assets/logo.png'
@@ -13,12 +12,8 @@ type NavItem = {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/admin' },
-  { label: 'Quản lý Yêu cầu', icon: 'description', key: 'requests', href: '/admin/requests' },
-  { label: 'Quản lý Tài khoản', icon: 'people', key: 'accounts', href: '/admin/accounts' },
-  { label: 'Quản lý Kho', icon: 'warehouse', key: 'warehouse', href: '/admin/warehouse' },
+  { label: 'Quản lý Yêu cầu', icon: 'description', key: 'requests', href: '/admin' },
   { label: 'Quản lý Hàng', icon: 'inventory_2', key: 'inventory', href: '/admin/inventory' },
-  { label: 'Quản lý Hợp đồng', icon: 'description', key: 'contracts', href: '/admin/contract' },
   { label: 'Vận chuyển', icon: 'local_shipping', key: 'transportation', href: '/admin/transportation' },
   { label: 'Xuất nhập Kho', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
   { label: 'Báo cáo', icon: 'bar_chart', key: 'reports', href: '/admin/reports' },
@@ -41,13 +36,13 @@ interface SidebarProps {
   onToggle: () => void
 }
 
-export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
+export const StaffSidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const location = useLocation()
   const [scanOpen, setScanOpen] = useState(false)
 
   const isActive = (path: string) => {
-    if (path === '/admin') {
-      return location.pathname === '/admin'
+    if (path === '/staff') {
+      return location.pathname === '/staff'
     }
     return location.pathname.startsWith(path)
   }
