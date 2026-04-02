@@ -12,11 +12,10 @@ type NavItem = {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Quản lý Yêu cầu', icon: 'description', key: 'requests', href: '/admin' },
-  { label: 'Quản lý Hàng', icon: 'inventory_2', key: 'inventory', href: '/admin/inventory' },
-  { label: 'Vận chuyển', icon: 'local_shipping', key: 'transportation', href: '/admin/transportation' },
-  { label: 'Xuất nhập Kho', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
-  { label: 'Báo cáo', icon: 'bar_chart', key: 'reports', href: '/admin/reports' },
+  { label: 'Quản lý vận chuyển', icon: 'description', key: 'requests', href: '/staff/requests' },
+  { label: 'Yêu cầu xuất nhập', icon: 'inventory_2', key: 'inventory', href: '/staff/import-export' },
+  { label: 'Báo cáo xuất nhập', icon: 'local_shipping', key: 'transportation', href: '/admin/transportation' },
+  { label: 'Quản lý hàng hóa', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
 ]
 
 type BottomAction = {
