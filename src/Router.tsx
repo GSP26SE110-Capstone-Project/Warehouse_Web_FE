@@ -21,6 +21,8 @@ import { StaffDashboard } from './pages/staff/Dashboard'
 import { StaffLayout } from './components/common/layout/StaffLayout'
 import { StaffRequestManagement} from './pages/staff/TransportManagement'
 import { ImportExportManagement } from './pages/staff/ImportExportManagement'
+import { ReportManagement } from './pages/staff/ReportManagement'
+import {InventoryManagement} from './pages/staff/InventoryManagement'
 
 export const Router: React.FC = () => {
     return (
@@ -53,6 +55,8 @@ export const Router: React.FC = () => {
                         <Route path='/staff/dashboard' element={<StaffDashboard />} />
                         <Route path='/staff/requests' element={<StaffRequestManagement />} />
                         <Route path='/staff/import-export' element={<ImportExportManagement />} />
+                        <Route path='/staff/reports' element={<ReportManagement />} />
+                        <Route path='/staff/inventory' element={<InventoryManagement />} />
                     </Route>
 
 

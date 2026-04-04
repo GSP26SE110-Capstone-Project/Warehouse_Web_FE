@@ -9,6 +9,7 @@ export interface InventoryItem {
     importDate: string // YYYY-MM-DD
     stock: number
     total: number
+    customer?: string
 }
 
 export interface Rack {

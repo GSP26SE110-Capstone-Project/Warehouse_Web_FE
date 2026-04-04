@@ -12,3 +12,16 @@ export interface ImportExportRequest {
     scheduledTime: string;
     hasTransport?: boolean
 }
+
+export interface ImportExportReport {
+    id: number;
+    customer: string;
+    warehouse: string;
+    description: string;
+    weight: number;
+    origin: string;
+    destination: string;
+    type: 'import' | 'export';
+    driver: string;
+    createdAt: string;
+}

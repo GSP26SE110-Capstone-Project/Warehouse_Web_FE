@@ -14,8 +14,8 @@ type NavItem = {
 const navItems: NavItem[] = [
   { label: 'Quản lý vận chuyển', icon: 'description', key: 'requests', href: '/staff/requests' },
   { label: 'Yêu cầu xuất nhập', icon: 'inventory_2', key: 'inventory', href: '/staff/import-export' },
-  { label: 'Báo cáo xuất nhập', icon: 'local_shipping', key: 'transportation', href: '/admin/transportation' },
-  { label: 'Quản lý hàng hóa', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
+  { label: 'Báo cáo xuất nhập', icon: 'local_shipping', key: 'transportation', href: '/staff/reports' },
+  { label: 'Quản lý hàng hóa', icon: 'input', key: 'stock-movements', href: '/staff/inventory' },
 ]
 
 type BottomAction = {
