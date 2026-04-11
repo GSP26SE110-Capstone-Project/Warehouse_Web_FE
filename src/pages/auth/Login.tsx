@@ -118,9 +118,20 @@ export const Login: React.FC = () => {
 
               {/* Password */}
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-gray-300 uppercase tracking-widest pl-1">
-                  Mật khẩu
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-300 uppercase tracking-widest pl-1">
+                    Mật khẩu
+                  </label>
+                  <a
+                    href="/forgot-password"
+                    className="text-xs transition-colors hover:underline"
+                    style={{ color: 'rgba(6,237,249,0.7)' }}
+                    onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = '#06edf9')}
+                    onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'rgba(6,237,249,0.7)')}
+                  >
+                    Quên mật khẩu?
+                  </a>
+                </div>
                 <div className="input-glow relative rounded-lg" style={{ border: '1px solid #3a5455', background: 'rgba(11,22,23,0.8)' }}>
                   <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2" style={{ color: '#9bb9bb' }}>
                     key

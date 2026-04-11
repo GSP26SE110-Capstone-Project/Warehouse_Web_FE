@@ -1,17 +1,5 @@
 import React from 'react'
-
-type RequestType = 'rent' | 'extend'
-type Status = 'pending' | 'approved' | 'rejected'
-
-type Request = {
-  id: string
-  customer: string
-  warehouse: string
-  type: RequestType
-  startDate: string
-  endDate: string
-  status: Status
-}
+import type { Request } from '../../../types/Contract'
 
 type Props = {
   data: Request
@@ -116,9 +104,9 @@ export const RequestDetailModal: React.FC<Props> = ({
               <label className={labelStyle}>Trạng thái</label>
               <span
                 className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ring-1 ring-inset ${
-                  data.status === 'pending'
+                  data.status === 'PENDING'
                     ? 'text-yellow-400 bg-yellow-400/10 ring-yellow-400/20'
-                    : data.status === 'approved'
+                    : data.status === 'APPROVED'
                     ? 'text-emerald-400 bg-emerald-400/10 ring-emerald-400/20'
                     : 'text-red-400 bg-red-400/10 ring-red-400/20'
                 }`}
@@ -133,7 +121,7 @@ export const RequestDetailModal: React.FC<Props> = ({
         {/* Footer */}
         <div className="flex justify-between items-center px-6 py-4 border-t border-white/5 bg-white/[0.02]">
           <span className="text-xs text-slate-500">
-            Hệ thống quản lý kho
+            NEXSPACE
           </span>
 
           <div className="flex gap-3">
@@ -145,7 +133,7 @@ export const RequestDetailModal: React.FC<Props> = ({
               Đóng
             </button>
 
-            {data.status === 'pending' && (
+            {data.status === 'PENDING' && (
               <>
                 <button
                   onClick={() => onReject(data.id)}

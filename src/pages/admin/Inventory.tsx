@@ -4,65 +4,13 @@ import type { InventoryItem } from '../../types/Warehouse'
 import { Pagination } from '../../components/ui/Pagination'
 import { InventoryModal } from '../../components/ui/modal/InventoryModal'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
-
-const inventoryItems: InventoryItem[] = [
-  {
-    sku: '#SKU-9021',
-    name: 'Quantum Chipset X1',
-    category: 'Electronics',
-    stock: 75,
-    total: 100,
-    location: 'Zone A-12',
-    importDate: '2024-05-15',
-    warehouse: 'In Stock',
-  },
-  {
-    sku: '#SKU-8822',
-    name: 'Neural Interface Unit',
-    category: 'Bio-Tech',
-    stock: 12,
-    total: 100,
-    location: 'Zone B-04',
-    importDate: '2026-03-20',
-    warehouse: 'In Stock',
-  },
-  {
-    sku: '#SKU-7731',
-    name: 'Optic Fiber Cabling',
-    category: 'Infrastructure',
-    stock: 100,
-    total: 100,
-    location: 'Zone C-01',
-    importDate: '2024-06-01',
-    warehouse: 'In Stock',
-  },
-  {
-    sku: '#SKU-6619',
-    name: 'Fusion Battery Cell',
-    category: 'Energy',
-    stock: 5,
-    total: 100,
-    location: 'Zone A-09',
-    importDate: '2024-03-10',
-    warehouse: 'In Stock',
-  },
-  {
-    sku: '#SKU-5501',
-    name: 'Holographic Emitter',
-    category: 'Displays',
-    stock: 45,
-    total: 100,
-    location: 'Zone D-22',
-    importDate: '2024-05-01',
-    warehouse: 'In Stock',
-  },
-]
+import { initialInventory } from '../../data/initialData'
 
 export const Inventory: React.FC = () => {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'old'>('all')
 
-  const [inventory, setInventory] = useState<InventoryItem[]>(inventoryItems)
+  const [inventory, setInventory] = useState<InventoryItem[]>(initialInventory)
 
   const [modal, setModal] = useState<{
     open: boolean
@@ -120,14 +68,12 @@ export const Inventory: React.FC = () => {
       return {
         label: 'Tồn lâu',
         className: 'bg-yellow-400/10 text-yellow-400 ring-yellow-400/20',
-        dot: 'bg-yellow-400',
       }
     }
 
     return {
       label: 'Mới',
       className: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20',
-      dot: 'bg-emerald-400',
     }
   }
 
@@ -151,7 +97,7 @@ export const Inventory: React.FC = () => {
 
   // ===== PAGINATION =====
   const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 4
+  const pageSize = 5
 
   const totalItems = filteredInventory.length
   const totalPages = Math.ceil(totalItems / pageSize)
@@ -170,31 +116,22 @@ export const Inventory: React.FC = () => {
 
 
   return (
-    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100 pb-15">
+    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
 
       <main className="relative flex h-full flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop')] bg-cover bg-center">
         <div className="absolute inset-0 z-0 bg-[#0b101a]/90 backdrop-blur-sm" />
-        <div className="relative z-10 flex-1 p-8">
+        <div className="relative z-10 flex-1 p-6">
           <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
+
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-              <StatsCard
-                title="Tổng hàng hóa"
-                value={14205}
-                icon="inventory_2"
-                accentColor="emerald"
-              />
-              <StatsCard
-                title="Cảnh báo tồn kho"
-                value={3}
-                icon="warning"
-                accentColor="primary"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mt-2">
+              <StatsCard title="Tổng hàng hóa" value={inventory.length} icon="inventory_2" accentColor="emerald" />
+              <StatsCard title="Cảnh báo tồn kho" value={inventory.filter((item) => item.stock < item.total).length} icon="warning" accentColor="primary" />
             </div>
 
             <section className="glass-panel flex flex-col overflow-hidden rounded-xl border border-white/5">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 bg-white/[0.02] px-6 py-5">
-                <h3 className="text-lg font-bold tracking-wide text-white">HÀNG TRONG KHO HIỆN TẠI</h3>
+                <h3 className="text-lg font-bold tracking-wide text-white">QUẢN LÝ HÀNG</h3>
                 <div className="flex gap-3">
                   {/* Search */}
                   <div className="relative">
@@ -235,14 +172,14 @@ export const Inventory: React.FC = () => {
                 <table className="w-full border-collapse text-left">
                   <thead>
                     <tr className="border-b border-white/5 bg-[#131b29] text-xs uppercase tracking-wider text-slate-400">
-                      <th className="px-6 py-4 font-medium">SKU</th>
-                      <th className="px-6 py-4 font-medium">Tên sản phẩm</th>
-                      <th className="px-6 py-4 font-medium">Danh mục</th>
-                      <th className="px-6 py-4 font-medium">Nhà kho</th>
-                      <th className="px-6 py-4 font-medium">Ngày nhập kho</th>
-                      <th className="px-6 py-4 font-medium">Trạng thái</th>
-                      <th className="px-6 py-4 font-medium">Vị trí</th>
-                      <th className="px-6 py-4 text-right font-medium">Hoạt động</th>
+                      <th className="px-6 py-3 font-medium">SKU</th>
+                      <th className="px-6 py-3 font-medium">Tên khách hàng</th>
+                      <th className="px-6 py-3 font-medium">Nhà kho</th>
+                      <th className="px-6 py-3 font-medium">Vị trí</th>
+                      <th className="px-6 py-3 font-medium">Ngày nhập </th>
+                      <th className="px-6 py-3 font-medium">Trạng thái</th>
+
+                      <th className="px-6 py-3 text-right font-medium">Hoạt động</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5 text-sm">
@@ -255,51 +192,41 @@ export const Inventory: React.FC = () => {
                             }`}
                         >
                           {/* SKU */}
-                          <td className="px-6 py-4 font-mono text-cyan-400">
+                          <td className="px-6 py-3 font-mono text-cyan-400">
                             {item.sku}
                           </td>
 
                           {/* NAME */}
-                          <td className="px-6 py-4 font-medium text-white">
-                            {item.name}
-                          </td>
-
-                          {/* CATEGORY */}
-                          <td className="px-6 py-4">
-                            <span
-                              className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${item.category}`}
-                            >
-                              {item.category}
-                            </span>
+                          <td className="px-6 py-3 font-medium">
+                            {item.customer}
                           </td>
 
                           {/* NHÀ KHO */}
-                          <td className="px-6 py-4 text-slate-300">
+                          <td className="px-6 py-3">
                             {item.warehouse || 'Warehouse A'} {/* hoặc item.warehouse nếu có */}
                           </td>
 
+                          {/* VỊ TRÍ */}
+                          <td className="px-6 py-3 font-mono">
+                            {item.location}
+                          </td>
+
                           {/* NGÀY NHẬP KHO */}
-                          <td className="px-6 py-4 text-slate-400 font-mono text-xs">
+                          <td className="px-6 py-3 font-mono text-xs">
                             {item.importDate || '2024-06-01'} {/* hoặc item.importDate nếu có */}
                           </td>
 
                           {/* TRẠNG THÁI */}
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-3">
                             <span
                               className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${status.className}`}
                             >
-                              <span className={`size-1.5 rounded-full ${status.dot}`} />
                               {status.label}
                             </span>
                           </td>
 
-                          {/* VỊ TRÍ */}
-                          <td className="px-6 py-4 font-mono text-slate-400">
-                            {item.location}
-                          </td>
-
                           {/* ACTION */}
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-6 py-3 text-right">
                             <div className="flex items-center justify-end gap-3 opacity-60 transition-opacity group-hover:opacity-100">
                               <button
                                 onClick={() => {
@@ -341,7 +268,7 @@ export const Inventory: React.FC = () => {
               </div>
 
               {/* Pagination */}
-              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-4">
+              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-2">
                 <p className="font-mono text-xs text-slate-400">
                   Showing <span className="text-white">{start}-{end}</span> of{' '}
                   <span className="text-white">{totalItems}</span> items

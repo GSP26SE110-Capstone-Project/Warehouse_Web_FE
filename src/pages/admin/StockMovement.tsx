@@ -3,135 +3,19 @@ import { StatsCard } from '../../components/ui/StatCard'
 import { Pagination } from '../../components/ui/Pagination'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { StockMovementModal } from '../../components/ui/modal/StockMovementModal'
-import type { StockMovement } from '../../types/Warehouse'
-
-function getStatusDot(status: StockMovement['status']) {
-  if (status === 'Pending') return 'bg-orange-400'
-  if (status === 'Cancelled') return 'bg-red-400'
-  return 'bg-emerald-400'
-}
-const movements: StockMovement[] = [
-  {
-    id: '#MOV-001',
-    sku: '#SKU-9021',
-    productName: 'Quantum Chipset X1',
-    warehouse: 'Kho A',
-    type: 'Import',
-    quantity: 100,
-    status: 'Completed',
-    statusClassName: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20',
-    date: '2026-03-20',
-    striped: true,
-  },
-  {
-    id: '#MOV-002',
-    sku: '#SKU-8822',
-    productName: 'Neural Interface Unit',
-    warehouse: 'Kho B',
-    type: 'Export',
-    quantity: 20,
-    status: 'Pending',
-    statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
-    date: '2026-03-22',
-  },
-  {
-    id: '#MOV-013',
-    sku: '#SKU-8822',
-    productName: 'Neural Interface Unit',
-    warehouse: 'Kho B',
-    type: 'Export',
-    quantity: 20,
-    status: 'Pending',
-    statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
-    date: '2026-03-22',
-  },
-  {
-    id: '#MOV-003',
-    sku: '#SKU-8822',
-    productName: 'Neural Interface Unit',
-    warehouse: 'Kho B',
-    type: 'Export',
-    quantity: 20,
-    status: 'Pending',
-    statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
-    date: '2026-03-22',
-  },
-  {
-    id: '#MOV-004',
-    sku: '#SKU-8822',
-    productName: 'Neural Interface Unit',
-    warehouse: 'Kho B',
-    type: 'Export',
-    quantity: 20,
-    status: 'Pending',
-    statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
-    date: '2026-03-22',
-  },
-  {
-    id: '#MOV-005',
-    sku: '#SKU-8822',
-    productName: 'Neural Interface Unit',
-    warehouse: 'Kho B',
-    type: 'Export',
-    quantity: 20,
-    status: 'Pending',
-    statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
-    date: '2026-03-22',
-  },
-  {
-    id: '#MOV-006',
-    sku: '#SKU-8822',
-    productName: 'Neural Interface Unit',
-    warehouse: 'Kho B',
-    type: 'Export',
-    quantity: 20,
-    status: 'Pending',
-    statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
-    date: '2026-03-22',
-  },
-  {
-    id: '#MOV-007',
-    sku: '#SKU-8822',
-    productName: 'Neural Interface Unit',
-    warehouse: 'Kho B',
-    type: 'Export',
-    quantity: 20,
-    status: 'Pending',
-    statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
-    date: '2026-03-22',
-  },
-  {
-    id: '#MOV-008',
-    sku: '#SKU-8822',
-    productName: 'Neural Interface Unit',
-    warehouse: 'Kho B',
-    type: 'Export',
-    quantity: 20,
-    status: 'Pending',
-    statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
-    date: '2026-03-22',
-  },
-]
+import { initialImportExportRequest } from '../../data/initialData'
+import type { ImportExportRequest } from '../../types/ImportExport'
 
 export const StockMovementManagement: React.FC = () => {
   const [search, setSearch] = useState('')
 
-  const filteredMovements = useMemo(() => {
-    return movements.filter(m =>
-      m.productName.toLowerCase().includes(search.toLowerCase()) ||
-      m.sku.toLowerCase().includes(search.toLowerCase()) ||
-      m.id.toLowerCase().includes(search.toLowerCase())
-    )
-  }, [search])
-
-  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'pending' | 'cancelled'>('all')
-
-  const [data, setData] = useState<StockMovement[]>(movements)
+  const [statusFilter, setStatusFilter] = useState<'all' | 'WAITING' | 'APPROVED' | 'CANCELLED'>('all')
+  const [data, setData] = useState<ImportExportRequest[]>(initialImportExportRequest)
 
   const [modal, setModal] = useState<{
     open: boolean
     mode: 'create' | 'edit' | 'view'
-    data?: StockMovement
+    data?: ImportExportRequest
     type?: 'Import' | 'Export'
   }>({ open: false, mode: 'create', type: 'Import' })
 
@@ -145,7 +29,7 @@ export const StockMovementManagement: React.FC = () => {
   // ===== CRUD =====
   const handleSubmit = (form: any) => {
     if (modal.mode === 'create') {
-      const newItem: StockMovement = {
+      const newItem: ImportExportRequest = {
         id: `#MOV-${Math.floor(Math.random() * 1000)}`,
         ...form,
       }
@@ -175,25 +59,40 @@ export const StockMovementManagement: React.FC = () => {
   const filtered = useMemo(() => {
     return data.filter(item => {
       const matchSearch =
-        item.productName.toLowerCase().includes(search.toLowerCase()) ||
-        item.sku.toLowerCase().includes(search.toLowerCase())
+        item.customer.toLowerCase().includes(search.toLowerCase()) ||
+        item.createdAt.toLowerCase().includes(search.toLowerCase())
 
       const matchStatus =
         statusFilter === 'all'
           ? true
-          : statusFilter === 'completed'
-            ? item.status === 'Completed'
-            : statusFilter === 'pending'
-              ? item.status === 'Pending'
-              : item.status === 'Cancelled'
+          : statusFilter === 'WAITING'
+            ? item.status === 'WAITING'
+            : statusFilter === 'APPROVED'
+              ? item.status === 'APPROVED'
+              : statusFilter === 'CANCELLED'
+                ? item.status === 'CANCELED'
+                : true  
 
       return matchSearch && matchStatus
     })
   }, [search, statusFilter, data])
 
+
+  const statusColor: Record<ImportExportRequest['status'], { label: string; classname: string }> = {
+    WAITING: { label: 'Chờ xử lý', classname: 'bg-blue-400/10 text-blue-400 ring-blue-400/20' },
+    APPROVED: { label: 'Đã duyệt', classname: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20' },
+    CANCELED: { label: 'Đã hủy', classname: 'bg-rose-400/10 text-rose-400 ring-rose-400/20' }
+  }
+
+  const typeColor: Record<ImportExportRequest['type'], { label: string; classname: string }> = {
+    IMPORT: { label: 'Nhập kho', classname: 'bg-blue-400/10 text-blue-400 ring-blue-400/20' },
+    EXPORT: { label: 'Xuất kho', classname: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20' }
+  }
+
+
   // ===== PAGINATION =====
   const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 4
+  const pageSize = 5
 
   const totalItems = filtered.length
   const totalPages = Math.ceil(totalItems / pageSize)
@@ -211,19 +110,19 @@ export const StockMovementManagement: React.FC = () => {
   }, [search, statusFilter])
 
   return (
-    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100 pb-15">
+    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
 
       <main className="relative flex flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072')] bg-cover bg-center">
         <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" />
 
-        <div className="relative z-10 p-8">
+        <div className="relative z-10 p-6">
           <div className="max-w-[1400px] mx-auto flex flex-col gap-8">
 
             {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <StatsCard title="Tổng giao dịch" value={520} icon="sync_alt" accentColor="emerald" />
-              <StatsCard title="Nhập kho" value={320} icon="download" accentColor="primary" />
-              <StatsCard title="Xuất kho" value={180} icon="upload" accentColor="orange" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
+              <StatsCard title="Tổng giao dịch" value={data.length} icon="sync_alt" accentColor="emerald" />
+              <StatsCard title="Đã duyệt" value={data.filter((m) => m.status === 'APPROVED').length} icon="download" accentColor="primary" />
+              <StatsCard title="Chờ xử lý" value={data.filter((m) => m.status === 'WAITING').length} icon="upload" accentColor="orange" />
             </div>
 
             {/* Table */}
@@ -257,9 +156,9 @@ export const StockMovementManagement: React.FC = () => {
                     className="px-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-white"
                   >
                     <option value="all">Tất cả</option>
-                    <option value="completed">Hoàn thành</option>
-                    <option value="pending">Chờ xử lý</option>
-                    <option value="cancelled">Đã hủy</option>
+                    <option value="APPROVED">Hoàn thành</option>
+                    <option value="WAITING">Chờ xử lý</option>
+                    <option value="CANCELLED">Đã hủy</option>
                   </select>
 
                   <button
@@ -270,7 +169,7 @@ export const StockMovementManagement: React.FC = () => {
                     <span className="material-symbols-outlined text-lg">add</span>
                     <span>TẠO NHẬP KHO</span>
                   </button>
-                   <button
+                  <button
                     onClick={() => {
                       setModal({ open: true, mode: 'create', type: 'Export' })
                     }}
@@ -286,45 +185,43 @@ export const StockMovementManagement: React.FC = () => {
                 <table className="w-full text-sm text-left">
                   <thead>
                     <tr className="bg-[#131b29] text-xs uppercase text-slate-400 border-b border-white/5">
-                      <th className="px-6 py-4">Mã</th>
-                      <th className="px-6 py-4">SKU</th>
-                      <th className="px-6 py-4">Sản phẩm</th>
-                      <th className="px-6 py-4">Kho</th>
-                      <th className="px-6 py-4">Loại</th>
-                      <th className="px-6 py-4">Số lượng</th>
-                      <th className="px-6 py-4">Trạng thái</th>
-                      <th className="px-6 py-4">Ngày</th>
-                      <th className="px-6 py-4 text-right">Hoạt động</th>
+                      <th className="px-6 py-3">Mã</th>
+                      <th className="px-6 py-3">Khách hàng</th>
+                      <th className="px-6 py-3">Kho</th>
+                      <th className="px-6 py-3">Loại</th>
+                      <th className="px-6 py-3">Trạng thái</th>
+                      <th className="px-6 py-3">Thời gian dự kiến</th>
+                      <th className="px-6 py-3">Ngày tạo</th>
+                      <th className="px-6 py-3 text-right">Hoạt động</th>
                     </tr>
                   </thead>
 
                   <tbody className="divide-y divide-white/5">
                     {paginated.length > 0 ? (
                       paginated.map((m) => (
-                        <tr key={m.id} className={`${m.striped ? 'bg-white/[0.02]' : ''}`}>
-                          <td className="px-6 py-4 text-cyan-400 font-mono">{m.id}</td>
-                          <td className="px-6 py-4 text-white">{m.sku}</td>
-                          <td className="px-6 py-4 text-slate-400">{m.productName}</td>
-                          <td className="px-6 py-4 text-slate-400">{m.warehouse}</td>
+                        <tr key={m.id} className={`${m.id ? 'bg-white/[0.02]' : ''}`}>
+                          <td className="px-6 py-3 text-cyan-400 font-mono">{m.id}</td>
+                          <td className="px-6 py-3 ">{m.customer}</td>
+                          <td className="px-6 py-3 ">{m.warehouse}</td>
 
-                          <td className="px-6 py-4">
-                            <span className={`px-2 py-1 text-xs rounded ring-1 ${m.type === 'Import' ? 'text-emerald-400 bg-emerald-400/10 ring-emerald-400/20' : 'text-orange-400 bg-orange-400/10 ring-orange-400/20'}`}>
-                              {m.type}
+
+                          <td className="px-6 py-3">
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${typeColor[m.type].classname}`}>
+                              {typeColor[m.type].label}
                             </span>
                           </td>
 
-                          <td className="px-6 py-4 font-mono">{m.quantity}</td>
-
-                          <td className="px-6 py-4">
-                            <span className={`flex items-center gap-1 px-2 py-1 text-xs rounded-full ring-1 ${m.statusClassName}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(m.status)}`} />
-                              {m.status}
+                          <td className="px-6 py-3">
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${statusColor[m.status].classname}`}>
+                              {statusColor[m.status].label}
                             </span>
                           </td>
 
-                          <td className="px-6 py-4 text-xs text-slate-500">{m.date}</td>
+                          <td className="px-6 py-3 text-xs font-mono">{m.scheduledTime}</td>
 
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-6 py-3 text-xs font-mono">{m.createdAt}</td>
+
+                          <td className="px-6 py-3 text-right">
                             <div className="flex justify-end gap-2 opacity-60 hover:opacity-100">
                               <button
                                 onClick={() => setModal({ open: true, mode: 'view', data: m })}
@@ -337,7 +234,7 @@ export const StockMovementManagement: React.FC = () => {
                                 <span className="material-symbols-outlined">edit</span>
                               </button>
                               <button
-                                 onClick={() => {
+                                onClick={() => {
                                   setAlert({
                                     open: true,
                                     type: 'confirm',
@@ -366,7 +263,7 @@ export const StockMovementManagement: React.FC = () => {
               </div>
 
               {/* Pagination */}
-              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-4">
+              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-2">
                 <p className="font-mono text-xs text-slate-400">
                   Showing <span className="text-white">{start}-{end}</span> of{' '}
                   <span className="text-white">{totalItems}</span> items

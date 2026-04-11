@@ -193,7 +193,7 @@ export const WarehouseModal: React.FC<Props> = ({
         {/* Footer */}
         <div className="flex justify-between items-center px-6 py-4 border-t border-white/5 bg-white/[0.02]">
           <span className="text-xs text-slate-500">
-            Hệ thống quản lý kho
+           NEXSPACE
           </span>
 
           <div className="flex gap-3">

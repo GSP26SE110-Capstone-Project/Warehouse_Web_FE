@@ -4,66 +4,7 @@ import { ContractModal } from '../../components/ui/modal/ContractModal'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import type { Contract } from '../../types/Contract'
 import { Pagination } from '../../components/ui/Pagination'
-
-/* ================= DATA ================= */
-
-const initialContracts: Contract[] = [
-  {
-    id: '#CTR-001',
-    customerName: 'Công ty ABC',
-    warehouse: 'Kho A - Zone 1',
-    startDate: '2025-01-01',
-    endDate: '2025-12-31',
-    status: 'Active',
-    statusClassName: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20',
-    price: 50000000,
-    createdAt: '2h ago',
-  },
-  {
-    id: '#CTR-002',
-    customerName: 'Công ty XYZ',
-    warehouse: 'Kho B - Zone 3',
-    startDate: '2024-01-01',
-    endDate: '2024-12-31',
-    status: 'Expired',
-    statusClassName: 'bg-gray-400/10 text-gray-400 ring-gray-400/20',
-    price: 30000000,
-    createdAt: '1d ago',
-  },
-  {
-    id: '#CTR-003',
-    customerName: 'Công ty XYZ',
-    warehouse: 'Kho B - Zone 3',
-    startDate: '2024-01-01',
-    endDate: '2024-12-31',
-    status: 'Expired',
-    statusClassName: 'bg-gray-400/10 text-gray-400 ring-gray-400/20',
-    price: 30000000,
-    createdAt: '1d ago',
-  },
-  {
-    id: '#CTR-004',
-    customerName: 'Công ty XYZ',
-    warehouse: 'Kho B - Zone 3',
-    startDate: '2024-01-01',
-    endDate: '2024-12-31',
-    status: 'Expired',
-    statusClassName: 'bg-gray-400/10 text-gray-400 ring-gray-400/20',
-    price: 30000000,
-    createdAt: '1d ago',
-  },
-  {
-    id: '#CTR-005',
-    customerName: 'Công ty XYZ',
-    warehouse: 'Kho B - Zone 3',
-    startDate: '2024-01-01',
-    endDate: '2024-12-31',
-    status: 'Expired',
-    statusClassName: 'bg-gray-400/10 text-gray-400 ring-gray-400/20',
-    price: 30000000,
-    createdAt: '1d ago',
-  },
-]
+import { initialContracts } from '../../data/initialData'
 
 /* ================= PAGE ================= */
 
@@ -132,7 +73,7 @@ export const ContractManagement: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('All')
 
 
-   /* ================= FILTER ================= */
+  /* ================= FILTER ================= */
 
   const filteredContracts = useMemo(() => {
     return contracts.filter((r) => {
@@ -148,10 +89,16 @@ export const ContractManagement: React.FC = () => {
     })
   }, [contracts, search, statusFilter])
 
+  const statusColor: Record<Contract['status'], { label: string; classname: string }> = {
+    'ACTIVE': { label: 'Đang hoạt động', classname: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20' },
+    'EXPIRED': { label: 'Hết hạn', classname: 'bg-gray-400/10 text-gray-400 ring-gray-400/20' },
+    'PENDING': { label: 'Chờ xử lý', classname: 'bg-orange-400/10 text-orange-400 ring-orange-400/20' }
+  }
+
   /* ================= PAGINATION ================= */
 
   const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 4
+  const pageSize = 5
 
   const totalItems = filteredContracts.length
   const totalPages = Math.ceil(totalItems / pageSize)
@@ -176,15 +123,15 @@ export const ContractManagement: React.FC = () => {
       <main className="relative flex flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072')] bg-cover bg-center">
         <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" />
 
-        <div className="relative z-10 p-8">
+        <div className="relative z-10 p-6">
           <div className="max-w-[1400px] mx-auto flex flex-col gap-8">
 
             {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-2">
               <StatsCard title="Tổng hợp đồng" value={contracts.length} icon="description" accentColor="emerald" />
-              <StatsCard title="Đang hoạt động" value={contracts.filter(c => c.status === 'Active').length} icon="check_circle" accentColor='primary' />
-              <StatsCard title="Hết hạn" value={contracts.filter(c => c.status === 'Expired').length} icon="cancel" accentColor="purple" />
-              <StatsCard title="Chờ xử lý" value={contracts.filter(c => c.status === 'Pending').length} icon="hourglass_top" accentColor="orange" />
+              <StatsCard title="Đang hoạt động" value={contracts.filter(c => c.status === 'ACTIVE').length} icon="check_circle" accentColor='primary' />
+              <StatsCard title="Hết hạn" value={contracts.filter(c => c.status === 'EXPIRED').length} icon="cancel" accentColor="purple" />
+              <StatsCard title="Chờ xử lý" value={contracts.filter(c => c.status === 'PENDING').length} icon="hourglass_top" accentColor="orange" />
             </div>
 
             {/* Table */}
@@ -194,75 +141,75 @@ export const ContractManagement: React.FC = () => {
               <div className="flex justify-between items-center px-6 py-5 border-b border-white/5 bg-white/[0.02]">
                 <h3 className="text-lg font-bold text-white">HỢP ĐỒNG</h3>
                 <div className="flex gap-3">
-                {/* Search */}
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                    search
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="Tìm báo cáo..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="pl-10 pr-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
-                  />
-                </div>
+                  {/* Search */}
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      search
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Tìm báo cáo..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="pl-10 pr-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
 
-                 {/* Filter */}
+                  {/* Filter */}
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                     className="px-3 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm"
                   >
                     <option value="All">Tất cả</option>
-                    <option value="Active">Đang hoạt động</option>
-                    <option value="Expired">Hết hạn</option>
-                    <option value="Pending">Chờ xử lý</option>
+                    <option value="ACTIVE">Đang hoạt động</option>
+                    <option value="EXPIRED">Hết hạn</option>
+                    <option value="PENDING">Chờ xử lý</option>
                   </select>
 
-                <button
-                  onClick={() => setModal({ open: true, mode: 'create' })}
-                  className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2 text-sm font-bold text-black"
-                >
-                  <span className="material-symbols-outlined">add</span>
-                  Tạo hợp đồng
-                </button>
+                  <button
+                    onClick={() => setModal({ open: true, mode: 'create' })}
+                    className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2 text-sm font-bold text-black"
+                  >
+                    <span className="material-symbols-outlined">add</span>
+                    Tạo hợp đồng
+                  </button>
+                </div>
               </div>
-</div>
               {/* Table */}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead>
                     <tr className="bg-[#131b29] text-xs uppercase text-slate-400 border-b border-white/5">
-                      <th className="px-6 py-4">ID</th>
-                      <th className="px-6 py-4">Khách hàng</th>
-                      <th className="px-6 py-4">Kho</th>
-                      <th className="px-6 py-4">Thời hạn</th>
-                      <th className="px-6 py-4">Trạng thái</th>
-                      <th className="px-6 py-4">Giá</th>
-                      <th className="px-6 py-4 text-right">Hành động</th>
+                      <th className="px-6 py-3">ID</th>
+                      <th className="px-6 py-3">Khách hàng</th>
+                      <th className="px-6 py-3">Kho</th>
+                      <th className="px-6 py-3">Thời hạn</th>
+                      <th className="px-6 py-3">Trạng thái</th>
+                      <th className="px-6 py-3">Giá</th>
+                      <th className="px-6 py-3 text-right">Hành động</th>
                     </tr>
                   </thead>
 
                   <tbody className="divide-y divide-white/5">
                     {paginatedContracts.map((c) => (
                       <tr key={c.id}>
-                        <td className="px-6 py-4 text-cyan-400">{c.id}</td>
-                        <td className="px-6 py-4">{c.customerName}</td>
-                        <td className="px-6 py-4">{c.warehouse}</td>
-                        <td className="px-6 py-4 text-xs">
+                        <td className="px-6 py-3 text-cyan-400">{c.id}</td>
+                        <td className="px-6 py-3">{c.customerName}</td>
+                        <td className="px-6 py-3">{c.warehouse}</td>
+                        <td className="px-6 py-3 text-xs">
                           {c.startDate} → {c.endDate}
                         </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-1 text-xs rounded ring-1 ${c.statusClassName}`}>
-                            {c.status}
+                        <td className="px-6 py-3">
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${statusColor[c.status]?.classname}`}>
+                            {statusColor[c.status]?.label}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-emerald-400">
+                        <td className="px-6 py-3 text-emerald-400">
                           {c.price.toLocaleString()}₫
                         </td>
 
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-3 text-right">
                           <div className="flex justify-end gap-2">
 
                             {/* View */}
@@ -303,7 +250,7 @@ export const ContractManagement: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-4">
+              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-2">
                 <p className="font-mono text-xs text-slate-400">
                   Showing <span className="text-white">{start}-{end}</span> of{' '}
                   <span className="text-white">{totalItems}</span> items

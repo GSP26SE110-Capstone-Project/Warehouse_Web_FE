@@ -1,12 +1,12 @@
 export interface ImportExportRequest {
-    id: number;
+    id: string;
     customer: string;
     warehouse: string;
     description: string;
     weight: number;
     origin: string;
     destination: string;
-    type: 'import' | 'export';
+    type: 'IMPORT' | 'EXPORT';
     status: 'WAITING' | 'APPROVED' | 'CANCELED';
     createdAt: string;
     scheduledTime: string;
@@ -14,14 +14,14 @@ export interface ImportExportRequest {
 }
 
 export interface ImportExportReport {
-    id: number;
+    id: string;
     customer: string;
     warehouse: string;
     description: string;
     weight: number;
     origin: string;
     destination: string;
-    type: 'import' | 'export';
+    type: 'IMPORT' | 'EXPORT';
     driver: string;
     createdAt: string;
 }

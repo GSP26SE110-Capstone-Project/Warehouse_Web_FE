@@ -2,11 +2,28 @@ import { useState, useEffect } from 'react'
 
 type Mode = 'create' | 'edit' | 'view'
 
+type ContractForm = {
+  contractNumber: string
+  providerName: string
+  providerAddress: string
+  customerName: string
+  customerEmail: string
+  customerTaxCode: string
+  customerAddress: string
+  warehouse: string
+  palletQuantity: number
+  pricePerPallet: number
+  startDate: string
+  endDate: string
+  totalValue: number
+  notes: string
+}
+
 type Props = {
   mode: Mode
-  data?: any
+  data: any
   onClose: () => void
-  onSubmit?: (data: any) => Promise<void>
+  onSubmit?: (data: ContractForm) => void
 }
 
 export const ContractModal: React.FC<Props> = ({
@@ -41,7 +58,7 @@ export const ContractModal: React.FC<Props> = ({
     if (data) {
       setForm(prev => ({
         ...prev,
-        customerName: data.customer || '',
+        customerName: data.customerName || '',
         customerEmail: data.customerEmail || '',
         warehouse: data.warehouse || '',
         startDate: data.startDate || '',
@@ -60,6 +77,7 @@ export const ContractModal: React.FC<Props> = ({
 
   const handleSubmit = async () => {
     if (!onSubmit) return
+
 
     setLoading(true)
     try {
@@ -98,8 +116,8 @@ export const ContractModal: React.FC<Props> = ({
               {mode === 'create'
                 ? 'Tạo hợp đồng'
                 : mode === 'edit'
-                ? 'Chỉnh sửa hợp đồng'
-                : 'Chi tiết hợp đồng'}
+                  ? 'Chỉnh sửa hợp đồng'
+                  : 'Chi tiết hợp đồng'}
             </h2>
             <p className="text-xs text-slate-400 mt-1">
               Mã: <span className="text-cyan-400">{form.contractNumber}</span>
@@ -240,7 +258,7 @@ export const ContractModal: React.FC<Props> = ({
         {/* Footer */}
         <div className="flex justify-between items-center px-6 py-4 border-t border-white/5 bg-white/[0.02]">
           <span className="text-xs text-slate-500">
-            Hệ thống quản lý kho
+            NEXSPACE
           </span>
 
           <div className="flex gap-3">

@@ -139,7 +139,7 @@ export const Reports: React.FC = () => {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 4
+  const pageSize = 5
   const totalItems = filteredReports.length
   const totalPages = Math.ceil(totalItems / pageSize)
   const paginatedData = filteredReports.slice(
@@ -153,20 +153,20 @@ export const Reports: React.FC = () => {
   }, [search, statusFilter])
 
   return (
-    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100 pb-15">
+    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
 
       <main className="relative flex flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072')] bg-cover bg-center">
         <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" />
 
-        <div className="relative z-10 p-8">
+        <div className="relative z-10 p-6">
           <div className="max-w-[1400px] mx-auto flex flex-col gap-8">
 
             {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <StatsCard title="Tổng báo cáo" value={86} icon="description" accentColor="emerald" />
-              <StatsCard title="Chờ duyệt" value={12} icon="hourglass_top" accentColor="primary" />
-              <StatsCard title="Đã xử lý" value={60} icon="check_circle" accentColor="orange" />
-              <StatsCard title="Bị từ chối" value={14} icon="cancel" accentColor="purple" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-2">
+              <StatsCard title="Tổng báo cáo" value={filteredReports.length} icon="description" accentColor="emerald" />
+              <StatsCard title="Chờ duyệt" value={reports.filter(r => r.status === 'Pending').length} icon="hourglass_top" accentColor="primary" />
+              <StatsCard title="Đã xử lý" value={reports.filter(r => r.status === 'Reviewed').length} icon="check_circle" accentColor="orange" />
+              <StatsCard title="Bị từ chối" value={reports.filter(r => r.status === 'Rejected').length} icon="cancel" accentColor="purple" />
             </div>
 
             {/* Table */}
@@ -211,30 +211,30 @@ export const Reports: React.FC = () => {
                 <table className="w-full text-sm text-left">
                   <thead>
                     <tr className="bg-[#131b29] text-xs uppercase text-slate-400 border-b border-white/5">
-                      <th className="px-6 py-4">ID</th>
-                      <th className="px-6 py-4">Nhân viên</th>
-                      <th className="px-6 py-4">Tiêu đề</th>
-                      <th className="px-6 py-4">Loại</th>
-                      <th className="px-6 py-4">Ngày tạo</th>
-                      <th className="px-6 py-4">Hành động</th>
+                      <th className="px-6 py-3">ID</th>
+                      <th className="px-6 py-3">Nhân viên</th>
+                      <th className="px-6 py-3">Tiêu đề</th>
+                      <th className="px-6 py-3">Loại</th>
+                      <th className="px-6 py-3">Ngày tạo</th>
+                      <th className="px-6 py-3">Hành động</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {paginatedData.map((r) => (
                       <tr key={r.id} className={`${r.striped ? 'bg-white/[0.02]' : ''}`}>
-                        <td className="px-6 py-4 text-cyan-400 font-mono">{r.id}</td>
-                        <td className="px-6 py-4">{r.staffName}</td>
-                        <td className="px-6 py-4">{r.title}</td>
+                        <td className="px-6 py-3 text-cyan-400 font-mono">{r.id}</td>
+                        <td className="px-6 py-3">{r.staffName}</td>
+                        <td className="px-6 py-3">{r.title}</td>
 
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-3">
                           <span className={`px-2 py-1 rounded ring-1 ${r.typeClassName}`}>
                             {r.type}
                           </span>
                         </td>
 
-                        <td className="px-6 py-4">{r.createdAt}</td>
+                        <td className="px-6 py-3">{r.createdAt}</td>
 
-                        <td className="px-6 py-4 opacity-60 hover:opacity-100">
+                        <td className="px-6 py-3 opacity-60 hover:opacity-100">
                           <button
                             onClick={() => setSelectedReport(r)}
                             className="hover:bg-white/10 rounded p-1 ml-5"
@@ -249,7 +249,7 @@ export const Reports: React.FC = () => {
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-4">
+              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-2">
                 <p className="font-mono text-xs text-slate-400">
                   Showing <span className="text-white">{start}-{end}</span> of{' '}
                   <span className="text-white">{totalItems}</span> items

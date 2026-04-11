@@ -2,155 +2,18 @@ import { useState, useMemo, useEffect } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
 import { Pagination } from '../../components/ui/Pagination'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
-import { useNavigate } from 'react-router-dom'
 import type { ImportExportRequest } from '../../types/ImportExport'
-import { RequestShipmentModal } from '../../components/ui/modal/RequestTransportationModel'
 import { AssignDriverModal } from '../../components/ui/modal/AssignDriverModal'
 import { ImportExportModal } from '../../components/ui/modal/ImportExportModal'
-
-
-/* ================= MOCK DATA ================= */
-
-const initialRequests: ImportExportRequest[] = [
-    {
-        id: 1,
-        customer: 'Yêu cầu 1',
-        warehouse: 'Kho A1',
-        description: 'Mô tả yêu cầu 1',
-        weight: 10,
-        origin: 'Kho A1',
-        destination: 'Kho A2',
-        type: 'import',
-        status: 'CANCELED',
-        createdAt: '2023-01-01',
-        scheduledTime: '2023-01-02',
-        hasTransport: true
-    },
-    {
-        id: 2,
-        customer: 'Yêu cầu 1',
-        warehouse: 'Kho A1',
-        description: 'Mô tả yêu cầu 1',
-        weight: 10,
-        origin: 'Kho A1',
-        destination: 'Kho A2',
-        type: 'import',
-        status: 'CANCELED',
-        createdAt: '2023-01-01',
-        scheduledTime: '2023-01-02',
-        hasTransport: false
-
-    },
-
-    {
-        id: 3,
-        customer: 'Yêu cầu 1',
-        warehouse: 'Kho A1',
-        description: 'Mô tả yêu cầu 1',
-        weight: 10,
-        origin: 'Kho A1',
-        destination: 'Kho A2',
-        type: 'export',
-        status: 'CANCELED',
-        createdAt: '2023-01-01',
-        scheduledTime: '2023-01-02',
-        hasTransport: false
-    },
-    {
-        id: 4,
-        customer: 'Yêu cầu 1',
-        warehouse: 'Kho A1',
-        description: 'Mô tả yêu cầu 1',
-        weight: 10,
-        origin: 'Kho A1',
-        destination: 'Kho A2',
-        type: 'export',
-        status: 'APPROVED',
-        createdAt: '2023-01-01',
-        scheduledTime: '2023-01-02',
-        hasTransport: true
-    },
-    {
-        id: 5,
-        customer: 'Yêu cầu 1',
-        warehouse: 'Kho A1',
-        description: 'Mô tả yêu cầu 1',
-        weight: 10,
-        origin: 'Kho A1',
-        destination: 'Kho A2',
-        type: 'export',
-        status: 'APPROVED',
-        createdAt: '2023-01-01',
-        scheduledTime: '2023-01-02',
-        hasTransport: false
-    },
-    {
-        id: 6,
-        customer: 'Yêu cầu 1',
-        warehouse: 'Kho A1',
-        description: 'Mô tả yêu cầu 1',
-        weight: 10,
-        origin: 'Kho A1',
-        destination: 'Kho A2',
-        type: 'import',
-        status: 'APPROVED',
-        createdAt: '2023-01-01',
-        scheduledTime: '2023-01-02',
-        hasTransport: true
-    },
-    {
-        id: 7,
-        customer: 'Yêu cầu 1',
-        warehouse: 'Kho A1',
-        description: 'Mô tả yêu cầu 1',
-        weight: 10,
-        origin: 'Kho A1',
-        destination: 'Kho A2',
-        type: 'export',
-        status: 'WAITING',
-        createdAt: '2023-01-01',
-        scheduledTime: '2023-01-02',
-        hasTransport: true
-
-    },
-    {
-        id: 8,
-        customer: 'Yêu cầu 1',
-        warehouse: 'Kho A1',
-        description: 'Mô tả yêu cầu 1',
-        weight: 10,
-        origin: 'Kho A1',
-        destination: 'Kho A2',
-        type: 'import',
-        status: 'WAITING',
-        createdAt: '2023-01-01',
-        scheduledTime: '2023-01-02',
-        hasTransport: false
-    },
-    {
-        id: 9,
-        customer: 'Yêu cầu 1',
-        warehouse: 'Kho A1',
-        description: 'Mô tả yêu cầu 1',
-        weight: 10,
-        origin: 'Kho A1',
-        destination: 'Kho A2',
-        type: 'import',
-        status: 'WAITING',
-        createdAt: '2023-01-01',
-        scheduledTime: '2023-01-02',
-        hasTransport: true
-    }
-]
+import { initialImportExportRequest } from '../../data/initialData'
 
 /* ================= COMPONENT ================= */
 
 export const ImportExportManagement = () => {
-    const [requests, setRequests] = useState(initialRequests)
+    const [requests, setRequests] = useState(initialImportExportRequest)
     const [search, setSearch] = useState('')
     const [filter, setFilter] = useState<ImportExportRequest['status'] | 'all'>('all')
     const [currentPage, setCurrentPage] = useState(1)
-    const navigate = useNavigate()
 
     /* ===== MODALS ===== */
     const [modal, setModal] = useState<{ open: boolean; data?: ImportExportRequest }>({
@@ -203,7 +66,7 @@ export const ImportExportManagement = () => {
 
     /* ================= ACTION ================= */
 
-    const updateStatus = (id: number, status: ImportExportRequest['status']) => {
+    const updateStatus = (id: string, status: ImportExportRequest['status']) => {
         setRequests(prev =>
             prev.map(r => (r.id === id ? { ...r, status } : r))
         )
@@ -225,8 +88,8 @@ export const ImportExportManagement = () => {
     }
 
     const statusImportExport: Record<ImportExportRequest['type'], { label: string; color: string }> = {
-        import: { label: 'Nhập kho', color: 'bg-blue-500' },
-        export: { label: 'Xuất kho', color: 'bg-orange-500' },
+        IMPORT: { label: 'Nhập kho', color: 'bg-blue-500' },
+        EXPORT: { label: 'Xuất kho', color: 'bg-orange-500' },
     }
     /* ================= UI ================= */
 
@@ -305,7 +168,7 @@ export const ImportExportManagement = () => {
                                                 <td>{r.customer}</td>
                                                 <td>{r.warehouse}</td>
                                                 <td>
-                                                    {r.type === 'import' ? (
+                                                    {r.type === 'IMPORT' ? (
                                                         <span className={`px-2 py-1 rounded text-sm ${statusImportExport[r.type].color}`}>
                                                             {statusImportExport[r.type].label}
                                                         </span>

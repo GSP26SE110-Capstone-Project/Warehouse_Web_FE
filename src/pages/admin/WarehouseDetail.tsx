@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useLocation } from 'react-router-dom'
 import type { Warehouse as WarehouseType, Zone } from '../../types/Warehouse'
-import { warehouses } from '../../types/Warehouse'
+import { warehouses } from '../../data/initialData'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
+import { Link } from 'react-router-dom'
 
 export const WarehouseDetailView: React.FC = () => {
     const { id } = useParams()
@@ -66,13 +67,12 @@ export const WarehouseDetailView: React.FC = () => {
     }
 
     const handleMouseUp = () => setIsDragging(false)
-const isLoading = !warehouse || !zone
+    const isLoading = !warehouse || !zone
     if (!warehouse || !zone) {
         return <>
             <LoadingOverlay show={isLoading} text="LOADING WAREHOUSE..." />
 
             <div className="flex h-screen w-full overflow-hidden bg-[#0b101a] text-white">
-                {/* toàn bộ layout cũ giữ nguyên */}
             </div>
         </>
     }
@@ -82,9 +82,23 @@ const isLoading = !warehouse || !zone
 
             {/* MAIN */}
             <main className={`relative flex flex-col ${isSidebarOpen ? 'mr-[420px]' : 'w-full'}`}>
+                <Link
+                    to="/admin/warehouse"
+                    className="absolute top-8 left-4 z-20 flex items-center gap-2 px-4 py-1
+                                rounded-xl text-sm font-medium
+                                bg-gradient-to-r from-cyan-500/20 to-blue-500/20
+                                text-cyan-300 border border-cyan-400/20
+                                hover:from-cyan-500/30 hover:to-blue-500/30
+                                hover:text-white hover:border-cyan-300/40
+                                transition-all duration-200 shadow-md"
+                                            >
+                    <span className="text-lg">←</span>
+                    <span>Back</span>
+                </Link>
 
                 {/* HEADER */}
-                <div className="absolute top-4 left-6 z-20">
+                <div className="absolute top-20 left-6 z-10">
+
                     <h1 className="text-xl font-bold">
                         {warehouse.warehouseName} ({warehouse.warehouseId})
                     </h1>
@@ -216,8 +230,8 @@ const isLoading = !warehouse || !zone
                         <div className="mt-4 space-y-2">
                             {selectedRack.items.length > 0 ? (
                                 selectedRack.items.map(item => (
-                                    <div key={item.id} className="p-2 bg-white/5 rounded">
-                                        {item.name} (x{item.quantity})
+                                    <div key={item.sku} className="p-2 bg-white/5 rounded">
+                                        {item.name} (x{item.total})
                                     </div>
                                 ))
                             ) : (

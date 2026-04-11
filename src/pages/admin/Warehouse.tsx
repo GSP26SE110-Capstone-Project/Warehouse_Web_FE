@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
 import { Pagination } from '../../components/ui/Pagination'
 import { useNavigate } from 'react-router-dom'
-import { warehouses, type Warehouse } from '../../types/Warehouse'
+import { warehouses } from '../../data/initialData'
+import type { Warehouse } from '../../types/Warehouse'
 import { WarehouseModal } from '../../components/ui/modal/WarehouseModal'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 
@@ -75,7 +76,7 @@ export const WarehouseManagement: React.FC = () => {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 4
+  const pageSize = 5
   const totalItems = SearchWarehouse.length
   const totalPages = Math.ceil(totalItems / pageSize)
   const paginatedWarehouses = SearchWarehouse.slice(
@@ -94,12 +95,12 @@ export const WarehouseManagement: React.FC = () => {
     <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
       <main className="relative flex h-full flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop')] bg-cover bg-center">
         <div className="absolute inset-0 z-0 bg-[#0b101a]/90 backdrop-blur-sm" />
-        <div className="relative z-10 flex-1 p-8">
+        <div className="relative z-10 flex-1 p-6">
           <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
             {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-              <StatsCard title="Số lượng kho" value={124} icon="group" accentColor="emerald" />
-              <StatsCard title="Số lượng pallet" value={98} icon="verified_user" accentColor="primary" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mt-2">
+              <StatsCard title="Số lượng kho" value={warehouses.length} icon="group" accentColor="emerald" />
+              <StatsCard title="Số lượng pallet" value={warehouses.reduce((acc, warehouse) => acc + warehouse.numberOfPallets, 0)} icon="verified_user" accentColor="primary" />
             </div>
             <section className="glass-panel flex flex-col overflow-hidden rounded-xl border border-white/5">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 bg-white/[0.02] px-6 py-5">
@@ -133,12 +134,12 @@ export const WarehouseManagement: React.FC = () => {
                 <table className="w-full border-collapse text-left">
                   <thead>
                     <tr className="border-b border-white/5 bg-[#131b29] text-xs uppercase tracking-wider text-slate-400">
-                      <th className="px-6 py-4 font-medium">Mã kho</th>
-                      <th className="px-6 py-4 font-medium">Tên kho</th>
-                      <th className="px-6 py-4 text-center font-medium">Địa chỉ</th>
-                      <th className="px-6 py-4 font-medium">Số lượng pallet</th>
-                      <th className="px-6 py-4 text-center font-medium">Lần cuối cập nhật</th>
-                      <th className="px-6 py-4 text-center font-medium">Thao tác</th>
+                      <th className="px-6 py-3 font-medium">Mã kho</th>
+                      <th className="px-6 py-3 font-medium">Tên kho</th>
+                      <th className="px-6 py-3 text-center font-medium">Địa chỉ</th>
+                      <th className="px-6 py-3 font-medium">Số lượng pallet</th>
+                      <th className="px-6 py-3 text-center font-medium">Lần cuối cập nhật</th>
+                      <th className="px-6 py-3 text-center font-medium">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5 text-sm">
@@ -148,12 +149,12 @@ export const WarehouseManagement: React.FC = () => {
                           key={item.warehouseId}
                           className="group cursor-pointer transition-colors hover:bg-white/5"
                         >
-                          <td className="px-6 py-4 font-mono text-cyan-400">{item.warehouseId}</td>
-                          <td className="px-6 py-4 font-medium text-white">{item.warehouseName}</td>
-                          <td className="px-6 py-4  text-white">{item.address}</td>
-                          <td className="px-6 py-4 text-center  text-white">{item.numberOfPallets}</td>
-                          <td className="px-6 py-4 text-center text-white">{item.lastUpdated}</td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-6 py-3 font-mono text-cyan-400">{item.warehouseId}</td>
+                          <td className="px-6 py-3 font-medium text-white">{item.warehouseName}</td>
+                          <td className="px-6 py-3  text-white">{item.address}</td>
+                          <td className="px-6 py-3 text-center  text-white">{item.numberOfPallets}</td>
+                          <td className="px-6 py-3 text-center text-white">{item.lastUpdated}</td>
+                          <td className="px-6 py-3 text-right">
                             <div className="flex items-center justify-end gap-3 opacity-60 transition-opacity group-hover:opacity-100">
                               <button
                                 onClick={() => navigate(`/warehouses/${item.warehouseId}`)}
@@ -191,7 +192,7 @@ export const WarehouseManagement: React.FC = () => {
               </div>
 
               {/* Pagination */}
-              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-4">
+              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-2">
                 <p className="font-mono text-xs text-slate-400">
                   Showing <span className="text-white">{start}-{end}</span> of{' '}
                   <span className="text-white">{totalItems}</span> items

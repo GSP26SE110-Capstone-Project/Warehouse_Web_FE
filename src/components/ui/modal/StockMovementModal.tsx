@@ -176,25 +176,30 @@ export const StockMovementModal: React.FC<Props> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between px-6 py-4 border-t border-white/5">
-          <button
-            onClick={onClose}
-            className="text-sm text-slate-400 hover:text-white"
-          >
-            Đóng
-          </button>
-
-          {!isView && (
+        <div className="flex justify-between items-center px-6 py-4 border-t border-white/5 bg-white/[0.02]">
+          <span className="text-xs text-slate-500">
+            NEXSPACE
+          </span>
+          <div className="flex gap-3">
             <button
-              onClick={handleSubmit}
-              className="btn-glow bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 rounded-lg text-black font-bold flex items-center gap-2"
+              onClick={onClose}
+              className="text-sm text-slate-400 hover:text-white"
             >
-              <span className="material-symbols-outlined text-black text-[18px]">
-                save
-              </span>
-              Lưu
+              Đóng
             </button>
-          )}
+
+            {!isView && (
+              <button
+                onClick={handleSubmit}
+                className="btn-glow bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 rounded-lg text-black font-bold flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-black text-[18px]">
+                  save
+                </span>
+                Lưu
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

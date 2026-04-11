@@ -14,3 +14,15 @@ export interface RequestTransportation {
     actyalStartTime: string;
     actualEndTime: string;
 }
+
+export interface Transportation {
+    id: string
+    orderId: string
+    customer: string
+    destination: string
+    carrier: string
+    status: 'IN_TRANSIT' | 'DELIVERED' | 'DELAYED' | 'PENDING'
+    lastUpdate: string
+    eta: string
+    striped?: boolean
+}

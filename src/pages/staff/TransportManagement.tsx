@@ -5,163 +5,12 @@ import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { useNavigate } from 'react-router-dom'
 import type { RequestTransportation } from '../../types/Transportation'
 import { RequestShipmentModal } from '../../components/ui/modal/RequestTransportationModel'
-
-
-/* ================= MOCK DATA ================= */
-
-const initialRequests: RequestTransportation[] = [
-    {
-        id: 1,
-        customer: 'Yêu cầu 1',
-        warehouse: 'Kho A1',
-        description: 'Mô tả yêu cầu 1',
-        weight: 10,
-        origin: 'Kho A1',
-        status: 'WAITING',
-        createdAt: '2023-01-01',
-        updatedAt: '2023-01-01',
-        fromAdress: 'Địa chỉ gửi 1',
-        toAdress: 'Địa chỉ nhận 1',
-        scheduledTime: '2023-01-02',
-        actyalStartTime: '2023-01-02',
-        actualEndTime: '2023-01-03'
-    },
-    {
-        id: 2,
-        customer: 'Yêu cầu 2',
-        warehouse: 'Kho A1',
-        description: 'Mô tả yêu cầu 2',
-        weight: 20,
-        origin: 'Kho A1',
-        status: 'WAITING',
-        createdAt: '2023-01-01',
-        updatedAt: '2023-01-01',
-        fromAdress: 'Địa chỉ gửi 2',
-        toAdress: 'Địa chỉ nhận 2',
-        scheduledTime: '2023-01-02',
-        actyalStartTime: '2023-01-02',
-        actualEndTime: '2023-01-03'
-    },
-
-    {
-        id: 3,
-        customer: 'Yêu cầu 2',
-        warehouse: 'Kho A1',
-        description: 'Mô tả yêu cầu 2',
-        weight: 20,
-        origin: 'Kho A1',
-        status: 'WAITING',
-        createdAt: '2023-01-01',
-        updatedAt: '2023-01-01',
-        fromAdress: 'Địa chỉ gửi 2',
-        toAdress: 'Địa chỉ nhận 2',
-        scheduledTime: '2023-01-02',
-        actyalStartTime: '2023-01-02',
-        actualEndTime: '2023-01-03'
-    },
-    {
-        id: 4,
-        customer: 'Yêu cầu 2',
-        warehouse: 'Kho A1',
-        description: 'Mô tả yêu cầu 2',
-        weight: 20,
-        origin: 'Kho A1',
-        status: 'WAITING',
-        createdAt: '2023-01-01',
-        updatedAt: '2023-01-01',
-        fromAdress: 'Địa chỉ gửi 2',
-        toAdress: 'Địa chỉ nhận 2',
-        scheduledTime: '2023-01-02',
-        actyalStartTime: '2023-01-02',
-        actualEndTime: '2023-01-03'
-    },
-    {
-        id: 5,
-        customer: 'Yêu cầu 2',
-        warehouse: 'Kho A1',
-        description: 'Mô tả yêu cầu 2',
-        weight: 20,
-        origin: 'Kho A1',
-        status: 'CANCELED',
-        createdAt: '2023-01-01',
-        updatedAt: '2023-01-01',
-        fromAdress: 'Địa chỉ gửi 2',
-        toAdress: 'Địa chỉ nhận 2',
-        scheduledTime: '2023-01-02',
-        actyalStartTime: '2023-01-02',
-        actualEndTime: '2023-01-03'
-    },
-    {
-        id: 6,
-        customer: 'Yêu cầu 2',
-        warehouse: 'Kho A1',
-        description: 'Mô tả yêu cầu 2',
-        weight: 20,
-        origin: 'Kho A1',
-        status: 'WAITING',
-        createdAt: '2023-01-01',
-        updatedAt: '2023-01-01',
-        fromAdress: 'Địa chỉ gửi 2',
-        toAdress: 'Địa chỉ nhận 2',
-        scheduledTime: '2023-01-02',
-        actyalStartTime: '2023-01-02',
-        actualEndTime: '2023-01-03'
-    },
-    {
-        id: 7,
-        customer: 'Yêu cầu 2',
-        warehouse: 'Kho A1',
-        description: 'Mô tả yêu cầu 2',
-        weight: 20,
-        origin: 'Kho A1',
-        status: 'CANCELED',
-        createdAt: '2023-01-01',
-        updatedAt: '2023-01-01',
-        fromAdress: 'Địa chỉ gửi 2',
-        toAdress: 'Địa chỉ nhận 2',
-        scheduledTime: '2023-01-02',
-        actyalStartTime: '2023-01-02',
-        actualEndTime: '2023-01-03'
-    },
-    {
-        id: 8,
-        customer: 'Yêu cầu 2',
-        warehouse: 'Kho A1',
-
-        description: 'Mô tả yêu cầu 2',
-        weight: 20,
-        origin: 'Kho A1',
-        status: 'APPROVED',
-        createdAt: '2023-01-01',
-        updatedAt: '2023-01-01',
-        fromAdress: 'Địa chỉ gửi 2',
-        toAdress: 'Địa chỉ nhận 2',
-        scheduledTime: '2023-01-02',
-        actyalStartTime: '2023-01-02',
-        actualEndTime: '2023-01-03'
-    },
-    {
-        id: 9,
-        customer: 'Yêu cầu 2',
-        warehouse: 'Kho A1',
-        description: 'Mô tả yêu cầu 2',
-        weight: 20,
-        origin: 'Kho A1',
-        status: 'APPROVED',
-        createdAt: '2023-01-01',
-        updatedAt: '2023-01-01',
-        fromAdress: 'Địa chỉ gửi 2',
-        toAdress: 'Địa chỉ nhận 2',
-        scheduledTime: '2023-01-02',
-        actyalStartTime: '2023-01-02',
-        actualEndTime: '2023-01-03'
-    }
-]
+import { initialTransportRequests } from '../../data/initialData'
 
 /* ================= COMPONENT ================= */
 
 export const StaffRequestManagement = () => {
-    const [requests, setRequests] = useState(initialRequests)
+    const [requests, setRequests] = useState<RequestTransportation[]>(initialTransportRequests)
     const [search, setSearch] = useState('')
     const [filter, setFilter] = useState<RequestTransportation['status'] | 'all'>('all')
     const [currentPage, setCurrentPage] = useState(1)
@@ -234,9 +83,9 @@ export const StaffRequestManagement = () => {
     }
 
     const statusShipment: Record<RequestTransportation['status'], { label: string; color: string }> = {
-        WAITING: { label: 'Chờ duyệt', color: 'bg-yellow-500' },
-        CANCELED: { label: 'Đã hủy', color: 'bg-red-500' },
-        APPROVED: { label: 'Đã duyệt', color: 'bg-green-500' },
+        WAITING: { label: 'Chờ duyệt', color: 'bg-amber-400/10 text-amber-400 ring-amber-400/20' },
+        CANCELED: { label: 'Đã hủy', color: 'bg-gray-400/10 text-gray-400 ring-gray-400/20' },
+        APPROVED: { label: 'Đã duyệt', color: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20' },
     }
     /* ================= UI ================= */
 
@@ -321,12 +170,9 @@ export const StaffRequestManagement = () => {
                                                     {r.actyalStartTime} → {r.actualEndTime}
                                                 </td>
 
-                                                <td>
-                                                    <span
-                                                        className={`px-2 py-1 rounded text-sm ${statusShipment[r.status]?.color || 'bg-gray-500'
-                                                            }`}
-                                                    >
-                                                        {statusShipment[r.status]?.label || r.status}
+                                                <td >
+                                                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${statusShipment[r.status].color}`}>
+                                                        {statusShipment[r.status].label}
                                                     </span>
                                                 </td>
 

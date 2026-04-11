@@ -1,81 +1,15 @@
 import { useState, useMemo, useEffect } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
-import type { Transportation } from '../../types/Warehouse'
+import type { Transportation } from '../../types/Transportation'
 import { Pagination } from '../../components/ui/Pagination'
 import { TransportationModal } from '../../components/ui/modal/TransportationModal'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
+import { transportation } from '../../data/initialData'
 
-const transportation: Transportation[] = [
-  {
-    id: '#SHIP-001',
-    orderId: '#ORD-9981',
-    customer: 'Nguyễn Văn A',
-    destination: 'Hà Nội',
-    carrier: 'DHL',
-    status: 'In Transit',
-    statusClassName: 'bg-blue-400/10 text-blue-400 ring-blue-400/20',
-    lastUpdate: '10m ago',
-    eta: 'Today',
-    striped: true,
-  },
-  {
-    id: '#SHIP-002',
-    orderId: '#ORD-8822',
-    customer: 'Trần Thị B',
-    destination: 'TP.HCM',
-    carrier: 'FedEx',
-    status: 'Delivered',
-    statusClassName: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20',
-    lastUpdate: '1h ago',
-    eta: 'Completed',
-  },
-  {
-    id: '#SHIP-003',
-    orderId: '#ORD-7731',
-    customer: 'Lê Văn C',
-    destination: 'Đà Nẵng',
-    carrier: 'UPS',
-    status: 'Delayed',
-    statusClassName: 'bg-red-400/10 text-red-400 ring-red-400/20',
-    lastUpdate: '30m ago',
-    eta: 'Tomorrow',
-    striped: true,
-  },
- 
-   {
-    id: '#SHIP-005',
-    orderId: '#ORD-6619',
-    customer: 'Phạm Văn D',
-    destination: 'Cần Thơ',
-    carrier: 'GHN',
-    status: 'Pending',
-    statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
-    lastUpdate: '5m ago',
-    eta: 'Processing',
-  },
-   {
-    id: '#SHIP-006',
-    orderId: '#ORD-6619',
-    customer: 'Phạm Văn D',
-    destination: 'Cần Thơ',
-    carrier: 'GHN',
-    status: 'Pending',
-    statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
-    lastUpdate: '5m ago',
-    eta: 'Processing',
-  },
-]
-
-function getStatusDot(status: Transportation['status']) {
-  if (status === 'Delayed') return 'bg-red-400 animate-pulse'
-  if (status === 'Pending') return 'bg-orange-400'
-  if (status === 'In Transit') return 'bg-blue-400'
-  return 'bg-emerald-400'
-}
 
 export const TransportationManagement: React.FC = () => {
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'delivered' | 'in-transit' | 'delayed' | 'pending'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'DELIVERED' | 'IN_TRANSIT' | 'DELAYED' | 'PENDING'>('all')
   const [transportationData, setTransportationData] = useState<Transportation[]>(transportation)
 
   const [modal, setModal] = useState<{
@@ -131,21 +65,28 @@ export const TransportationManagement: React.FC = () => {
       const matchStatus =
         statusFilter === 'all'
           ? true
-          : statusFilter === 'delivered'
-            ? item.status === 'Delivered'
-            : statusFilter === 'in-transit'
-              ? item.status === 'In Transit'
-              : statusFilter === 'delayed'
-                ? item.status === 'Delayed'
-                : item.status === 'Pending'
+          : statusFilter === 'DELIVERED'
+            ? item.status === 'DELIVERED'
+            : statusFilter === 'IN_TRANSIT'
+              ? item.status === 'IN_TRANSIT'
+              : statusFilter === 'DELAYED'
+                ? item.status === 'DELAYED'
+                : item.status === 'PENDING'
 
       return matchSearch && matchStatus
     })
   }, [search, statusFilter, transportationData])
 
+  const statusCorlor: Record<Transportation['status'], { label: string; className: string }> = {
+    DELIVERED: { label: 'Hoàn thành', className: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20' },
+    IN_TRANSIT: { label: 'Đang giao', className: 'bg-blue-400/10 text-blue-400 ring-blue-400/20' },
+    DELAYED: { label: 'Trễ', className: 'bg-red-400/10 text-red-400 ring-red-400/20' },
+    PENDING: { label: 'Chờ xử lý', className: 'bg-orange-400/10 text-orange-400 ring-orange-400/20' }
+  }
+
   // ===== PAGINATION =====
   const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 4
+  const pageSize = 5
 
   const totalItems = filteredTransportation.length
   const totalPages = Math.ceil(totalItems / pageSize)
@@ -163,19 +104,19 @@ export const TransportationManagement: React.FC = () => {
   }, [search, statusFilter])
 
   return (
-    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100 pb-15">
+    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
 
       <main className="relative flex flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072')] bg-cover bg-center">
         <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" />
 
-        <div className="relative z-10 p-8">
+        <div className="relative z-10 p-6">
           <div className="max-w-[1400px] mx-auto flex flex-col gap-8">
 
             {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <StatsCard title="Tổng vận chuyển" value={320} icon="local_shipping" accentColor="emerald" />
-              <StatsCard title="Đang giao" value={120} icon="sync" accentColor="primary" />
-              <StatsCard title="Hoàn thành" value={180} icon="check_circle" accentColor="orange" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
+              <StatsCard title="Tổng vận chuyển" value={transportationData.length} icon="local_shipping" accentColor="emerald" />
+              <StatsCard title="Đang giao" value={transportationData.filter((item) => item.status === 'IN_TRANSIT').length} icon="sync" accentColor="primary" />
+              <StatsCard title="Hoàn thành" value={transportationData.filter((item) => item.status === 'DELIVERED').length} icon="check_circle" accentColor="orange" />
             </div>
 
             {/* Table */}
@@ -208,10 +149,10 @@ export const TransportationManagement: React.FC = () => {
                     className="px-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
                   >
                     <option value="all">Tất cả</option>
-                    <option value="in-transit">Đang giao</option>
-                    <option value="delivered">Hoàn thành</option>
-                    <option value="delayed">Trễ</option>
-                    <option value="pending">Chờ xử lý</option>
+                    <option value="IN_TRANSIT">Đang giao</option>
+                    <option value="DELIVERED">Hoàn thành</option>
+                    <option value="DELAYED">Trễ</option>
+                    <option value="PENDING">Chờ xử lý</option>
                   </select>
                   <button
                     onClick={() => {
@@ -230,13 +171,13 @@ export const TransportationManagement: React.FC = () => {
                 <table className="w-full text-sm text-left">
                   <thead>
                     <tr className="bg-[#131b29] text-xs uppercase text-slate-400 border-b border-white/5">
-                      <th className="px-6 py-4">Shipment ID</th>
-                      <th className="px-6 py-4">Order</th>
-                      <th className="px-6 py-4">Khách hàng</th>
-                      <th className="px-6 py-4">Điểm đến</th>
-                      <th className="px-6 py-4">Trạng thái</th>
-                      <th className="px-6 py-4">Thời gian dự kiến</th>
-                      <th className="px-6 py-4 text-center">Hành động</th>
+                      <th className="px-6 py-3">Shipment ID</th>
+                      <th className="px-6 py-3">Order</th>
+                      <th className="px-6 py-3">Khách hàng</th>
+                      <th className="px-6 py-3">Điểm đến</th>
+                      <th className="px-6 py-3">Trạng thái</th>
+                      <th className="px-6 py-3">Thời gian dự kiến</th>
+                      <th className="px-6 py-3 text-center">Hành động</th>
                     </tr>
                   </thead>
 
@@ -244,29 +185,28 @@ export const TransportationManagement: React.FC = () => {
                     {paginatedTransportation.length > 0 ? (
                       paginatedTransportation.map((t) => (
                         <tr key={t.id} className={`${t.striped ? 'bg-white/[0.02]' : ''}`}>
-                          <td className="px-6 py-4 text-cyan-400 font-mono">{t.id}</td>
-                          <td className="px-6 py-4 text-white">{t.orderId}</td>
-                          <td className="px-6 py-4">{t.customer}</td>
-                          <td className="px-6 py-4 text-slate-400">{t.destination}</td>
-                          <td className="px-6 py-4">
-                            <span className={`flex items-center gap-1 px-2 py-1 text-xs rounded-full ring-1 ${t.statusClassName}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(t.status)}`} />
-                              {t.status}
+                          <td className="px-6 py-3 text-cyan-400 font-mono">{t.id}</td>
+                          <td className="px-6 py-3 text-white">{t.orderId}</td>
+                          <td className="px-6 py-3">{t.customer}</td>
+                          <td className="px-6 py-3">{t.destination}</td>
+                          <td className="px-6 py-3">
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${statusCorlor[t.status].className}`}>
+                              {statusCorlor[t.status].label}
                             </span>
                           </td>
 
-                          <td className="px-6 py-4 text-xs text-slate-400">{t.eta}</td>
+                          <td className="px-6 py-3 font-mono text-xs">{t.eta}</td>
 
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-6 py-3 text-right">
                             <div className="flex justify-end gap-2 opacity-60 hover:opacity-100">
-                              <button 
+                              <button
                                 onClick={() => {
                                   setModal({ open: true, mode: 'view', data: t })
                                 }}
-                              className="p-1.5 hover:bg-white/10 rounded">
+                                className="p-1.5 hover:bg-white/10 rounded">
                                 <span className="material-symbols-outlined">visibility</span>
                               </button>
-                              <button 
+                              <button
                                 onClick={() => {
                                   setModal({ open: true, mode: 'edit', data: t })
                                 }}
@@ -304,7 +244,7 @@ export const TransportationManagement: React.FC = () => {
               </div>
 
               {/* Pagination */}
-              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-4">
+              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-2">
                 <p className="font-mono text-xs text-slate-400">
                   Showing <span className="text-white">{start}-{end}</span> of{' '}
                   <span className="text-white">{totalItems}</span> items

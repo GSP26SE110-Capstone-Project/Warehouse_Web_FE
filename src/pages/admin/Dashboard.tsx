@@ -31,55 +31,13 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="overflow-y-auto overflow-x-hidden p-6 md:p-8 bg-[#0b101a]">
       <div className="max-w-[1600px] mx-auto flex flex-col gap-6">
-        
-        {/* Page Title */}
-        <div className="flex justify-between items-end mb-2">
-          <div>
-            <h2 className="text-2xl font-bold text-white glow-text mb-1">
-              Tổng quan kho hàng
-            </h2>
-            <p className="text-slate-400 text-sm">
-              Cập nhật mới nhất: 10 phút trước
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button className="px-4 py-2 rounded-lg glass-panel hover:bg-white/10 text-xs font-bold text-primary border border-primary/30 shadow-neon transition-all flex items-center gap-2">
-              <span className="material-symbols-outlined text-sm">refresh</span>
-              Cập nhật dữ liệu
-            </button>
-            <button className="px-4 py-2 rounded-lg glass-panel hover:bg-white/10 text-xs font-bold text-white transition-all flex items-center gap-2">
-              <span className="material-symbols-outlined text-sm">download</span>
-              Báo cáo
-            </button>
-          </div>
-        </div>
-
+    
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatsCard
-            title="Tổng hàng hóa"
-            value={14205}
-            icon="inventory_2"
-            accentColor="emerald"
-          />
-          <StatsCard
-            title="đang vận chuyển"
-            value={42}
-            icon="local_shipping"
-            accentColor="primary"
-          />
-          <StatsCard
-            title="Tổng hợp đồng"
-            value="98.4%"
-            icon="memory"
-            accentColor="orange"
-          />
-          <StatsCard
-            title="HĐ sắp hết hạn"
-            value={3}
-            icon="warning"
-            accentColor="purple"
-          />
+          <StatsCard title="Tổng hàng hóa" value={14205} icon="inventory_2" accentColor="emerald" />
+          <StatsCard title="đang vận chuyển" value={42} icon="local_shipping" accentColor="primary" />
+          <StatsCard title="Tổng hợp đồng" value="98.4%" icon="memory" accentColor="orange" />
+          <StatsCard title="HĐ sắp hết hạn" value={3} icon="warning" accentColor="purple" />
         </div>
 
         {/* Main Content Grid */}
@@ -90,7 +48,7 @@ export const Dashboard: React.FC = () => {
               Gợi ý bố cục kho & dự báo nhu cầu
             </h3>
             <p className="text-slate-400 text-sm mb-4">
-              Biểu đồ này hiển thị bố cục kho được đề xuất dựa trên phân tích AI về dữ liệu kho, đơn hàng và xu hướng vận chuyển. 
+              Biểu đồ này hiển thị bố cục kho được đề xuất dựa trên phân tích AI về dữ liệu kho, đơn hàng và xu hướng vận chuyển.
               Các khu vực màu sắc khác nhau đại diện cho các mức độ sử dụng và hiệu suất khác nhau, giúp bạn nhanh chóng xác định các khu vực cần tối ưu hóa hoặc chú ý đặc biệt.
             </p>
             <div className="h-64 bg-black/20 rounded flex items-center justify-center text-slate-500">
