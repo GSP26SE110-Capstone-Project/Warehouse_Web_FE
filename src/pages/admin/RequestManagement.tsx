@@ -4,24 +4,85 @@ import { Pagination } from '../../components/ui/Pagination'
 import { RequestDetailModal } from '../../components/ui/modal/RequestDetailModal'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { ContractModal } from '../../components/ui/modal/ContractModal'
-import { initialRequests } from '../../data/initialData'
-import type { Request } from '../../types/Contract'
-
+import type { Request, RentalRequest } from '../../types/Contract'
+import { rentalRequestApi } from '../../service/rentalRequestApi'
+import { accountApi } from '../../service/accountApi'
+import type { AccountResponse, TenantResponse } from '../../types/Account'
 
 export const RequestManagement = () => {
-    const [requests, setRequests] = useState(initialRequests)
     const [search, setSearch] = useState('')
     const [filter, setFilter] = useState<Request['status'] | 'all'>('all')
     const [currentPage, setCurrentPage] = useState(1)
+    const [loading, setLoading] = useState(false)
+    const [rentalRequests, setRentalRequests] = useState<RentalRequest[]>([])
+
+    const getAllRentalRequests = async () => {
+        setLoading(true)
+
+        try {
+            const response = await rentalRequestApi.getAll()
+            const data = response.data
+            setRentalRequests(data.requests)
+
+        } catch (error) {
+            console.error('Error fetching rental requests:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
+    const TenantColumns = ({ id }: { id: string }) => {
+        const [tenant, setTenant] = useState<TenantResponse | null>(null);
+        const [loading, setLoading] = useState(false);
+
+        useEffect(() => {
+            const fetchDetail = async () => {
+                if (!id) return;
+                try {
+                    setLoading(true);
+                    const res = await accountApi.getTenant(id);
+                    setTenant(res.data);
+                } catch (error) {
+                    console.error("Lỗi:", error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchDetail();
+        }, [id]);
+
+        if (loading) {
+            return (
+                <>
+                    <td className="p-3 animate-pulse text-slate-500">Đang tải...</td>
+                    <td className="p-3 animate-pulse text-slate-500">---</td>
+                    <td className="p-3 animate-pulse text-slate-500">---</td>
+                </>
+            );
+        }
+
+        return (
+            <>
+                <td className="px-6 py-3 font-medium text-white">
+                    {tenant?.companyName || "---"}
+                </td>
+                <td className="px-6 py-3 text-slate-300">
+                    {tenant?.contactPhone || "---"}
+                </td>
+                <td className="px-6 py-3 text-slate-300 max-w-[200px] truncate">
+                    {tenant?.contactEmail || "---"}
+                </td>
+            </>
+        );
+    };
 
     /* ===== MODALS ===== */
-    const [modal, setModal] = useState<{ open: boolean; data?: Request }>({
+    const [modal, setModal] = useState<{ open: boolean; data?: RentalRequest }>({
         open: false
     })
 
     const [contractModal, setContractModal] = useState<{
         open: boolean
-        data?: Request
+        data?: RentalRequest
     }>({
         open: false
     })
@@ -33,16 +94,20 @@ export const RequestManagement = () => {
 
     /* ================= FILTER ================= */
     const filtered = useMemo(() => {
-        return requests.filter(r => {
+        if (!Array.isArray(rentalRequests)) return [];
+
+        return rentalRequests.filter(r => {
+
+            const searchInput = search.toLowerCase();
             const matchSearch =
-                r.customer.toLowerCase().includes(search.toLowerCase()) ||
-                r.id.toLowerCase().includes(search.toLowerCase())
+                r.requestId.toLowerCase().includes(searchInput) ||
+                r.contactName?.toLowerCase().includes(searchInput) ||
+                (typeof r.tenantId === 'string' && r.tenantId.toLowerCase().includes(searchInput));
+            const matchFilter = filter === 'all' || r.status.toUpperCase() === filter.toUpperCase();
 
-            const matchFilter = filter === 'all' || r.status === filter
-
-            return matchSearch && matchFilter
-        })
-    }, [requests, search, filter])
+            return matchSearch && matchFilter;
+        });
+    }, [rentalRequests, search, filter]);
 
     /* ================= PAGINATION ================= */
     const pageSize = 5
@@ -59,23 +124,25 @@ export const RequestManagement = () => {
     const end = Math.min(currentPage * pageSize, totalItems)
 
     useEffect(() => {
-        setCurrentPage(1)
-    }, [search, filter])
+        getAllRentalRequests()
+    }, [])
 
     /* ================= ACTION ================= */
     const updateStatus = (id: string, status: Request['status']) => {
-        setRequests(prev =>
-            prev.map(r => (r.id === id ? { ...r, status } : r))
+        setRentalRequests(prev =>
+            prev.map(r => (r.requestId === id ? { ...r, status } : r))
         )
     }
 
     /* ================= STATS ================= */
-    const stats = {
-        total: requests.length,
-        pending: requests.filter(r => r.status === 'PENDING').length,
-        approved: requests.filter(r => r.status === 'APPROVED').length,
-        rejected: requests.filter(r => r.status === 'REJECTED').length
-    }
+    const stats = useMemo(() => {
+        return {
+            total: rentalRequests.length,
+            pending: rentalRequests.filter(r => r.status === 'PENDING').length,
+            approved: rentalRequests.filter(r => r.status === 'APPROVED').length,
+            rejected: rentalRequests.filter(r => r.status === 'REJECTED').length
+        }
+    }, [rentalRequests])
 
     const statusColors: Record<Request['status'], { label: string; color: string }> = {
         PENDING: { label: 'Chờ duyệt', color: 'bg-yellow-400/10 text-yellow-400 ring-yellow-400/20' },
@@ -142,41 +209,34 @@ export const RequestManagement = () => {
                                 <table className="w-full text-sm text-left">
                                     <thead>
                                         <tr className="bg-[#131b29] text-xs uppercase text-slate-400 border-b border-white/5 ">
-                                            <th className="p-3">ID</th>
-                                            <th>Khách hàng</th>
-                                            <th>Kho</th>
-                                            <th>Loại</th>
-                                            <th>Thời gian</th>
-                                            <th>Trạng thái</th>
-                                            <th>Hành động</th>
+                                            <th className='px-6 py-3'>Khách hàng</th>
+                                            <th className='px-6 py-3'>Số điện thoại</th>
+                                            <th className='px-6 py-3'>Email</th>
+                                            <th className="px-6 py-3">Ngày tạo</th>
+                                            <th className="px-6 py-3">Trạng thái</th>
+                                            <th className="px-6 py-3">Hành động</th>
                                         </tr>
                                     </thead>
 
                                     <tbody className="divide-y divide-white/5">
-                                        {paginatedRequests.map(r => (
-                                            <tr key={r.id} className="border-t border-gray-700">
-                                                <td className="p-3 text-cyan-400 font-mono">{r.id}</td>
-                                                <td>{r.customer}</td>
-                                                <td>{r.warehouse}</td>
-                                                <td>
-                                                    {r.type === 'rent' ? 'Thuê mới' : 'Gia hạn'}
-                                                </td>
-                                                <td>
-                                                    {r.startDate} → {r.endDate}
-                                                </td>
+                                        {paginatedRequests.map(rentalRequests => (
+                                            <tr key={rentalRequests.requestId} className="border-t border-gray-700">
+                                                <TenantColumns id={rentalRequests.tenantId} />
 
-                                                <td>
-                                                    {r.status === 'PENDING' ? (
-                                                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${statusColors[r.status].color}`}>
-                                                            {statusColors[r.status].label}
+                                                <td className="px-6 py-3 text-cyan-400 font-mono">{new Date(rentalRequests.createdAt).toLocaleDateString('vi-VN')}</td>
+
+                                                <td className="px-6 py-3">
+                                                    {rentalRequests.status === 'PENDING' ? (
+                                                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${statusColors[rentalRequests.status].color}`}>
+                                                            {statusColors[rentalRequests.status].label}
                                                         </span>
-                                                    ) : r.status === 'APPROVED' ? (
-                                                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${statusColors[r.status].color}`}>
-                                                            {statusColors[r.status].label}
+                                                    ) : rentalRequests.status === 'APPROVED' ? (
+                                                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${statusColors[rentalRequests.status].color}`}>
+                                                            {statusColors[rentalRequests.status].label}
                                                         </span>
                                                     ) : (
-                                                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${statusColors[r.status].color}`}>
-                                                            {statusColors[r.status].label}
+                                                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${statusColors[rentalRequests.status].color}`}>
+                                                            {statusColors[rentalRequests.status].label}
                                                         </span>
                                                     )}
                                                 </td>
@@ -185,7 +245,7 @@ export const RequestManagement = () => {
 
                                                     {/* View */}
                                                     <button
-                                                        onClick={() => setModal({ open: true, data: r })}
+                                                        onClick={() => setModal({ open: true, data: rentalRequests })}
                                                         className="hover:bg-white/10 rounded p-1"
                                                     >
                                                         <span className="material-symbols-outlined">visibility</span>
@@ -247,7 +307,7 @@ export const RequestManagement = () => {
                             body: JSON.stringify(form)
                         })
 
-                        updateStatus(contractModal.data!.id, 'APPROVED')
+                        updateStatus(contractModal.data!.requestId, 'APPROVED')
 
                         setAlert({
                             open: true,

@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom'
 import { Login } from './pages/auth/Login'
 import { Dashboard } from './pages/admin/Dashboard'
 import { Inventory } from './pages/admin/Inventory'
@@ -19,25 +19,32 @@ import { Profile } from './pages/profile/Profile'
 import { RequestManagement } from './pages/admin/RequestManagement'
 import { StaffDashboard } from './pages/staff/Dashboard'
 import { StaffLayout } from './components/common/layout/StaffLayout'
-import { StaffRequestManagement} from './pages/staff/TransportManagement'
+import { StaffRequestManagement } from './pages/staff/TransportManagement'
 import { ImportExportManagement } from './pages/staff/ImportExportManagement'
 import { ReportManagement } from './pages/staff/ReportManagement'
-import {InventoryManagement} from './pages/staff/InventoryManagement'
+import { InventoryManagement } from './pages/staff/InventoryManagement'
+import { AuthorizationRoute } from './components/AuthorizationRoute'
 
 export const Router: React.FC = () => {
     return (
         <BrowserRouter>
             <NavigationProvider>
                 <Routes>
-                    <Route path='/' element={<Login />} />
+                    <Route path="/" element={<Navigate to="/login" replace />} />
+                    <Route path='/login' element={<Login />} />
                     <Route path='/forgot-password' element={<ForgotPassword />} />
                     <Route path='/reset-password' element={<ResetPassword />} />
+
                     {/* Admin Routes with Layout */}
-                    <Route element={<AdminLayout />}>
-                        <Route path='/admin' element={<Dashboard />} />
+                    <Route path='/admin' element={
+                        <AuthorizationRoute requiredRoles={['admin']} requireAuth={true} redirectTo='/login'>
+                            <AdminLayout />
+                        </AuthorizationRoute>
+                    }>
+                        <Route index element={<Dashboard />} />
                         <Route path='/admin/dashboard' element={<Dashboard />} />
                         <Route path='/admin/warehouse' element={<WarehouseManagement />} />
-                        <Route path="/warehouses/:id" element={<WarehouseDetailView />} />
+                        <Route path="/admin/warehouses/:id" element={<WarehouseDetailView />} />
                         <Route path='/admin/contract' element={<ContractManagement />} />
                         <Route path='/admin/inventory' element={<Inventory />} />
                         <Route path='/admin/accounts' element={<AccountManagement />} />
@@ -45,13 +52,17 @@ export const Router: React.FC = () => {
                         <Route path='/admin/transportation' element={<TransportationManagement />} />
                         <Route path='/admin/reports' element={<Reports />} />
                         <Route path='/admin/settings' element={<AdminSettings />} />
-                        <Route path='/profile' element={<Profile />} />
+                        <Route path='/admin/profile/:id' element={<Profile />} />
                         <Route path='/admin/requests' element={<RequestManagement />} />
                     </Route>
 
                     {/* Staff Routes with Layout */}
-                    <Route element={<StaffLayout />}>
-                        <Route path='/staff' element={<StaffDashboard />} />
+                    <Route path='/staff' element={
+                        <AuthorizationRoute requiredRoles={['warehouse_staff']} requireAuth={true} redirectTo='/login'>
+                            <StaffLayout />
+                        </AuthorizationRoute>
+                    }>
+                        <Route index element={<StaffDashboard />} />
                         <Route path='/staff/dashboard' element={<StaffDashboard />} />
                         <Route path='/staff/requests' element={<StaffRequestManagement />} />
                         <Route path='/staff/import-export' element={<ImportExportManagement />} />

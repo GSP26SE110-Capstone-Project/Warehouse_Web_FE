@@ -17,9 +17,9 @@ const navItems: NavItem[] = [
   { label: 'Quản lý Yêu cầu', icon: 'description', key: 'requests', href: '/admin/requests' },
   { label: 'Quản lý Tài khoản', icon: 'people', key: 'accounts', href: '/admin/accounts' },
   { label: 'Quản lý Kho', icon: 'warehouse', key: 'warehouse', href: '/admin/warehouse' },
-  { label: 'Quản lý Hàng', icon: 'inventory_2', key: 'inventory', href: '/admin/inventory' },
+  // { label: 'Quản lý Hàng', icon: 'inventory_2', key: 'inventory', href: '/admin/inventory' },
   { label: 'Quản lý Hợp đồng', icon: 'description', key: 'contracts', href: '/admin/contract' },
-  { label: 'Vận chuyển', icon: 'local_shipping', key: 'transportation', href: '/admin/transportation' },
+  // { label: 'Vận chuyển', icon: 'local_shipping', key: 'transportation', href: '/admin/transportation' },
   { label: 'Xuất nhập Kho', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
   { label: 'Báo cáo', icon: 'bar_chart', key: 'reports', href: '/admin/reports' },
 ]
@@ -27,13 +27,21 @@ const navItems: NavItem[] = [
 type BottomAction = {
   label: string
   icon: string
-  href: string
+  href?: string
+  action?: () => void
   className?: string
 }
 
+ const handleLogout = () => {
+    localStorage.removeItem('user')
+    localStorage.removeItem('token')
+
+    navigationService.goTo('/login')
+  }
+
 const bottomActions: BottomAction[] = [
-  { label: 'Settings', icon: 'settings', href: '/admin/settings' },
-  { label: 'Log Out', icon: 'logout', href: '/logout', className: 'text-slate-500 hover:text-red-400' },
+  { label: 'Cài đặt', icon: 'settings', href: '/admin/settings' },
+  { label: 'Đăng xuất', icon: 'logout', action: handleLogout, className: 'text-slate-500 hover:text-red-400' },
 ]
 
 interface SidebarProps {
@@ -44,6 +52,7 @@ interface SidebarProps {
 export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const location = useLocation()
   const [scanOpen, setScanOpen] = useState(false)
+  
 
   const isActive = (path: string) => {
     if (path === '/admin') {
@@ -124,7 +133,13 @@ export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
         {bottomActions.map((item) => (
           <button
             key={item.label}
-            onClick={() => handleItemClick(item.href)}
+            onClick={() => {
+              if (item.action) {
+                item.action();
+              } else {
+                handleItemClick(item.href ?? '');
+              }
+            }}
             className={`flex items-center gap-3 rounded-lg px-4 py-2 transition-all hover:text-white ${item.className ?? 'text-slate-500'}`}
           >
             <span className="material-symbols-outlined text-xl">{item.icon}</span>

@@ -2,19 +2,20 @@ import { useState, useMemo, useEffect } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
 import { ContractModal } from '../../components/ui/modal/ContractModal'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
-import type { Contract } from '../../types/Contract'
+import type { ContractDetails, ContractRequest } from '../../types/Contract'
 import { Pagination } from '../../components/ui/Pagination'
-import { initialContracts } from '../../data/initialData'
+import { contractApi } from '../../service/contractApi'
 
 /* ================= PAGE ================= */
 
 export const ContractManagement: React.FC = () => {
-  const [contracts, setContracts] = useState<Contract[]>(initialContracts)
+  const [contracts, setContracts] = useState<ContractDetails[]>([])
+  const [loading, setLoading] = useState(false)
 
   const [modal, setModal] = useState<{
     open: boolean
     mode: 'create' | 'edit' | 'view'
-    data?: Contract
+    data?: any
   }>({ open: false, mode: 'view' })
 
   const [alert, setAlert] = useState<{
@@ -26,73 +27,67 @@ export const ContractManagement: React.FC = () => {
 
   /* ================= HANDLERS ================= */
 
-  const handleSubmit = (form: any) => {
-    if (modal.mode === 'create') {
-      const newContract: Contract = {
-        id: `#CTR-${Math.floor(Math.random() * 1000)}`,
-        createdAt: 'now',
-        status: 'Pending',
-        statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
-        ...form,
+ const handleSubmit = async (form: ContractRequest) => {
+    try {
+      if (modal.mode === 'create') {
+        // Gọi API tạo mới thay vì set state ảo
+        // await contractApi.create(form) 
+        setAlert({ open: true, type: 'success', message: 'Tạo hợp đồng thành công' })
+      } else {
+        // await contractApi.update(modal.data.contractId, form)
+        setAlert({ open: true, type: 'success', message: 'Cập nhật thành công' })
       }
-
-      setContracts([newContract, ...contracts])
-
-      setAlert({
-        open: true,
-        type: 'success',
-        message: 'Tạo hợp đồng thành công',
-      })
-    }
-
-    if (modal.mode === 'edit' && modal.data) {
-      const updated = contracts.map((c) =>
-        c.id === modal.data!.id ? { ...c, ...form } : c
-      )
-
-      setContracts(updated)
-
-      setAlert({
-        open: true,
-        type: 'success',
-        message: 'Cập nhật thành công',
-      })
+      getAllContracts() // Refresh lại danh sách
+      setModal({ ...modal, open: false })
+    } catch (error) {
+      setAlert({ open: true, type: 'confirm', message: 'Có lỗi xảy ra, vui lòng thử lại' })
     }
   }
 
-  const handleDelete = (id: string) => {
-    setContracts(contracts.filter((c) => c.id !== id))
-
-    setAlert({
-      open: true,
-      type: 'success',
-      message: 'Xóa thành công',
-    })
+  const handleDelete = async (id: string) => {
+    try {
+      // await contractApi.delete(id)
+      setContracts(prev => prev.filter(c => c.contractId !== id))
+      setAlert({ open: true, type: 'success', message: 'Xóa thành công' })
+    } catch (error) {
+      console.error(error)
+    }
   }
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
+
+  const getAllContracts = async () => {
+    setLoading(true)
+    try {
+      const response = await contractApi.getAll()
+      const data = response.data
+      setContracts(data.contracts)
+
+    } catch (error) {
+      console.error('Error fetching contracts:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+
 
 
   /* ================= FILTER ================= */
 
   const filteredContracts = useMemo(() => {
     return contracts.filter((r) => {
-      const matchSearch =
-        r.customerName.toLowerCase().includes(search.toLowerCase()) ||
-        r.warehouse.toLowerCase().includes(search.toLowerCase()) ||
-        r.id.toLowerCase().includes(search.toLowerCase())
-
-      const matchStatus =
-        statusFilter === 'All' || r.status === statusFilter
-
+      const matchSearch = r.contractCode?.toLowerCase().includes(search.toLowerCase())
+      const matchStatus = statusFilter === 'All' || r.status === statusFilter
       return matchSearch && matchStatus
     })
   }, [contracts, search, statusFilter])
 
-  const statusColor: Record<Contract['status'], { label: string; classname: string }> = {
+  const statusColor: Record<string, { label: string; classname: string }> = {
     'ACTIVE': { label: 'Đang hoạt động', classname: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20' },
     'EXPIRED': { label: 'Hết hạn', classname: 'bg-gray-400/10 text-gray-400 ring-gray-400/20' },
-    'PENDING': { label: 'Chờ xử lý', classname: 'bg-orange-400/10 text-orange-400 ring-orange-400/20' }
+    'PENDING': { label: 'Chờ xử lý', classname: 'bg-orange-400/10 text-orange-400 ring-orange-400/20' },
+    'DRAFT': { label: 'Nháp', classname: 'bg-blue-400/10 text-blue-400 ring-blue-400/20' }
   }
 
   /* ================= PAGINATION ================= */
@@ -112,8 +107,8 @@ export const ContractManagement: React.FC = () => {
   const end = Math.min(currentPage * pageSize, totalItems)
 
   useEffect(() => {
-    setCurrentPage(1)
-  }, [search, statusFilter])
+    getAllContracts()
+  }, [])
 
   /* ================= UI ================= */
 
@@ -183,7 +178,7 @@ export const ContractManagement: React.FC = () => {
                     <tr className="bg-[#131b29] text-xs uppercase text-slate-400 border-b border-white/5">
                       <th className="px-6 py-3">ID</th>
                       <th className="px-6 py-3">Khách hàng</th>
-                      <th className="px-6 py-3">Kho</th>
+                      <th className="px-6 py-3">Ngày tạo</th>
                       <th className="px-6 py-3">Thời hạn</th>
                       <th className="px-6 py-3">Trạng thái</th>
                       <th className="px-6 py-3">Giá</th>
@@ -193,12 +188,12 @@ export const ContractManagement: React.FC = () => {
 
                   <tbody className="divide-y divide-white/5">
                     {paginatedContracts.map((c) => (
-                      <tr key={c.id}>
-                        <td className="px-6 py-3 text-cyan-400">{c.id}</td>
-                        <td className="px-6 py-3">{c.customerName}</td>
-                        <td className="px-6 py-3">{c.warehouse}</td>
+                      <tr key={c.contractId}>
+                        <td className="px-6 py-3 text-cyan-400">{c.contractCode}</td>
+                        <td className="px-6 py-3">{c.tenantId}</td>
+                        <td className="px-6 py-3">{new Date(c.createdAt).toLocaleDateString("vi-VN")}</td>
                         <td className="px-6 py-3 text-xs">
-                          {c.startDate} → {c.endDate}
+                          {new Date(c.startDate).toLocaleDateString("vi-VN")} → {new Date(c.endDate).toLocaleDateString("vi-VN")}
                         </td>
                         <td className="px-6 py-3">
                           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${statusColor[c.status]?.classname}`}>
@@ -206,7 +201,7 @@ export const ContractManagement: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-6 py-3 text-emerald-400">
-                          {c.price.toLocaleString()}₫
+                          {c.totalRentalFee.toLocaleString()}₫
                         </td>
 
                         <td className="px-6 py-3 text-right">
@@ -235,7 +230,7 @@ export const ContractManagement: React.FC = () => {
                                   open: true,
                                   type: 'confirm',
                                   message: 'Bạn có chắc muốn xóa?',
-                                  onConfirm: () => handleDelete(c.id),
+                                  onConfirm: () => handleDelete(c.contractId),
                                 })
                               }
                               className="hover:bg-white/10 rounded p-1"

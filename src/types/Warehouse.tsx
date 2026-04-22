@@ -33,13 +33,61 @@ export interface Zone {
     racks: Rack[]
 }
 
+// export interface Warehouse {
+//     warehouseId: string;
+//     warehouseName: string;
+//     address: string;
+//     zones: Zone[];
+// }
+
 export interface Warehouse {
-    warehouseId: string
-    warehouseName: string
-    address: string
-    numberOfPallets: number
-    lastUpdated: string
-    zones: Zone[]
+    warehouseId: string;
+    branchId: string;
+    managerId: string;
+    warehouseCode: string;
+    warehouseName: string;
+    warehouseType: string;
+    warehouseSize: string,
+    address: string,
+    city: string,
+    district: string,
+    operatingHours: string,
+    length: string,
+    width: string,
+    height: string,
+    totalArea: string,
+    usableArea: null,
+    isActive: true,
+    createdAt: string,
+    updatedAt: string
+}
+
+export interface WarehouseResponse {
+    data: Warehouse[]
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
+}
+
+export interface WarehouseRequest {
+    branchId: string,
+    managerId: string,
+    warehouseCode: string,
+    warehouseName: string,
+    warehouseType: string,
+    warehouseSize: string,
+    address: string,
+    city: string,
+    district: string,
+    operatingHours: string,
+    length: number,
+    width: number,
+    height: number,
+    temperatureMin: number,
+    temperatureMax: number
 }
 
 export interface StockMovement {
@@ -53,4 +101,38 @@ export interface StockMovement {
     statusClassName: string
     date: string
     striped?: boolean
+}
+
+export interface BranchRequest {
+    managerId: string;
+    branchCode: string;
+    branchName: string;
+    address: string;
+    city: string;
+}
+
+export interface ZoneRequest {
+    warehouseId: string,
+    zoneCode: string,
+    zoneName: string,
+    zoneType: string,
+    length: number,
+    width: number
+}
+
+export interface RackRequest {
+    zoneId: string,
+    rackCode: string,
+    rackSizeType: string,
+    length: number,
+    width: number,
+    height: number,
+    maxWeightCapacity: number
+}
+
+export interface LevelRequest {
+    rackId: string,
+    levelNumber: number,
+    heightClearance: number,
+    maxWeight: number
 }

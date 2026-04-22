@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
+import type { AccountRequest, AccountResponse } from '../../../types/Account'
 
 type Mode = 'view' | 'edit' | 'create'
 
 type Props = {
   mode: Mode
-  data?: any
+  data?: AccountResponse // Dùng Response cho dữ liệu đầu vào khi edit/view
   onClose: () => void
   onSubmit?: (data: any) => void
 }
@@ -16,99 +17,96 @@ export const AccountModal: React.FC<Props> = ({
   onSubmit,
 }) => {
   const isView = mode === 'view'
+  const isCreate = mode === 'create'
 
   const [form, setForm] = useState({
-    fullName: '',
     email: '',
+    fullName: '',
     phone: '',
-    role: 'Admin',
-    password: '',
-    status: 'Active',
-    confirmPassword: '',
+    role: 'warehouse_staff' as AccountRequest['role'], // Mặc định là warehouse_staff
+    status: 'active' as AccountRequest['status'], // Mặc định là active
+    passwordHash: '',
+    tenantId: '',
   })
 
+  // Cập nhật form khi data từ props thay đổi
   useEffect(() => {
-    if (data) setForm({ ...form, ...data })
+    if (data) {
+      setForm((prev) => ({
+        ...prev,
+        ...data,
+        password: '', // Không map password cũ vào state
+        confirmPassword: '',
+      }))
+    }
   }, [data])
 
   const handleSubmit = () => {
-    if (!isView && form.password !== form.confirmPassword) {
-      alert('Mật khẩu không khớp')
+    if (isView) return
+
+    // Validate cơ bản
+    if (!form.fullName || !form.email || (isCreate && !form.passwordHash)) {
+      alert('Vui lòng điền đầy đủ thông tin bắt buộc')
       return
     }
+
 
     onSubmit?.(form)
     onClose()
   }
 
-  
-
-  const labelStyle =
-    'text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block'
-
-  const inputStyle =
-    'w-full bg-[#1a2333] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 transition-all disabled:opacity-50'
+  const labelStyle = 'text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block'
+  const inputStyle = 'w-full bg-[#1a2333] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Overlay */}
-      <div
-        className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Modal */}
-      <div className="relative z-10 w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-xl border border-white/5 bg-[#0b101a] shadow-2xl flex flex-col">
-
+      <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-xl border border-white/5 bg-[#0b101a] shadow-2xl flex flex-col">
+        
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.02]">
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <span className="material-symbols-outlined text-cyan-400">
-                account_circle
+                {isCreate ? 'person_add' : isView ? 'account_circle' : 'manage_accounts'}
               </span>
-              {isView ? 'Thông tin tài khoản' : 'Chỉnh sửa tài khoản'}
+              {isCreate ? 'Tạo tài khoản mới' : isView ? 'Chi tiết tài khoản' : 'Cập nhật tài khoản'}
             </h2>
-            <p className="text-xs text-slate-400 mt-1">
-              Quản lý thông tin người dùng
-            </p>
           </div>
-
-          <button onClick={onClose} className="p-2 rounded hover:bg-white/10">
-            <span className="material-symbols-outlined text-slate-400">
-              close
-            </span>
+          <button onClick={onClose} className="p-2 rounded hover:bg-white/10 text-slate-400">
+            <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-
-          {/* Thông tin cơ bản */}
-          <div className="p-4 rounded-lg bg-white/[0.02] border border-white/5 space-y-4">
-            <h3 className="text-sm font-semibold text-cyan-400">
-              THÔNG TIN CÁ NHÂN
-            </h3>
-
-            <div>
-              <label className={labelStyle}>Họ và tên</label>
-              <input
-                disabled={isView}
-                className={inputStyle}
-                value={form.fullName}
-                onChange={(e) =>
-                  setForm({ ...form, fullName: e.target.value })
-                }
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelStyle}>Email</label>
+          
+          {/* Section: Personal Info */}
+          <div className="p-4 rounded-lg bg-white/[0.01] border border-white/5 space-y-4">
+            <h3 className="text-[10px] font-black text-cyan-500 tracking-[2px]">THÔNG TIN CƠ BẢN</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className={labelStyle}>Họ và tên *</label>
                 <input
-                  disabled
+                  disabled={isView}
                   className={inputStyle}
+                  placeholder="Nguyễn Văn A"
+                  value={form.fullName}
+                  onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className={labelStyle}>Email *</label>
+                <input
+                  disabled={isView || !isCreate} // Không cho sửa email khi edit để tránh lỗi logic
+                  type="email"
+                  className={inputStyle}
+                  placeholder="example@gmail.com"
                   value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
                 />
               </div>
 
@@ -117,10 +115,9 @@ export const AccountModal: React.FC<Props> = ({
                 <input
                   disabled={isView}
                   className={inputStyle}
+                  placeholder="0901234567"
                   value={form.phone}
-                  onChange={(e) =>
-                    setForm({ ...form, phone: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 />
               </div>
             </div>
@@ -128,109 +125,70 @@ export const AccountModal: React.FC<Props> = ({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelStyle}>Vai trò</label>
-                <input
-                  disabled
+                <select
+                  disabled={isView}
                   className={inputStyle}
                   value={form.role}
-                />
+                  onChange={(e) => setForm({ ...form, role: e.target.value as AccountRequest['role'] })}
+                >
+                  <option value="admin">Quản trị viên</option>
+                  <option value="warehouse_staff">Nhân viên kho</option>
+                  <option value="tenant_admin">Người thuê</option>
+                </select>
               </div>
 
               <div>
                 <label className={labelStyle}>Trạng thái</label>
-
-                {isView ? (
-                  <span
-                    className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ring-1 ring-inset ${form.status === 'Active'
-                        ? 'text-emerald-400 bg-emerald-400/10 ring-emerald-400/20'
-                        : form.status === 'Inactive'
-                          ? 'text-slate-400 bg-slate-400/10 ring-slate-400/20'
-                          : 'text-red-400 bg-red-400/10 ring-red-400/20'
-                      }`}
-                  >
-                    {form.status}
-                  </span>
-                ) : (
-                  <select
-                    className={inputStyle}
-                    value={form.status}
-                    onChange={(e) =>
-                      setForm({ ...form, status: e.target.value })
-                    }
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                    <option value="Suspended">Suspended</option>
-                  </select>
-                )}
+                <select
+                  disabled={isView}
+                  className={inputStyle}
+                  value={form.status}
+                  onChange={(e) => setForm({ ...form, status: e.target.value as any })}
+                >
+                  <option value="active">Hoạt động</option>
+                  <option value="inactive">Tạm ngưng</option>
+                  <option value="suspended">Đã khóa</option>
+                </select>
               </div>
             </div>
           </div>
 
-          {/* Đổi mật khẩu */}
+          {/* Section: Password - Chỉ hiện khi Create hoặc Edit */}
           {!isView && (
-            <div className="p-4 rounded-lg bg-white/[0.02] border border-white/5 space-y-4">
-              <h3 className="text-sm font-semibold text-emerald-400">
-                ĐỔI MẬT KHẨU
+            <div className="p-4 rounded-lg bg-white/[0.01] border border-white/5 space-y-4">
+              <h3 className="text-[10px] font-black text-emerald-500 tracking-[2px]">
+                {isCreate ? 'THIẾT LẬP MẬT KHẨU' : 'ĐỔI MẬT KHẨU (BỎ TRỐNG NẾU KHÔNG ĐỔI)'}
               </h3>
-
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className={labelStyle}>Mật khẩu mới</label>
+                  <label className={labelStyle}>Mật khẩu {isCreate && '*'}</label>
                   <input
                     type="password"
                     className={inputStyle}
-                    value={form.password}
-                    onChange={(e) =>
-                      setForm({ ...form, password: e.target.value })
-                    }
+                    value={form.passwordHash}
+                    onChange={(e) => setForm({ ...form, passwordHash: e.target.value })}
                   />
                 </div>
-
-                <div>
-                  <label className={labelStyle}>Xác nhận mật khẩu</label>
-                  <input
-                    type="password"
-                    className={inputStyle}
-                    value={form.confirmPassword}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        confirmPassword: e.target.value,
-                      })
-                    }
-                  />
-                </div>
+                
               </div>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between items-center px-6 py-4 border-t border-white/5 bg-white/[0.02]">
-          <span className="text-xs text-slate-500">
-           NEXSPACE
-          </span>
-
-          <div className="flex gap-3">
+        <div className="flex justify-end items-center gap-3 px-6 py-4 border-t border-white/5 bg-white/[0.02]">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors">
+            Hủy bỏ
+          </button>
+          {!isView && (
             <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm text-slate-400 hover:text-white"
+              onClick={handleSubmit}
+              className="btn-glow bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 rounded-lg text-sm font-bold text-black flex items-center gap-2"
             >
-              Đóng
+              <span className="material-symbols-outlined text-[18px]">save</span>
+              {isCreate ? 'Tạo tài khoản' : 'Lưu thay đổi'}
             </button>
-
-            {!isView && (
-              <button
-                onClick={handleSubmit}
-                className="btn-glow bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 rounded-lg text-sm font-bold text-black flex items-center gap-2"
-              >
-                <span className="material-symbols-outlined text-black text-[18px]">
-                  save
-                </span>
-                Lưu thay đổi
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>

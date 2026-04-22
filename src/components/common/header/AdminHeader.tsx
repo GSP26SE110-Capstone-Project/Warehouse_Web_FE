@@ -1,19 +1,21 @@
 import type { ChangeEvent } from 'react'
 import { navigationService } from '../../../utils/NavigationService'
 
-
 type AdminHeaderProps = {
   title?: string
   onSearchChange?: (value: string) => void
 }
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({
-  title = 'Admin Dashboard', 
+  title = 'Admin Dashboard',
   onSearchChange,
 }) => {
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     onSearchChange?.(event.target.value)
   }
+  const userId = localStorage.getItem('userId');
+  const username = localStorage.getItem('fullName') || 'Người dùng';
+  const role = localStorage.getItem('role') || 'Thành viên';
 
   return (
     <header className="relative z-10 flex items-center justify-between border-b border-white/5 bg-[#0b101a]/40 px-8 py-5 backdrop-blur-md">
@@ -46,11 +48,11 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         </button>
 
         <div
-        onClick={() => navigationService.goTo('/profile')}
-        className="flex items-center gap-3 border-l border-white/10 pl-6">
+         onClick={() => navigationService.goTo(userId ? `/profile/${userId}` : '/profile')}
+          className="flex items-center gap-3 border-l border-white/10 pl-6">
           <div className="hidden text-right sm:block">
-            <p className="text-sm font-medium text-white">Cmdr. Shepard</p>
-            <p className="text-xs text-slate-400">Logistics Lead</p>
+            <p className="text-sm font-medium text-white">{username}</p>
+            <p className="text-xs text-slate-400">{role}</p>
           </div>
           <div className="size-10 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 p-[1px]">
             <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-slate-900">

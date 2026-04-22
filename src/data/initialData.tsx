@@ -252,7 +252,7 @@ export const warehouses: Warehouse[] = [
                 zoneName: 'Zone A-4',
                 subZone: 'Cold Storage',
                 rows: 1,
-                cols: 4,
+                cols: 10,
                 racks: [
                     {
                         rackId: 'A-01',

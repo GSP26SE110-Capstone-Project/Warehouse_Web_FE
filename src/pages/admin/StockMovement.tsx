@@ -3,19 +3,22 @@ import { StatsCard } from '../../components/ui/StatCard'
 import { Pagination } from '../../components/ui/Pagination'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { StockMovementModal } from '../../components/ui/modal/StockMovementModal'
-import { initialImportExportRequest } from '../../data/initialData'
-import type { ImportExportRequest } from '../../types/ImportExport'
+import type { ImportExportRequest, ImportExportResponse, ImportExportDetail } from '../../types/ImportExport'
+import { importExportApi } from '../../service/importexportApi'
+import { warehouseApi } from '../../service/warehouseApi'
+import { contractApi } from '../../service/contractApi'
 
 export const StockMovementManagement: React.FC = () => {
   const [search, setSearch] = useState('')
 
-  const [statusFilter, setStatusFilter] = useState<'all' | 'WAITING' | 'APPROVED' | 'CANCELLED'>('all')
-  const [data, setData] = useState<ImportExportRequest[]>(initialImportExportRequest)
+  const [statusFilter, setStatusFilter] = useState<'all' | 'WAITING' | 'APPROVED' | 'CANCELED'>('all')
+  const [data, setData] = useState<ImportExportDetail[]>([])
+  const [loading, setLoading] = useState(false)
 
   const [modal, setModal] = useState<{
     open: boolean
     mode: 'create' | 'edit' | 'view'
-    data?: ImportExportRequest
+    data?: ImportExportDetail
     type?: 'Import' | 'Export'
   }>({ open: false, mode: 'create', type: 'Import' })
 
@@ -26,11 +29,50 @@ export const StockMovementManagement: React.FC = () => {
     onConfirm?: () => void
   }>({ open: false, type: 'success', message: '' })
 
+  const [warehouseCodes, setWarehouseCodes] = useState<any[]>([]);
+  const [contractCodes, setContractCodes] = useState<any[]>([]);
+
+
+  const fetchData = async () => {
+    try {
+      const [whRes, ctRes] = await Promise.all([
+        warehouseApi.getAll(),
+        contractApi.getAll()
+      ]);
+
+      // Lưu nguyên mảng Object để tí nữa "dò" tìm dựa trên ID
+      setWarehouseCodes(whRes.data?.warehouses || []);
+      setContractCodes(ctRes.data?.contracts || []);
+
+    } catch (error) {
+      console.error("Lỗi khi tải dữ liệu:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const getAllRecords = async () => {
+    setLoading(true);
+    try {
+      const response = await importExportApi.getAll();
+      const data = response.data;
+      setData(data.records);
+
+
+    } catch (error) {
+      console.error('Error fetching records:', error);
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ===== CRUD =====
-  const handleSubmit = (form: any) => {
+  const handleSubmit = (form: ImportExportDetail) => {
     if (modal.mode === 'create') {
-      const newItem: ImportExportRequest = {
-        id: `#MOV-${Math.floor(Math.random() * 1000)}`,
+      const newItem: ImportExportDetail = {
         ...form,
       }
       setData([newItem, ...data])
@@ -43,7 +85,7 @@ export const StockMovementManagement: React.FC = () => {
 
     if (modal.mode === 'edit' && modal.data) {
       const updated = data.map(item =>
-        item.id === modal.data!.id ? { ...item, ...form } : item
+        item.recordId === modal.data!.recordId ? { ...item, ...form } : item
       )
       setData(updated)
       setAlert({ open: true, type: 'success', message: 'Cập nhật thành công' })
@@ -51,40 +93,37 @@ export const StockMovementManagement: React.FC = () => {
   }
 
   const handleDelete = (id: string) => {
-    setData(data.filter(item => item.id !== id))
+    setData(data.filter(item => item.recordId !== id))
     setAlert({ open: true, type: 'success', message: 'Xóa thành công' })
   }
 
   // ===== FILTER =====
   const filtered = useMemo(() => {
+    if (!Array.isArray(data)) return [];
+
     return data.filter(item => {
-      const matchSearch =
-        item.customer.toLowerCase().includes(search.toLowerCase()) ||
-        item.createdAt.toLowerCase().includes(search.toLowerCase())
+      const recordCode = (item.recordCode || '').toLowerCase();
+      const notes = (item.notes || '').toLowerCase();
+      const searchStr = search.toLowerCase();
 
-      const matchStatus =
-        statusFilter === 'all'
-          ? true
-          : statusFilter === 'WAITING'
-            ? item.status === 'WAITING'
-            : statusFilter === 'APPROVED'
-              ? item.status === 'APPROVED'
-              : statusFilter === 'CANCELLED'
-                ? item.status === 'CANCELED'
-                : true  
+      const matchSearch = recordCode.includes(searchStr) || notes.includes(searchStr);
 
-      return matchSearch && matchStatus
-    })
-  }, [search, statusFilter, data])
+      // Xử lý lệch chữ L giữa UI (CANCELLED) và API (CANCELED)
+      const normalizedStatus = item.status === 'CANCELED' ? 'CANCELLED' : item.status;
+      const matchStatus = statusFilter === 'all' || normalizedStatus === statusFilter;
 
+      return matchSearch && matchStatus;
+    });
+  }, [search, statusFilter, data]);
 
   const statusColor: Record<ImportExportRequest['status'], { label: string; classname: string }> = {
-    WAITING: { label: 'Chờ xử lý', classname: 'bg-blue-400/10 text-blue-400 ring-blue-400/20' },
+    PENDING: { label: 'Chờ xử lý', classname: 'bg-blue-400/10 text-blue-400 ring-blue-400/20' },
     APPROVED: { label: 'Đã duyệt', classname: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20' },
+    REJECTED: { label: 'Đã từ chối', classname: 'bg-rose-400/10 text-rose-400 ring-rose-400/20' },
     CANCELED: { label: 'Đã hủy', classname: 'bg-rose-400/10 text-rose-400 ring-rose-400/20' }
   }
 
-  const typeColor: Record<ImportExportRequest['type'], { label: string; classname: string }> = {
+  const typeColor: Record<ImportExportRequest['recordType'], { label: string; classname: string }> = {
     IMPORT: { label: 'Nhập kho', classname: 'bg-blue-400/10 text-blue-400 ring-blue-400/20' },
     EXPORT: { label: 'Xuất kho', classname: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20' }
   }
@@ -106,8 +145,8 @@ export const StockMovementManagement: React.FC = () => {
   const end = Math.min(currentPage * pageSize, totalItems)
 
   useEffect(() => {
-    setCurrentPage(1)
-  }, [search, statusFilter])
+    getAllRecords()
+  }, [])
 
   return (
     <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
@@ -122,7 +161,7 @@ export const StockMovementManagement: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
               <StatsCard title="Tổng giao dịch" value={data.length} icon="sync_alt" accentColor="emerald" />
               <StatsCard title="Đã duyệt" value={data.filter((m) => m.status === 'APPROVED').length} icon="download" accentColor="primary" />
-              <StatsCard title="Chờ xử lý" value={data.filter((m) => m.status === 'WAITING').length} icon="upload" accentColor="orange" />
+              <StatsCard title="Chờ xử lý" value={data.filter((m) => m.status === 'PENDING').length} icon="upload" accentColor="orange" />
             </div>
 
             {/* Table */}
@@ -190,24 +229,25 @@ export const StockMovementManagement: React.FC = () => {
                       <th className="px-6 py-3">Kho</th>
                       <th className="px-6 py-3">Loại</th>
                       <th className="px-6 py-3">Trạng thái</th>
-                      <th className="px-6 py-3">Thời gian dự kiến</th>
                       <th className="px-6 py-3">Ngày tạo</th>
                       <th className="px-6 py-3 text-right">Hoạt động</th>
                     </tr>
                   </thead>
 
-                  <tbody className="divide-y divide-white/5">
+                  {/* <tbody className="divide-y divide-white/5">
                     {paginated.length > 0 ? (
-                      paginated.map((m) => (
-                        <tr key={m.id} className={`${m.id ? 'bg-white/[0.02]' : ''}`}>
-                          <td className="px-6 py-3 text-cyan-400 font-mono">{m.id}</td>
-                          <td className="px-6 py-3 ">{m.customer}</td>
-                          <td className="px-6 py-3 ">{m.warehouse}</td>
+                      paginated.map((m) => {
+
+                        
+                        <tr key={m.recordId} className={`${m.recordId ? 'bg-white/[0.02]' : ''}`}>
+                          <td className="px-6 py-3 text-cyan-400 font-mono">{m.recordCode}</td>
+                          <td className="px-6 py-3 ">{m.contractCode}</td>
+                          <td className="px-6 py-3 ">{m.warehouseCode}</td>
 
 
                           <td className="px-6 py-3">
-                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${typeColor[m.type].classname}`}>
-                              {typeColor[m.type].label}
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${typeColor[m.recordType].classname}`}>
+                              {typeColor[m.recordType].label}
                             </span>
                           </td>
 
@@ -217,9 +257,8 @@ export const StockMovementManagement: React.FC = () => {
                             </span>
                           </td>
 
-                          <td className="px-6 py-3 text-xs font-mono">{m.scheduledTime}</td>
 
-                          <td className="px-6 py-3 text-xs font-mono">{m.createdAt}</td>
+                          <td className="px-6 py-3 text-xs font-mono">{new Date(m.createdAt).toLocaleDateString()}</td>
 
                           <td className="px-6 py-3 text-right">
                             <div className="flex justify-end gap-2 opacity-60 hover:opacity-100">
@@ -240,7 +279,7 @@ export const StockMovementManagement: React.FC = () => {
                                     type: 'confirm',
                                     message: `Bạn có chắc muốn xóa kho?`,
                                     onConfirm: () => {
-                                      handleDelete(m.id)
+                                      handleDelete(m.recordId)
                                     }
                                   })
                                 }}
@@ -257,6 +296,76 @@ export const StockMovementManagement: React.FC = () => {
                           Không tìm thấy dữ liệu
                         </td>
                       </tr>
+                    )}
+                    
+                  </tbody> */}
+                  <tbody className="divide-y divide-white/5">
+                    {paginated.length > 0 ? (
+                      paginated.map((m) => {
+                        // 1. Thực hiện logic tìm kiếm Code dựa trên ID tại đây
+                        // Lưu ý: warehouseCodes và contractCodes phải là mảng Object (như bước 2 phía dưới)
+                        const warehouse = warehouseCodes.find((w: any) => w.warehouseId === m.warehouseId);
+                        const contract = contractCodes.find((c: any) => c.contractId === m.contractId);
+
+                        // 2. Trả về giao diện (JSX) bằng lệnh return
+                        return (
+                          <tr key={m.recordId} className="bg-white/[0.02]">
+                            <td className="px-6 py-3 text-cyan-400 font-mono">{m.recordCode}</td>
+
+                            {/* Hiển thị Code tìm được, nếu không tìm thấy thì hiện ID cũ */}
+                            <td className="px-6 py-3">
+                              {contract?.contractCode || m.contractId}
+                            </td>
+                            <td className="px-6 py-3">
+                              {warehouse?.warehouseCode || m.warehouseId}
+                            </td>
+
+                            <td className="px-6 py-3">
+                              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${typeColor[m.recordType].classname}`}>
+                                {typeColor[m.recordType].label}
+                              </span>
+                            </td>
+
+                            {/* ... các cột Status, Ngày tạo, Hoạt động giữ nguyên ... */}
+                            <td className="px-6 py-3">
+                              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${statusColor[m.status].classname}`}>
+                                {statusColor[m.status].label}
+                              </span>
+                            </td>
+                            <td className="px-6 py-3 text-xs font-mono">{new Date(m.createdAt).toLocaleDateString()}</td>
+                            <td className="px-6 py-3 text-right">
+                              <div className="flex justify-end gap-2 opacity-60 hover:opacity-100">
+                              <button
+                                onClick={() => setModal({ open: true, mode: 'view', data: m })}
+                                className="p-1.5 hover:bg-white/10 rounded">
+                                <span className="material-symbols-outlined">visibility</span>
+                              </button>
+                              <button
+                                onClick={() => setModal({ open: true, mode: 'edit', data: m })}
+                                className="p-1.5 hover:bg-white/10 rounded">
+                                <span className="material-symbols-outlined">edit</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setAlert({
+                                    open: true,
+                                    type: 'confirm',
+                                    message: `Bạn có chắc muốn xóa kho?`,
+                                    onConfirm: () => {
+                                      handleDelete(m.recordId)
+                                    }
+                                  })
+                                }}
+                                className="p-1.5 hover:bg-white/10 rounded">
+                                <span className="material-symbols-outlined">delete</span>
+                              </button>
+                            </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr><td colSpan={7} className="text-center py-10">Không tìm thấy dữ liệu</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -282,10 +391,12 @@ export const StockMovementManagement: React.FC = () => {
       {modal.open && (
         <StockMovementModal
           mode={modal.mode}
-          type={modal.type || 'Import'}
+          type={modal.type as 'import' | 'export'}
           data={modal.data}
           onClose={() => setModal({ ...modal, open: false })}
           onSubmit={handleSubmit}
+          warehouseCodes={warehouseCodes}
+          contractCodes={contractCodes}
         />
       )}
       {/* Alert */}

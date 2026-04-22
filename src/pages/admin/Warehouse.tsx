@@ -2,16 +2,18 @@ import { useState, useEffect, useMemo } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
 import { Pagination } from '../../components/ui/Pagination'
 import { useNavigate } from 'react-router-dom'
-import { warehouses } from '../../data/initialData'
 import type { Warehouse } from '../../types/Warehouse'
 import { WarehouseModal } from '../../components/ui/modal/WarehouseModal'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
+import { warehouseApi } from '../../service/warehouseApi'
 
 export const WarehouseManagement: React.FC = () => {
+
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
 
-  const [warehouse, setWarehouses] = useState<Warehouse[]>(warehouses)
   const [modal, setModal] = useState<{
     open: boolean
     mode: 'create' | 'edit' | 'view'
@@ -25,10 +27,25 @@ export const WarehouseManagement: React.FC = () => {
     onConfirm?: () => void
   }>({ open: false, type: 'success', message: '' })
 
+  //Gọi api lấy danh sách kho
+  const getAllWarehouses = async () => {
+    setLoading(true);
+    try {
+      const response = await warehouseApi.getAll();
+      if (response.data && response.data.warehouses) {
+        setWarehouses(response.data.warehouses);
+      }
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = (form: any) => {
     if (modal.mode === 'create') {
       const newWarehouse: Warehouse = {
-        id: `#CTR-${Math.floor(Math.random() * 1000)}`,
+        warehouseId: `#CTR-${Math.floor(Math.random() * 1000)}`,
         createdAt: 'now',
         status: 'Pending',
         statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
@@ -45,7 +62,7 @@ export const WarehouseManagement: React.FC = () => {
     }
 
     if (modal.mode === 'edit' && modal.data) {
-      const updated = warehouse.map((w) =>
+      const updated = warehouses.map((w) =>
         w.warehouseId === modal.data!.warehouseId ? { ...w, ...form } : w
       )
 
@@ -59,20 +76,45 @@ export const WarehouseManagement: React.FC = () => {
     }
   }
 
-  const handleDelete = (id: string) => {
-    setWarehouses(warehouse.filter((w) => w.warehouseId !== id))
+  const handleDelete = async (id: string) => {
+    try {
+      setLoading(true); // Hiển thị loading nếu cần
 
-    setAlert({
-      open: true,
-      type: 'success',
-      message: 'Xóa thành công',
-    })
-  }
+      // 1. Gọi API xóa từ service
+      await warehouseApi.delete(id);
+
+      // 2. Cập nhật lại state local để UI mất hàng đó ngay lập tức
+      setWarehouses(prev => prev.filter((w) => w.warehouseId !== id));
+
+      // 3. Thông báo thành công
+      setAlert({
+        open: true,
+        type: 'success',
+        message: 'Xóa kho thành công!',
+      });
+    } catch (error: any) {
+      console.error('Lỗi khi xóa kho:', error);
+
+      // 4. Thông báo lỗi nếu API thất bại
+      setAlert({
+        open: true,
+        type: 'success', // Hoặc type 'error' tùy component AlertModal của bạn
+        message: error.response?.data?.message || 'Không thể xóa kho. Vui lòng thử lại!',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  // Tìm kiếm kho theo tên hoặc địa chỉ
   const SearchWarehouse = useMemo(() => {
-    return warehouses.filter(warehouse =>
-      warehouse.warehouseName.toLowerCase().includes(search.toLowerCase()) ||
-      warehouse.address.toLowerCase().includes(search.toLowerCase()))
-  }, [search])
+    const term = search.toLowerCase().trim();
+    return warehouses.filter(warehouse => {
+      const name = warehouse.warehouseName?.toLowerCase() || '';
+      const address = warehouse.address?.toLowerCase() || '';
+
+      return name.includes(term) || address.includes(term);
+    });
+  }, [search, warehouses]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -85,11 +127,10 @@ export const WarehouseManagement: React.FC = () => {
   )
   const start = (currentPage - 1) * pageSize + 1
   const end = Math.min(currentPage * pageSize, totalItems)
+
   useEffect(() => {
-    setCurrentPage(1)
-  }, [SearchWarehouse.length])
-
-
+    getAllWarehouses()
+  }, [])
 
   return (
     <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
@@ -100,7 +141,7 @@ export const WarehouseManagement: React.FC = () => {
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mt-2">
               <StatsCard title="Số lượng kho" value={warehouses.length} icon="group" accentColor="emerald" />
-              <StatsCard title="Số lượng pallet" value={warehouses.reduce((acc, warehouse) => acc + warehouse.numberOfPallets, 0)} icon="verified_user" accentColor="primary" />
+              <StatsCard title="Tổng diện tích" value={warehouses.reduce((acc, warehouse) => acc + parseInt(warehouse.totalArea || '0'), 0)} icon="verified_user" accentColor="primary" />
             </div>
             <section className="glass-panel flex flex-col overflow-hidden rounded-xl border border-white/5">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 bg-white/[0.02] px-6 py-5">
@@ -136,57 +177,62 @@ export const WarehouseManagement: React.FC = () => {
                     <tr className="border-b border-white/5 bg-[#131b29] text-xs uppercase tracking-wider text-slate-400">
                       <th className="px-6 py-3 font-medium">Mã kho</th>
                       <th className="px-6 py-3 font-medium">Tên kho</th>
-                      <th className="px-6 py-3 text-center font-medium">Địa chỉ</th>
-                      <th className="px-6 py-3 font-medium">Số lượng pallet</th>
-                      <th className="px-6 py-3 text-center font-medium">Lần cuối cập nhật</th>
+                      <th className="px-6 py-3 font-medium">Địa chỉ</th>
+                      <th className="px-6 py-3 text-center font-medium">Tổng diện tích</th>
+                      <th className="px-6 py-3 text-center font-medium">Thời gian hoạt động</th>
+                      <th className="px-6 py-3 text-center font-medium">Trạng thái</th>
                       <th className="px-6 py-3 text-center font-medium">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5 text-sm">
-                    {paginatedWarehouses.map((item) => {
-                      return (
-                        <tr
-                          key={item.warehouseId}
-                          className="group cursor-pointer transition-colors hover:bg-white/5"
-                        >
-                          <td className="px-6 py-3 font-mono text-cyan-400">{item.warehouseId}</td>
-                          <td className="px-6 py-3 font-medium text-white">{item.warehouseName}</td>
-                          <td className="px-6 py-3  text-white">{item.address}</td>
-                          <td className="px-6 py-3 text-center  text-white">{item.numberOfPallets}</td>
-                          <td className="px-6 py-3 text-center text-white">{item.lastUpdated}</td>
-                          <td className="px-6 py-3 text-right">
-                            <div className="flex items-center justify-end gap-3 opacity-60 transition-opacity group-hover:opacity-100">
-                              <button
-                                onClick={() => navigate(`/warehouses/${item.warehouseId}`)}
-                                className="rounded p-1.5 text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
-                                <span className="material-symbols-outlined text-lg">visibility</span>
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setModal({ open: true, mode: 'edit', data: item })
-                                }}
-                                className="rounded p-1.5 text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
-                                <span className="material-symbols-outlined text-lg">edit</span>
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setAlert({
-                                    open: true,
-                                    type: 'confirm',
-                                    message: `Bạn có chắc muốn xóa kho ${item.warehouseName}?`,
-                                    onConfirm: () => {
-                                      handleDelete(item.warehouseId)
-                                    }
-                                  })
-                                }}
-                                className="rounded p-1.5 text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
-                                <span className="material-symbols-outlined text-lg">delete</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
+                    {paginatedWarehouses.map((warehouse) => (
+                      <tr
+                        key={warehouse.warehouseId}
+                        className="group cursor-pointer transition-colors hover:bg-white/5"
+                      >
+                        <td className="px-6 py-3 font-mono text-cyan-400">{warehouse.warehouseCode}</td>
+                        <td className="px-6 py-3 font-medium text-white">{warehouse.warehouseName}</td>
+                        <td className="px-6 py-3  text-white">{warehouse.address} </td>
+                        <td className="px-6 py-3 text-center  text-white">{warehouse.totalArea} m²</td>
+                        <td className="px-6 py-3 text-center  text-white">{warehouse.operatingHours}</td>
+                        <td className="px-6 py-3 text-center">
+                          <span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${warehouse.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                            }`}>
+                            {warehouse.isActive ? 'Hoạt động' : 'Ngừng hoạt động'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3 text-right">
+                          <div className="flex items-center justify-end gap-3 opacity-60 transition-opacity group-hover:opacity-100">
+                            <button
+                              onClick={() => navigate(`/admin/warehouses/${warehouse.warehouseId}`)}
+                              className="rounded p-1.5 text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
+                              <span className="material-symbols-outlined text-lg">visibility</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                setModal({ open: true, mode: 'edit', data: warehouse })
+                              }}
+                              className="rounded p-1.5 text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
+                              <span className="material-symbols-outlined text-lg">edit</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                setAlert({
+                                  open: true,
+                                  type: 'confirm',
+                                  message: `Bạn có chắc muốn xóa kho ${warehouse.warehouseName}?`,
+                                  onConfirm: () => {
+                                    handleDelete(warehouse.warehouseId)
+                                  }
+                                })
+                              }}
+                              className="rounded p-1.5 text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
+                              <span className="material-symbols-outlined text-lg">delete</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

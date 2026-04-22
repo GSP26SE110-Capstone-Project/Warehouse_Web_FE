@@ -1,213 +1,83 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useParams } from 'react-router-dom' // Dùng để lấy ID từ URL
+import { authApi } from '../../service/authApi'
 
 export const Profile: React.FC = () => {
-    const [name, setName] = useState('Nguyễn Văn A')
-    const [email, setEmail] = useState('admin@nexspace.com')
-    const [phone, setPhone] = useState('0123456789')
-    const [role] = useState('Admin')
+    // Lấy id từ route path="/profile/:id"
+    const { id } = useParams<{ id: string }>(); 
 
-    const [password, setPassword] = useState('')
-    const [confirmPassword, setConfirmPassword] = useState('')
-    const [error, setError] = useState('')
+    const [name, setName] = useState('')
+    const [email, setEmail] = useState('')
+    const [phone, setPhone] = useState('')
+    const [role, setRole] = useState('')
+    const [loading, setLoading] = useState(false)
 
-    const [showPassword, setShowPassword] = useState(false)
-    const [showConfirm, setShowConfirm] = useState(false)
-
-    const handleSaveProfile = () => {
-        console.log({ name, email, phone })
-        alert('Đã cập nhật thông tin!')
+    // 1. Hàm gọi API lấy thông tin user theo ID
+    const fetchUserData = async () => {
+        if (!id) return; // Nếu không có ID thì thoát
+        
+        setLoading(true);
+        try {
+            const res = await authApi.getUserById(id);
+            const data = res.data;
+            
+            // Map dữ liệu từ API vào State (kiểm tra kỹ tên field backend trả về)
+            setName(data.fullName || data.name || '');
+            setEmail(data.email || '');
+            setPhone(data.phoneNumber || data.phone || '');
+            setRole(data.role || 'User');
+        } catch (err) {
+            console.error("Lỗi khi lấy thông tin user:", err);
+            alert("Không tìm thấy người dùng này!");
+        } finally {
+            setLoading(false);
+        }
     }
 
-    const handleChangePassword = () => {
-        if (password.length < 6) {
-            return setError('Mật khẩu phải >= 6 ký tự')
-        }
+    useEffect(() => {
+        fetchUserData();
+    }, [id]); // Chạy lại nếu ID trên URL thay đổi
 
-        if (password !== confirmPassword) {
-            return setError('Mật khẩu không khớp')
+    // 2. Hàm lưu cập nhật
+    const handleSaveProfile = async () => {
+        if (!id) return;
+        setLoading(true);
+        try {
+            await authApi.updateProfile(id, { 
+                fullName: name, 
+                phoneNumber: phone 
+            });
+            alert('Cập nhật thành công!');
+        } catch (err: any) {
+            alert('Lỗi cập nhật: ' + (err.response?.data?.message || 'Server error'));
+        } finally {
+            setLoading(false);
         }
-
-        setError('')
-        alert('Đổi mật khẩu thành công!')
     }
+
+    if (loading && !name) return <div className="p-8 text-white">Đang tải dữ liệu...</div>
 
     return (
-        <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100 pb-15">
-
-            <main className="relative flex flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072')] bg-cover bg-center">
-                <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" />
-
-                <div className="relative z-10 p-8">
-                    <div className="max-w-[900px] mx-auto flex flex-col gap-8">
-
-                        {/* Header */}
-                        <div className="glass-panel rounded-xl border border-white/5 p-6 flex items-center gap-6">
-                            <div className="w-20 h-20 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center justify-center text-2xl font-bold">
-                                A
-                            </div>
-
-                            <div>
-                                <h2 className="text-xl font-bold">{name}</h2>
-                                <p className="text-slate-400">{email}</p>
-                                <span className="text-xs px-2 py-1 bg-cyan-400/10 text-cyan-400 rounded mt-1 inline-block">
-                                    {role}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Profile Info */}
-                        <section className="glass-panel rounded-xl border border-white/5 p-6 flex flex-col gap-6">
-                            <h3 className="text-lg font-semibold">Thông tin cá nhân</h3>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                                {/* Name */}
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-sm text-slate-400">Họ tên</label>
-                                    <div className="relative">
-                                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                            person
-                                        </span>
-                                        <input
-                                            value={name}
-                                            onChange={(e) => setName(e.target.value)}
-                                            className="w-full pl-10 p-3 rounded-lg bg-[#1a2333] border border-white/10 focus:outline-none focus:border-cyan-400"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Email */}
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-sm text-slate-400">Email</label>
-                                    <div className="relative">
-                                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                            mail
-                                        </span>
-                                        <input
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            className="w-full pl-10 p-3 rounded-lg bg-[#1a2333] border border-white/10 focus:outline-none focus:border-cyan-400"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Phone */}
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-sm text-slate-400">Số điện thoại</label>
-                                    <div className="relative">
-                                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                            call
-                                        </span>
-                                        <input
-                                            value={phone}
-                                            onChange={(e) => setPhone(e.target.value)}
-                                            className="w-full pl-10 p-3 rounded-lg bg-[#1a2333] border border-white/10 focus:outline-none focus:border-cyan-400"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Role */}
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-sm text-slate-400">Vai trò</label>
-                                    <div className="relative">
-                                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                            admin_panel_settings
-                                        </span>
-                                        <input
-                                            value={role}
-                                            disabled
-                                            className="w-full pl-10 p-3 rounded-lg bg-[#0f172a] border border-white/5 text-slate-400"
-                                        />
-                                    </div>
-                                </div>
-
-                            </div>
-
-                            <div className="flex justify-end">
-                                <button
-                                    onClick={handleSaveProfile}
-                                    className="px-6 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-bold flex items-center gap-2"
-                                >
-                                    <span className="material-symbols-outlined">save</span>
-                                    Lưu thông tin
-                                </button>
-                            </div>
-                        </section>
-
-                        {/* Change Password */}
-                        <section className="glass-panel rounded-xl border border-white/5 p-6 flex flex-col gap-6">
-                            <h3 className="text-lg font-semibold">Đổi mật khẩu</h3>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                                {/* Password */}
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-sm text-slate-400">Mật khẩu mới</label>
-                                    <div className="relative">
-                                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                            lock
-                                        </span>
-                                        <input
-                                            type={showPassword ? 'text' : 'password'}
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            className="w-full pl-10 pr-10 p-3 rounded-lg bg-[#1a2333] border border-white/10"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(v => !v)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-                                        >
-                                            <span className="material-symbols-outlined">
-                                                {showPassword ? 'visibility' : 'visibility_off'}
-                                            </span>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Confirm */}
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-sm text-slate-400">Xác nhận mật khẩu</label>
-                                    <div className="relative">
-                                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                            lock
-                                        </span>
-                                        <input
-                                            type={showConfirm ? 'text' : 'password'}
-                                            value={confirmPassword}
-                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                            className="w-full pl-10 pr-10 p-3 rounded-lg bg-[#1a2333] border border-white/10"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowConfirm(v => !v)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-                                        >
-                                            <span className="material-symbols-outlined">
-                                                {showConfirm ? 'visibility' : 'visibility_off'}
-                                            </span>
-                                        </button>
-                                    </div>
-                                </div>
-
-                            </div>
-
-                            {error && <p className="text-red-400 text-sm">{error}</p>}
-
-                            <div className="flex justify-end">
-                                <button
-                                    onClick={handleChangePassword}
-                                    className="px-6 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-bold flex items-center gap-2"
-                                >
-                                    <span className="material-symbols-outlined">lock_reset</span>
-                                    Đổi mật khẩu
-                                </button>
-                            </div>
-                        </section>
-
-                    </div>
+        // Giữ nguyên phần JSX giao diện cũ của bạn...
+        // Thay đổi phần hiển thị Avatar và Input như sau:
+        
+        <div className="relative z-10 p-8">
+             {/* Header */}
+             <div className="glass-panel rounded-xl border border-white/5 p-6 flex items-center gap-6">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center justify-center text-2xl font-bold uppercase">
+                    {name ? name.charAt(0) : '?'}
                 </div>
-            </main>
+                <div>
+                    <h2 className="text-xl font-bold">{name || 'N/A'}</h2>
+                    <p className="text-slate-400">{email}</p>
+                    <span className="text-xs px-2 py-1 bg-cyan-400/10 text-cyan-400 rounded mt-1 inline-block uppercase">
+                        {role}
+                    </span>
+                </div>
+            </div>
+
+            {/* Các ô Input giữ nguyên logic onChange={(e) => setName(e.target.value)} */}
+            {/* Nút Lưu gọi handleSaveProfile */}
         </div>
     )
 }

@@ -12,22 +12,30 @@ type NavItem = {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Quản lý vận chuyển', icon: 'description', key: 'requests', href: '/staff/requests' },
+  // { label: 'Quản lý vận chuyển', icon: 'description', key: 'requests', href: '/staff/requests' },
   { label: 'Yêu cầu xuất nhập', icon: 'inventory_2', key: 'inventory', href: '/staff/import-export' },
   { label: 'Báo cáo xuất nhập', icon: 'local_shipping', key: 'transportation', href: '/staff/reports' },
-  { label: 'Quản lý hàng hóa', icon: 'input', key: 'stock-movements', href: '/staff/inventory' },
+  // { label: 'Quản lý hàng hóa', icon: 'input', key: 'stock-movements', href: '/staff/inventory' },
 ]
 
 type BottomAction = {
   label: string
   icon: string
-  href: string
+  href?: string
+  action?: () => void
   className?: string
 }
 
+const handleLogout = () => {
+  localStorage.removeItem('user')
+  localStorage.removeItem('token')
+
+  navigationService.goTo('/login')
+}
+
 const bottomActions: BottomAction[] = [
-  { label: 'Settings', icon: 'settings', href: '/admin/settings' },
-  { label: 'Log Out', icon: 'logout', href: '/logout', className: 'text-slate-500 hover:text-red-400' },
+  { label: 'Cài đặt', icon: 'settings', href: '/admin/settings' },
+  { label: 'Đăng xuất', icon: 'logout', action: handleLogout, className: 'text-slate-500 hover:text-red-400' },
 ]
 
 interface SidebarProps {
@@ -118,8 +126,13 @@ export const StaffSidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle })
         {bottomActions.map((item) => (
           <button
             key={item.label}
-            onClick={() => handleItemClick(item.href)}
-            className={`flex items-center gap-3 rounded-lg px-4 py-2 transition-all hover:text-white ${item.className ?? 'text-slate-500'}`}
+            onClick={() => {
+              if (item.action) {
+                item.action();
+              } else {
+                handleItemClick(item.href ?? '');
+              }
+            }} className={`flex items-center gap-3 rounded-lg px-4 py-2 transition-all hover:text-white ${item.className ?? 'text-slate-500'}`}
           >
             <span className="material-symbols-outlined text-xl">{item.icon}</span>
 

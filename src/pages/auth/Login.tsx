@@ -1,52 +1,64 @@
 import { useState } from 'react'
 import logo from '../../assets/logo.png'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
-
-type User = {
-  email: string
-  password: string
-  role: 'admin' | 'staff'
-}
-
-const mockUsers: User[] = [
-  {
-    email: 'admin@gmail.com',
-    password: '123456',
-    role: 'admin'
-  },
-  {
-    email: 'staff@gmail.com',
-    password: '123456',
-    role: 'staff'
-  }
-]
+import type { LoginFormData, LoginResponse } from '../../types/Account'
+import React from 'react'
+import { authApi } from '../../service/authApi'
+import { navigationService } from '../../utils/NavigationService'
+import type { FormErrors } from '../../types'
 
 export const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState<FormErrors>({});
   const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState<LoginFormData>({
+    email: '',
+    password: ''
+  });
+  const delay = (ms: number) =>
+    new Promise(resolve => setTimeout(resolve, ms));
 
-  const handleLogin = () => {
-    setError('')
+  const validateForm = (): boolean => {
+    if (!formData.email || !formData.password) {
+      setError({
+        email: !formData.email ? 'Vui lòng nhập email' : '',
+        password: !formData.password ? 'Vui lòng nhập mật khẩu' : ''
+      });
+      return false
+    }
+    return true
+  };
+
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) {
+      return;
+    }
+    setError({});
     setLoading(true)
+    try {
+      const respone = await authApi.login(formData)
+      const LoginResponse: LoginResponse = respone.data;
+      localStorage.setItem('accessToken', LoginResponse.accessToken);
+      localStorage.setItem('user', JSON.stringify(LoginResponse.user));
+      console.log('🚀 Login successful:', LoginResponse);
+      await delay(800);
 
-    setTimeout(() => {
-      const user = mockUsers.find(
-        u => u.email === email && u.password === password
-      )
-
-      if (!user) {
-        setError('Sai email hoặc mật khẩu')
-        setLoading(false)
-        return
+      if (LoginResponse.user.role === 'admin') {
+        navigationService.goTo('/admin/dashboard');
+      } else {
+        navigationService.goTo('/staff/dashboard');
       }
 
-      localStorage.setItem('user', JSON.stringify(user))
-
-      window.location.href = user.role === 'admin' ? '/admin' : '/staff'
-    }, 800) // tăng thời gian để thấy scan 😎
+    } catch (error) {
+      setError({ general: 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.' });
+      console.error('🚨 Login error:', error);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -108,8 +120,8 @@ export const Login: React.FC = () => {
                     email
                   </span>
                   <input
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={formData.email}
+                    onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="@example.com"
                     className="w-full pl-12 pr-4 py-4 bg-transparent text-white outline-none"
                   />
@@ -138,8 +150,8 @@ export const Login: React.FC = () => {
                   </span>
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={formData.password}
+                    onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
                     placeholder="••••••"
                     className="w-full pl-12 pr-12 py-4 bg-transparent text-white outline-none"
                   />
@@ -154,7 +166,7 @@ export const Login: React.FC = () => {
                   </button>
                 </div>
 
-                {error && <p className="text-red-400 text-sm">{error}</p>}
+                {error && <p className="text-red-400 text-sm">{error.general}</p>}
               </div>
 
               {/* Button */}
