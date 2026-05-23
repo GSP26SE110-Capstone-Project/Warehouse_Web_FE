@@ -9,7 +9,6 @@ type Props = {
   onClose: () => void
   onApprove: (id: string) => void
   onReject: (id: string) => void
-  onShowContract: (id: string) => void
 }
 
 interface TenantData {
@@ -30,7 +29,6 @@ export const RequestDetailModal: React.FC<Props> = ({
   data,
   onClose,
   onApprove,
-  onShowContract,
   onReject
 }) => {
   const [tenant, setTenant] = useState<TenantData | null>(null);
@@ -84,6 +82,7 @@ export const RequestDetailModal: React.FC<Props> = ({
         onClose();
       }
     } catch (error: any) {
+      console.error("Lỗi duyệt yêu cầu:", error);
       alert(error.response?.data?.message || "Có lỗi xảy ra khi duyệt");
     } finally {
       setSubmitting(false);
@@ -204,7 +203,7 @@ export const RequestDetailModal: React.FC<Props> = ({
                   {statusMap[data.status]?.label}
                 </span>
               </div>
-              {data.status === 'PENDING' && !isRejecting && (
+              {/* {data.status === 'PENDING' && !isRejecting && (
                 <>
                   <button onClick={() => setIsRejecting(true)} className="...">Từ chối</button>
                   <button
@@ -214,7 +213,7 @@ export const RequestDetailModal: React.FC<Props> = ({
                     Tiếp tục duyệt & Tạo hợp đồng
                   </button>
                 </>
-              )}
+              )} */}
             </div>
           </div>
 

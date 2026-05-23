@@ -2,20 +2,21 @@ import { useState, useMemo, useEffect } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { AccountModal } from '../../components/ui/modal/AccountModal'
-import type { UserRequest, UserResponse } from '../../types/Account'
 import { Pagination } from '../../components/ui/Pagination'
-import { accountApi } from '../../service/accountApi'
+import { tenantCompanyApi } from '../../service/tenantCompany'
+import type { TenantCompanyResponse, TenantRequest } from '../../types/TenantCompany'
+import { TenantCompanyModal } from '../../components/ui/modal/TenantCompany'
 
-export const AccountManagement: React.FC = () => {
+export const TenantCompany: React.FC = () => {
   const [search, setSearch] = useState('')
-  const [accounts, setAccounts] = useState<UserResponse[]>([])
-  const [roleFilter, setRoleFilter] = useState<'all' | 'SYSTEM_ADMIN' | 'WH_STAFF' | 'WH_ADMIN' | 'TENANT_ADMIN' | 'TENANT_STAFF'>('all')
+  const [tenants, setTenants] = useState<TenantCompanyResponse[]>([])
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ACTIVE' | 'SUSPENDED'>('all')
   const [loading, setLoading] = useState(false)
 
   const [modal, setModal] = useState<{
     open: boolean
     mode: 'view' | 'edit' | 'create'
-    data?: UserResponse
+    data?: TenantCompanyResponse
   }>({ open: false, mode: 'view' })
 
   const [alert, setAlert] = useState<{
@@ -25,117 +26,101 @@ export const AccountManagement: React.FC = () => {
     onConfirm?: () => void
   }>({ open: false, type: 'success', message: '' })
 
-  /* ================= API GET ALL ACCOUNTS ================= */
-  const getAccounts = async () => {
+  /* ================= API GET ALL TENANTS ================= */
+  const getTenants = async () => {
     setLoading(true)
     try {
-      const response = await accountApi.getAll()
+      const response = await tenantCompanyApi.getAll()
       const resData = response.data
 
       if (resData.data && Array.isArray(resData.data)) {
-        setAccounts(resData.data)
+        setTenants(resData.data)
       } else {
-        setAccounts([])
+        setTenants([])
       }
     } catch (error) {
-      console.error('Error fetching accounts:', error)
-      setAccounts([])
+      console.error('Error fetching tenants:', error)
+      setTenants([])
     } finally {
       setLoading(false)
     }
   }
 
   /* ================= API CREATE/UPDATE ================= */
-  const handleSubmit = async (form: UserRequest) => {
+  const handleSubmit = async (form: TenantRequest) => {
     try {
       if (modal.mode === 'create') {
-        const response = await accountApi.create(form)
-        setAccounts([response.data.data, ...accounts])
-        setAlert({ open: true, type: 'success', message: 'Tạo tài khoản thành công' })
+        const response = await tenantCompanyApi.create(form)
+        setTenants([response.data.data, ...tenants])
+        setAlert({ open: true, type: 'success', message: 'Tạo đối tác thành công' })
       }
 
       if (modal.mode === 'edit' && modal.data) {
-        const response = await accountApi.update(modal.data.userId, form)
+        const response = await tenantCompanyApi.update(modal.data.tenantId, form)
 
-        const updated = accounts.map((c) =>
-          c.userId === modal.data!.userId ? response.data.data : c
+        const updated = tenants.map((c) =>
+          c.tenantId === modal.data!.tenantId ? response.data.data : c
         )
 
-        setAccounts(updated)
+        setTenants(updated)
         setAlert({ open: true, type: 'success', message: 'Cập nhật thành công' })
       }
 
       setModal({ ...modal, open: false })
-      getAccounts()
+      getTenants()
     } catch (error) {
-      setAlert({ open: true, type: 'confirm', message: 'Có lỗi xảy ra khi cập nhật tài khoản' })
+      setAlert({ open: true, type: 'confirm', message: 'Có lỗi xảy ra khi cập nhật đối tác' })
     }
   }
   /* ================= API BLOCK ================= */
-  const handleDelete = async (userId: string) => {
+  const handleDelete = async (tenantId: string) => {
     try {
-      await accountApi.updateBlock(userId, { status: 'BLOCKED' });
+      await tenantCompanyApi.delete(tenantId);
 
-      const updated = accounts.map((c) =>
-        c.userId === userId ? { ...c, status: 'BLOCKED' as any } : c
-      );
-      setAccounts(updated);
+      const updated = tenants.filter((c) => c.tenantId !== tenantId);
+      setTenants(updated);
 
       setAlert({
         open: true,
         type: 'success',
-        message: 'Khóa tài khoản thành công',
+        message: 'Xóa đối tác thành công',
       });
-
-      if (typeof getAccounts === 'function') {
-        getAccounts();
-      }
-
     } catch (error) {
-      console.error('Error blocking account:', error);
+      console.error('Error deleting tenant:', error);
       setAlert({
         open: true,
         type: 'confirm',
-        message: 'Có lỗi xảy ra khi khóa tài khoản'
+        message: 'Có lỗi xảy ra khi xóa đối tác'
       });
     }
   };
+       
   /* ================= FILTER ================= */
-  const filteredAccounts = useMemo(() => {
-    return accounts.filter(acc => {
+  const filteredTenants = useMemo(() => {
+    return tenants.filter(tenant => {
       const matchSearch =
-        acc.fullName?.toLowerCase().includes(search?.toLowerCase()) ||
-        acc.email?.toLowerCase().includes(search?.toLowerCase())
+        tenant.companyName?.toLowerCase().includes(search?.toLowerCase()) ||
+        tenant.contactPhone?.toLowerCase().includes(search?.toLowerCase())
 
-      const matchRole = roleFilter === 'all' || acc.role === roleFilter
+      const matchRole = statusFilter === 'all' || tenant.status === statusFilter
 
       return matchSearch && matchRole
     })
-  }, [search, roleFilter, accounts])
+  }, [search, statusFilter, tenants])
 
   /* ================= STATUS COLORS ================= */
-  const statusColors: Record<UserResponse['status'], { label: string; className: string }> = {
+  const statusColors: Record<TenantCompanyResponse['status'], { label: string; className: string }> = {
     ACTIVE: { label: 'Hoạt động', className: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20' },
-    INACTIVE: { label: 'Không hoạt động', className: 'bg-gray-400/10 text-gray-400 ring-gray-400/20' },
     SUSPENDED: { label: 'Bị khóa', className: 'bg-orange-400/10 text-orange-400 ring-orange-400/20' },
-    BLOCKED: { label: 'Bị khóa', className: 'bg-red-400/10 text-red-400 ring-red-400/20' }
-  }
-
-  const roleColors: Record<UserResponse['role'], { label: string; className: string }> = {
-    SYSTEM_ADMIN: { label: 'Quản trị viên', className: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20' },
-    WH_STAFF: { label: 'Nhân viên kho', className: 'bg-orange-400/10 text-orange-400 ring-orange-400/20' },
-    TENANT_ADMIN: { label: 'Người thuê', className: 'bg-blue-400/10 text-blue-400 ring-blue-400/20' },
-    TENANT_STAFF: { label: 'Nhân viên thuê', className: 'bg-cyan-400/10 text-cyan-400 ring-cyan-400/20' },
-    WH_ADMIN: { label: 'Quản lý kho', className: 'bg-yellow-400/10 text-yellow-400 ring-yellow-400/20' }
   }
   /* ================= PAGINATION ================= */
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 5
 
-  const totalItems = filteredAccounts.length
+  const totalItems = filteredTenants.length
   const totalPages = Math.ceil(totalItems / pageSize)
 
-  const paginatedAccounts = filteredAccounts.slice(
+  const paginatedTenants = filteredTenants.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   )
@@ -144,7 +129,7 @@ export const AccountManagement: React.FC = () => {
   const end = Math.min(currentPage * pageSize, totalItems)
 
   useEffect(() => {
-    getAccounts()
+    getTenants()
   }, [])
 
   return (
@@ -157,11 +142,10 @@ export const AccountManagement: React.FC = () => {
           <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
 
             {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-2">
-              <StatsCard title="Tổng tài khoản" value={accounts.length} icon="group" accentColor="emerald" />
-              <StatsCard title="Đang hoạt động" value={accounts.filter(a => a.status === 'ACTIVE').length} icon="verified_user" accentColor="primary" />
-              <StatsCard title="Bị khóa" value={accounts.filter(a => a.status === 'BLOCKED').length} icon="block" accentColor="orange" />
-              <StatsCard title="Quản trị viên" value={accounts.filter(a => a.role === 'SYSTEM_ADMIN').length} icon="admin_panel_settings" accentColor="purple" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
+              <StatsCard title="Tổng đối tác" value={tenants.length} icon="group" accentColor="emerald" />
+              <StatsCard title="Đang hoạt động" value={tenants.filter(t => t.status === 'ACTIVE').length} icon="verified_user" accentColor="primary" />
+              <StatsCard title="Bị khóa" value={tenants.filter(t => t.status === 'SUSPENDED').length} icon="block" accentColor="orange" />
             </div>
 
             {/* Table */}
@@ -190,23 +174,21 @@ export const AccountManagement: React.FC = () => {
                   </div>
 
                   <select
-                    value={roleFilter}
-                    onChange={(e) => setRoleFilter(e.target.value as 'all' | 'SYSTEM_ADMIN' | 'WH_STAFF' | 'WH_ADMIN' | 'TENANT_ADMIN' | 'TENANT_STAFF')}
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as 'all' | 'ACTIVE' | 'SUSPENDED')}
                     className="px-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
                   >
-                    <option value="all">Tất cả vai trò</option>
-                    <option value="SYSTEM_ADMIN">Quản trị viên</option>
-                    <option value="WAREHOUSE_STAFF">Quản lý kho</option>
-                    <option value="TENANT_ADMIN">Người thuê</option>
-                    <option value="TENANT_STAFF">Nhân viên thuê</option>
-                    <option value="WH_ADMIN">Quản lý kho</option>
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="ACTIVE">Đang hoạt động</option>
+                    <option value="SUSPENDED">Bị khóa</option>
                   </select>
+                   
                   <button
                     onClick={() => setModal({ open: true, mode: 'create' })}
 
                     className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold text-black">
                     <span className="material-symbols-outlined text-lg">person_add</span>
-                    Thêm tài khoản
+                    Thêm công ty
                   </button>
                 </div>
               </div>
@@ -219,41 +201,33 @@ export const AccountManagement: React.FC = () => {
                       <th className="px-6 py-3">Họ và tên</th>
                       <th className="px-6 py-3">Email</th>
                       <th className="px-6 py-3">Số điện thoại</th>
-                      <th className="px-6 py-3">Vai trò</th>
                       <th className="px-6 py-3">Trạng thái</th>
                       <th className="px-6 py-3 text-right">Hành động</th>
                     </tr>
                   </thead>
 
                   <tbody className="divide-y divide-white/5">
-                    {paginatedAccounts.length > 0 ? (
-                      paginatedAccounts.map((acc) => (
-                        <tr key={acc.userId} >
-                          <td className="px-6 py-3 text-white">{acc.fullName}</td>
-                          <td className="px-6 py-3 text-slate-400">{acc.email}</td>
-                          <td className="px-6 py-3 text-slate-400">{acc.phone}</td>
-
+                    {paginatedTenants.length > 0 ? (
+                      paginatedTenants.map((tenant) => (
+                        <tr key={tenant.tenantId} >
+                          <td className="px-6 py-3 text-white">{tenant.companyName}</td>
+                          <td className="px-6 py-3 text-slate-400">{tenant.contactEmail}</td>
+                          <td className="px-6 py-3 text-slate-400">{tenant.contactPhone}</td>
                           <td className="px-6 py-3">
-                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${roleColors[acc.role].className}`}>
-                              {roleColors[acc.role].label}
-                            </span>
-                          </td>
-
-                          <td className="px-6 py-3">
-                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${statusColors[acc.status].className}`}>
-                              {statusColors[acc.status].label}
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${statusColors[tenant.status].className}`}>
+                              {statusColors[tenant.status].label}
                             </span>
                           </td>
 
                           <td className="px-6 py-3 text-right">
                             <div className="flex justify-end gap-2 opacity-60 group-hover:opacity-100">
                               <button
-                                onClick={() => setModal({ open: true, mode: 'view', data: acc })}
+                                onClick={() => setModal({ open: true, mode: 'view', data: tenant })}
                                 className="p-1.5 hover:bg-white/10 rounded">
                                 <span className="material-symbols-outlined text-lg">visibility</span>
                               </button>
                               <button
-                                onClick={() => setModal({ open: true, mode: 'edit', data: acc })}
+                                onClick={() => setModal({ open: true, mode: 'edit', data: tenant })}
                                 className="p-1.5 hover:bg-white/10 rounded">
                                 <span className="material-symbols-outlined text-lg">edit</span>
                               </button>
@@ -263,7 +237,7 @@ export const AccountManagement: React.FC = () => {
                                     open: true,
                                     type: 'confirm',
                                     message: 'Bạn có chắc muốn khóa tài khoản?',
-                                    onConfirm: () => handleDelete(acc.userId),
+                                    onConfirm: () => handleDelete(tenant.tenantId),
                                   })
                                 }
                                 className="p-1.5 hover:bg-white/10 rounded">
@@ -303,7 +277,7 @@ export const AccountManagement: React.FC = () => {
       </main>
       {/* Modal */}
       {modal.open && (
-        <AccountModal
+        <TenantCompanyModal
           mode={modal.mode}
           data={modal.data}
           onClose={() => setModal({ ...modal, open: false })}

@@ -87,7 +87,8 @@ export const ContractManagement: React.FC = () => {
     'ACTIVE': { label: 'Đang hoạt động', classname: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20' },
     'EXPIRED': { label: 'Hết hạn', classname: 'bg-gray-400/10 text-gray-400 ring-gray-400/20' },
     'PENDING': { label: 'Chờ xử lý', classname: 'bg-orange-400/10 text-orange-400 ring-orange-400/20' },
-    'DRAFT': { label: 'Nháp', classname: 'bg-blue-400/10 text-blue-400 ring-blue-400/20' }
+    'DRAFT': { label: 'Nháp', classname: 'bg-blue-400/10 text-blue-400 ring-blue-400/20' },
+    'SENT_TO_TENANT': { label: 'Đã gửi khách', classname: 'bg-cyan-400/10 text-cyan-400 ring-cyan-400/20' }
   }
 
   /* ================= PAGINATION ================= */
@@ -162,13 +163,13 @@ export const ContractManagement: React.FC = () => {
                     <option value="PENDING">Chờ xử lý</option>
                   </select>
 
-                  <button
+                  {/* <button
                     onClick={() => setModal({ open: true, mode: 'create' })}
                     className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2 text-sm font-bold text-black"
                   >
                     <span className="material-symbols-outlined">add</span>
                     Tạo hợp đồng
-                  </button>
+                  </button> */}
                 </div>
               </div>
               {/* Table */}

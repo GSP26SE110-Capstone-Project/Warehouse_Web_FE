@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { SidebarNav } from '../SidebarNav';
+import { SidebarNav } from '../AdminSystemSidebarNav';
 import { AdminHeader } from '../header/AdminHeader';
 
 export const AdminLayout: React.FC = () => {

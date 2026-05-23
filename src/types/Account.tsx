@@ -1,39 +1,64 @@
 
-export type Role = 'admin' | 'warehouse_staff' | 'tenant_admin';
-export type Status = 'active' | 'inactive' | 'suspended';
+export type Role = 'SYSTEM_ADMIN' | 'WH_ADMIN' | 'WH_STAFF' | 'TENANT_ADMIN' | 'TENANT_STAFF';
+export type Status = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'BLOCKED';
 
-export interface LoginFormData {
+export interface LoginRequest {
   email: string;
   password: string;
 }
 
-export interface AccountResponse {
+export interface LoginResponse {
+  success: boolean;
+  message: string;
+  data: {
+    accessToken: string;
+    user: UserResponse;
+  };
+}
+
+export interface UserResponse {
   userId: string,
-  tenantId: string,
-  branchId: string,
-  username: string,
-  email: string,
-  passwordHash: string,
+  tenantId?: string,
+  warehouseId?: string,
   fullName: string,
-  phone: string,
+  email: string,
+  phone?: string,
   role: Role,
   status: Status,
-  isActive: boolean,
   createdAt: string,
   updatedAt: string
 }
 
-export interface TenantResponse {
-  tenantId: string,
-  companyName: string,
-  taxCode: string,
-  contactEmail: string,
-  contactPhone: string,
-  address: string,
-  isActive: boolean,
-  createdAt: string,
-  updatedAt: string
+export interface GetAllUsersResponse {
+  success: boolean;
+  message: string;
+  data: UserResponse[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
+
+export interface GetUsersResponse {
+  success: boolean;
+  message: string;
+  data: UserResponse;
+}
+
+
+export interface UserRequest {
+  fullName: string
+  email?: string
+  password?: string
+  phone: string
+  role?: Role
+  status: Status
+  tenantId?: string
+  warehouseId?: string
+}
+
 
 export interface AccountRequest {
   email: string,
@@ -45,44 +70,9 @@ export interface AccountRequest {
   passwordHash: string
 }
 
-export interface LoginResponse {
-  accessToken: string;
-  user: UserResponse;
-}
-
-export interface UserResponse {
-  userId: string,
-  username: string,
-  email: string,
-  fullName: string,
-  phone: string,
-  role: Role,
-  status: Status,
-  isActive: boolean,
-  createdAt: string,
-  updatedAt: string
-}
 
 
-// export interface ResetPasswordRequest {
-//   token: string;
-//   newPassword: string;
-// }
 
-// export interface ForgotPasswordRequest {
-//   email: string;
-// }
-
-// export interface Profile {
-//   id: string;
-//   email: string;
-//   userName: string;
-//   fullName: string;
-//   phoneNumber: string;
-//   photoURL: string;
-//   gender: string;
-
-// };
 
 export interface Account {
   id: string
@@ -110,27 +100,15 @@ export interface User {
 
 export interface UserResponse {
   userId: string,
-  tenantId: string,
+  tenantId?: string,
   branchId: string,
   username: string,
   email: string,
   passwordHash: string,
   fullName: string,
-  phone: string,
+  phone?: string,
   role: Role,
   status: Status,
-  isActive: boolean,
-  createdAt: string,
-  updatedAt: string
-}
-
-export interface tenant {
-  tenantId: string,
-  companyName: string,
-  taxCode: string,
-  contactEmail: string,
-  contactPhone: string,
-  address: string,
   isActive: boolean,
   createdAt: string,
   updatedAt: string

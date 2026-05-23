@@ -8,6 +8,7 @@ import type { Request, RentalRequest } from '../../types/Contract'
 import { rentalRequestApi } from '../../service/rentalRequestApi'
 import { accountApi } from '../../service/accountApi'
 import type { AccountResponse, TenantResponse } from '../../types/Account'
+import { contractApi } from '../../service/contractApi'
 
 export const RequestManagement = () => {
     const [search, setSearch] = useState('')
@@ -101,7 +102,7 @@ export const RequestManagement = () => {
             const searchInput = search.toLowerCase();
             const matchSearch =
                 r.requestId.toLowerCase().includes(searchInput) ||
-                r.contactName?.toLowerCase().includes(searchInput) ||
+                r.customerType?.toLowerCase().includes(searchInput) ||
                 (typeof r.tenantId === 'string' && r.tenantId.toLowerCase().includes(searchInput));
             const matchFilter = filter === 'all' || r.status.toUpperCase() === filter.toUpperCase();
 
@@ -300,22 +301,6 @@ export const RequestManagement = () => {
                     mode="create"
                     data={contractModal.data}
                     onClose={() => setContractModal({ open: false })}
-                    onSubmit={async (form) => {
-                        await fetch('/api/contracts/send', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(form)
-                        })
-
-                        updateStatus(contractModal.data!.requestId, 'APPROVED')
-
-                        setAlert({
-                            open: true,
-                            message: 'Đã tạo & gửi hợp đồng!'
-                        })
-
-                        setContractModal({ open: false })
-                    }}
                 />
             )}
 

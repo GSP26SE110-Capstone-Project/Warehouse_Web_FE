@@ -14,4 +14,7 @@ export const contractApi = {
   }) => {
     return await api.post(`/contracts`, payload);
   },
+  sendContract: async (id: string, data: { contractFileUrl: string }) => {
+        return api.post(`/contracts/${id}/send`, data);
+    }
 }

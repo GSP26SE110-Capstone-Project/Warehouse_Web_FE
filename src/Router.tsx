@@ -24,20 +24,26 @@ import { ImportExportManagement } from './pages/staff/ImportExportManagement'
 import { ReportManagement } from './pages/staff/ReportManagement'
 import { InventoryManagement } from './pages/staff/InventoryManagement'
 import { AuthorizationRoute } from './components/AuthorizationRoute'
+import { TenantCompany } from './pages/admin/TenantCompany'
+import { HomePage } from './pages/public/Homepage'
+import { AboutUs } from './pages/public/AboutUs'
 
 export const Router: React.FC = () => {
     return (
         <BrowserRouter>
             <NavigationProvider>
                 <Routes>
-                    <Route path="/" element={<Navigate to="/login" replace />} />
+                    <Route path="/" element={<Navigate to="/home" replace />} />
                     <Route path='/login' element={<Login />} />
                     <Route path='/forgot-password' element={<ForgotPassword />} />
                     <Route path='/reset-password' element={<ResetPassword />} />
+                    <Route path="/profile/:id?" element={<Profile />} />
+                    <Route path="/home" element={<HomePage />} />
+                    <Route path="/about-us" element={<AboutUs />} />
 
                     {/* Admin Routes with Layout */}
                     <Route path='/admin' element={
-                        <AuthorizationRoute requiredRoles={['admin']} requireAuth={true} redirectTo='/login'>
+                        <AuthorizationRoute requiredRoles={['SYSTEM_ADMIN']} requireAuth={true} redirectTo='/login'>
                             <AdminLayout />
                         </AuthorizationRoute>
                     }>
@@ -52,13 +58,13 @@ export const Router: React.FC = () => {
                         <Route path='/admin/transportation' element={<TransportationManagement />} />
                         <Route path='/admin/reports' element={<Reports />} />
                         <Route path='/admin/settings' element={<AdminSettings />} />
-                        <Route path='/admin/profile/:id' element={<Profile />} />
                         <Route path='/admin/requests' element={<RequestManagement />} />
+                        <Route path='/admin/tenants' element={<TenantCompany />} />
                     </Route>
 
                     {/* Staff Routes with Layout */}
                     <Route path='/staff' element={
-                        <AuthorizationRoute requiredRoles={['warehouse_staff']} requireAuth={true} redirectTo='/login'>
+                        <AuthorizationRoute requiredRoles={['WH_STAFF']} requireAuth={true} redirectTo='/login'>
                             <StaffLayout />
                         </AuthorizationRoute>
                     }>

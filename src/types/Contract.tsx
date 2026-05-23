@@ -70,13 +70,10 @@ export interface Request {
 
 export interface RentalRequest {
   requestId: string,
-  customerType: 'INDIVIDUAL' | 'COMPANY',
+  customerType: 'individual' | 'company',
   tenantId: string,
-  contactName: string,
-  contactPhone: string,
-  contactEmail: string,
   warehouseId: string,
-  storageType: string,
+  rentalType:'RACK' | 'LEVEL',
   status: 'PENDING' | 'APPROVED' | 'REJECTED',
   requestedStartDate: string,
   rentalTermUnit: 'DAY' | 'MONTH' | 'YEAR',
@@ -87,8 +84,8 @@ export interface RentalRequest {
   goodsQuantity: string,
   goodsWeightKg: string,
   notes: string,
-  approvedBy: null,
-  rejectedReason: null,
+  approvedBy: string | null,
+  rejectedReason: string | null,
   createdAt: string,
   updatedAt: string,
 }

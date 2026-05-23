@@ -1,63 +1,77 @@
 import { useState } from 'react'
 import logo from '../../assets/logo.png'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
-import type { LoginFormData, LoginResponse } from '../../types/Account'
+import type { LoginRequest } from '../../types/Account'
 import React from 'react'
 import { authApi } from '../../service/authApi'
 import { navigationService } from '../../utils/NavigationService'
 import type { FormErrors } from '../../types'
+import { PublicHeader } from '../../components/common/header/PublicHeader'
 
 export const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<FormErrors>({});
+  const [error, setError] = useState<FormErrors>({})
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState<LoginFormData>({
+  const [formData, setFormData] = useState<LoginRequest>({
     email: '',
     password: ''
-  });
-  const delay = (ms: number) =>
-    new Promise(resolve => setTimeout(resolve, ms));
+  })
+
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
   const validateForm = (): boolean => {
-    if (!formData.email || !formData.password) {
-      setError({
-        email: !formData.email ? 'Vui lòng nhập email' : '',
-        password: !formData.password ? 'Vui lòng nhập mật khẩu' : ''
-      });
-      return false
-    }
-    return true
-  };
+    let valid = true
+    const newErrors: FormErrors = {}
 
+    if (!formData.email) {
+      newErrors.email = 'Vui lòng nhập email'
+      valid = false
+    }
+    if (!formData.password) {
+      newErrors.password = 'Vui lòng nhập mật khẩu'
+      valid = false
+    }
+
+    setError(newErrors)
+    return valid
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) {
-      return;
-    }
-    setError({});
+    e.preventDefault()
+    if (!validateForm()) return
+
+    setError({})
     setLoading(true)
+
     try {
-      const respone = await authApi.login(formData)
-      const LoginResponse: LoginResponse = respone.data;
-      localStorage.setItem('accessToken', LoginResponse.accessToken);
-      localStorage.setItem('user', JSON.stringify(LoginResponse.user));
-      console.log('🚀 Login successful:', LoginResponse);
-      await delay(800);
+      const response = await authApi.login(formData)
+      // response.data đại diện cho toàn bộ Object JSON nhận được
+      const apiResult = response.data 
 
-      if (LoginResponse.user.role === 'admin') {
-        navigationService.goTo('/admin/dashboard');
+      if (apiResult.success && apiResult.data) {
+        const { accessToken, user } = apiResult.data
+
+        // Lưu thông tin vào localStorage
+        localStorage.setItem('accessToken', accessToken)
+        localStorage.setItem('user', JSON.stringify(user))
+        
+        console.log('🚀 Login successful:', apiResult.data)
+        await delay(800)
+
+        // Kiểm tra role theo đúng định dạng "SYSTEM_ADMIN" từ API
+        if (user.role === 'SYSTEM_ADMIN') {
+          navigationService.goTo('/admin/dashboard')
+        } else {
+          navigationService.goTo('/staff/dashboard')
+        }
       } else {
-        navigationService.goTo('/staff/dashboard');
+        setError({ general: apiResult.message || 'Đăng nhập thất bại.' })
       }
-
     } catch (error) {
-      setError({ general: 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.' });
-      console.error('🚨 Login error:', error);
+      setError({ general: 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.' })
+      console.error('🚨 Login error:', error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
@@ -109,7 +123,7 @@ export const Login: React.FC = () => {
             </div>
 
             {/* Form */}
-            <div className="p-8 pt-6 flex flex-col gap-6">
+            <form onSubmit={handleLogin} className="p-8 pt-6 flex flex-col gap-6">
               {/* Email */}
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-medium text-gray-300 uppercase tracking-widest pl-1">
@@ -120,12 +134,14 @@ export const Login: React.FC = () => {
                     email
                   </span>
                   <input
+                    type="email"
                     value={formData.email}
                     onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="@example.com"
                     className="w-full pl-12 pr-4 py-4 bg-transparent text-white outline-none"
                   />
                 </div>
+                {error.email && <p className="text-red-400 text-xs pl-1">{error.email}</p>}
               </div>
 
               {/* Password */}
@@ -165,20 +181,20 @@ export const Login: React.FC = () => {
                     </span>
                   </button>
                 </div>
-
-                {error && <p className="text-red-400 text-sm">{error.general}</p>}
+                {error.password && <p className="text-red-400 text-xs pl-1">{error.password}</p>}
+                {error.general && <p className="text-red-400 text-sm pl-1 mt-1">{error.general}</p>}
               </div>
 
               {/* Button */}
               <button
-                onClick={handleLogin}
+                type="submit"
                 disabled={loading}
-                className="w-full py-4 rounded-lg font-bold mt-2"
+                className="w-full py-4 rounded-lg font-bold mt-2 transition-opacity disabled:opacity-50"
                 style={{ background: '#06edf9', color: '#0f2223' }}
               >
                 {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
               </button>
-            </div>
+            </form>
 
             {/* Footer */}
             <div className="border-t border-white/5 p-4 text-center text-xs text-gray-500">
@@ -193,5 +209,4 @@ export const Login: React.FC = () => {
       />
     </>
   )
-
 }

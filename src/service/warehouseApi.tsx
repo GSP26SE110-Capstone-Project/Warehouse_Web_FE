@@ -1,9 +1,10 @@
 import { api } from "../utils/Axios";
-import type {WarehouseRequest, BranchRequest, ZoneRequest, RackRequest, LevelRequest} from '../types/Warehouse';
+import type { WarehouseRequest, ZoneRequest, RackRequest, LevelRequest, WarehouseResponse, BinRequest } from '../types/Warehouse';
+import type { ApiResponse } from "../types/ApiResponse";
 
 export const warehouseApi = {
     getAll: () => {
-        return api.get('/warehouses');
+        return api.get<ApiResponse<WarehouseResponse>>('/warehouses');
     },
     delete: (id: string) => {
         return api.delete(`/warehouses/${id}`);
@@ -11,59 +12,59 @@ export const warehouseApi = {
     getById: (id: string) => {
         return api.get(`/warehouses/${id}`);
     },
-    getZonesByWarehouseId: (id: string) => {
-        return api.get(`/warehouses/${id}/zones`);
+    create: (data: WarehouseRequest) => {
+        return api.post<ApiResponse<WarehouseResponse>>('/warehouses', data);
     },
-    getRacksByZone: (id: string) => {
-        return api.get(`/zones/${id}/racks`);
+    update: (id: string, data: WarehouseRequest) => {
+        return api.patch<ApiResponse<WarehouseResponse>>(`/warehouses/${id}`, data);
     },
-    getLevelsByRack: (id: string) => {
-        return api.get(`/racks/${id}/levels`);
-    },
-    createWarehouse: (data: WarehouseRequest) => {
-        return api.post('/warehouses', data);
-    },
-    createBranch: (data: BranchRequest) => {
-        return api.post('/branches', data);
-    },
-    getAllBranches: () => {
-        return api.get('/branches');
+    getZones: (warehouseId: string) => {
+        return api.get(`/zones/?warehouseId=${warehouseId}`);
     },
     createZone: (data: ZoneRequest) => {
         return api.post('/zones', data);
     },
+    updateZone: (zoneId: string, data: ZoneRequest) => {
+        return api.patch(`/zones/${zoneId}`, data);
+    },
+    deleteZone: (zoneId: string) => {
+        return api.delete(`/zones/${zoneId}`);
+    },
+    getRacks: (zoneId: string) => {
+        return api.get(`/racks/?zoneId=${zoneId}`);
+    },
     createRack: (data: RackRequest) => {
         return api.post('/racks', data);
     },
+    updateRack: (rackId: string, data: RackRequest) => {
+        return api.patch(`/racks/${rackId}`, data);
+    },
+    deleteRack: (rackId: string) => {
+        return api.delete(`/racks/${rackId}`);
+    },
+    getLevels: (rackId: string) => {
+        return api.get(`/rack-levels/?rackId=${rackId}`);
+    },
     createLevel: (data: LevelRequest) => {
-        return api.post('/levels', data);
+        return api.post('/rack-levels', data);
     },
-    updateWarehouse: (id: string, data: WarehouseRequest) => {
-        return api.patch(`/warehouses/${id}`, data);
+    updateLevel: (rackLevelId: string, data: LevelRequest) => {
+        return api.patch(`/rack-levels/${rackLevelId}`, data);
     },
-    updateZone: (id: string, data: ZoneRequest) => {
-        return api.patch(`/zones/${id}`, data);
+    deleteLevel: (rackLevelId: string) => {
+        return api.delete(`/rack-levels/${rackLevelId}`);
     },
-    updateRack: (id: string, data: RackRequest) => {
-        return api.patch(`/racks/${id}`, data);
+    createBin: (data: BinRequest) => {
+        return api.post('/bins', data);
     },
-    updateLevel: (id: string, data: LevelRequest) => {
-        return api.patch(`/levels/${id}`, data);
+    updateBin: (binId: string, data: BinRequest) => {
+        return api.patch(`/bins/${binId}`, data);
     },
-    getHierarchy: () => {
-        return api.get(`/branches/hierarchy`);
+    deleteBin: (binId: string) => {
+        return api.delete(`/bins/${binId}`);
     },
-    deleteBranch: (id: string) => {
-        return api.delete(`/branches/${id}`);
-    },
-    deleteZone: (id: string) => {
-        return api.delete(`/zones/${id}`);
-    },
-    deleteRack: (id: string) => {
-        return api.delete(`/racks/${id}`);
-    },
-    deleteLevel: (id: string) => {
-        return api.delete(`/levels/${id}`);
+    getBins: (rackLevelId: string) => {
+        return api.get(`/bins/?rackLevelId=${rackLevelId}`);
     }
 
 

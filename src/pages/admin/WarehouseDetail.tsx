@@ -1,671 +1,590 @@
-// // import { useState, useEffect } from 'react'
-// // import { useParams, useLocation } from 'react-router-dom'
-// // import type { Warehouse as WarehouseType, Zone } from '../../types/Warehouse'
-// // import { warehouses } from '../../data/initialData'
-// // import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
-// // import { Link } from 'react-router-dom'
-
-// // export const WarehouseDetailView: React.FC = () => {
-// //     const { id } = useParams()
-// //     const location = useLocation()
-
-
-// //     const [warehouse, setWarehouse] = useState<WarehouseType | null>(
-// //         location.state || null
-// //     )
-
-// //     const [zone, setZone] = useState<Zone | null>(null)
-
-// //     const [selectedRackId, setSelectedRackId] = useState<string | null>(null)
-// //     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-
-// //     const [zoom, setZoom] = useState(1)
-// //     const [position, setPosition] = useState({ x: 0, y: 0 })
-// //     const [isDragging, setIsDragging] = useState(false)
-// //     const [start, setStart] = useState({ x: 0, y: 0 })
-
-// //     // fallback khi reload
-// //     useEffect(() => {
-// //         if (!warehouse) {
-// //             const found = warehouses.find(w => w.warehouseId === id)
-// //             if (found) setWarehouse(found)
-// //         }
-// //     }, [id])
-
-// //     // load zone
-// //     useEffect(() => {
-// //         if (warehouse?.zones?.length) {
-// //             setZone(warehouse.zones[0])
-// //         }
-// //     }, [warehouse])
-
-// //     const selectedRack = zone?.racks.find(r => r.rackId === selectedRackId)
-
-// //     const handleRackClick = (rackId: string) => {
-// //         setSelectedRackId(rackId)
-// //         setIsSidebarOpen(true)
-// //     }
-
-// //     const handleZoom = (delta: number) => {
-// //         setZoom(prev => Math.min(Math.max(prev + delta, 0.5), 2))
-// //     }
-
-// //     const handleMouseDown = (e: React.MouseEvent) => {
-// //         setIsDragging(true)
-// //         setStart({
-// //             x: e.clientX - position.x,
-// //             y: e.clientY - position.y,
-// //         })
-// //     }
-
-// //     const handleMouseMove = (e: React.MouseEvent) => {
-// //         if (!isDragging) return
-// //         setPosition({
-// //             x: e.clientX - start.x,
-// //             y: e.clientY - start.y,
-// //         })
-// //     }
-
-// //     const handleMouseUp = () => setIsDragging(false)
-// //     const isLoading = !warehouse || !zone
-// //     if (!warehouse || !zone) {
-// //         return <>
-// //             <LoadingOverlay show={isLoading} text="LOADING WAREHOUSE..." />
-
-// //             <div className="flex h-screen w-full overflow-hidden bg-[#0b101a] text-white">
-// //             </div>
-// //         </>
-// //     }
-
-// //     return (
-// //         <div className="flex h-screen w-full overflow-hidden bg-[#0b101a] text-white">
-
-// //             {/* MAIN */}
-// //             <main className={`relative flex flex-col ${isSidebarOpen ? 'mr-[420px]' : 'w-full'}`}>
-// //                 <Link
-// //                     to="/admin/warehouse"
-// //                     className="absolute top-8 left-4 z-20 flex items-center gap-2 px-4 py-1
-// //                                 rounded-xl text-sm font-medium
-// //                                 bg-gradient-to-r from-cyan-500/20 to-blue-500/20
-// //                                 text-cyan-300 border border-cyan-400/20
-// //                                 hover:from-cyan-500/30 hover:to-blue-500/30
-// //                                 hover:text-white hover:border-cyan-300/40
-// //                                 transition-all duration-200 shadow-md"
-// //                                             >
-// //                     <span className="text-lg">←</span>
-// //                     <span>Back</span>
-// //                 </Link>
-
-// //                 {/* HEADER */}
-// //                 <div className="absolute top-20 left-6 z-10">
-
-// //                     <h1 className="text-xl font-bold">
-// //                         {warehouse.warehouseName} ({warehouse.warehouseId})
-// //                     </h1>
-// //                     <p className="text-sm text-gray-400">{warehouse.address}</p>
-// //                 </div>
-
-// //                 {/* MAP */}
-// //                 <div
-// //                     className={`flex-1 flex items-center justify-center overflow-hidden ${isDragging ? 'cursor-grabbing' : 'cursor-grab'
-// //                         }`}
-// //                     onMouseDown={handleMouseDown}
-// //                     onMouseMove={handleMouseMove}
-// //                     onMouseUp={handleMouseUp}
-// //                     onMouseLeave={handleMouseUp}
-// //                     onWheel={(e) => handleZoom(e.deltaY > 0 ? -0.1 : 0.1)}
-// //                 >
-// //                     <div
-// //                         style={{
-// //                             transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
-// //                         }}
-// //                     >
-// //                         {/* GRID */}
-// //                         <div className="flex flex-col gap-8 p-20">
-// //                             {warehouse.zones.map((zone, zoneIndex) => {
-// //                                 const rackMap = new Map(
-// //                                     zone.racks.map(r => [`${r.row}-${r.col}`, r])
-// //                                 )
-
-// //                                 return (
-// //                                     <div key={zone.zoneId} className="flex items-start gap-6">
-
-// //                                         {/* LABEL ZONE */}
-// //                                         <div className="w-10 flex justify-center pt-2">
-// //                                             <span className="text-xl font-bold text-cyan-400">
-// //                                                 {String.fromCharCode(65 + zoneIndex)}
-// //                                             </span>
-// //                                         </div>
-
-// //                                         {/* GRID */}
-// //                                         <div
-// //                                             className="grid gap-3"
-// //                                             style={{
-// //                                                 gridTemplateColumns: `repeat(${zone.cols}, 90px)`,
-// //                                             }}
-// //                                         >
-// //                                             {Array.from({ length: zone.rows * zone.cols }).map((_, index) => {
-// //                                                 const r = Math.floor(index / zone.cols)
-// //                                                 const c = index % zone.cols
-// //                                                 const rack = rackMap.get(`${r}-${c}`)
-
-// //                                                 return (
-// //                                                     <div
-// //                                                         key={index}
-// //                                                         className="border border-white/10 rounded-md flex items-center justify-center"
-// //                                                     >
-// //                                                         {rack ? (
-// //                                                             <div
-// //                                                                 onClick={() => handleRackClick(rack.rackId)}
-// //                                                                 className={`w-full h-full p-1.5 rounded border flex flex-col justify-between cursor-pointer
-// //                       ${selectedRackId === rack.rackId
-// //                                                                         ? 'border-cyan-400 scale-105'
-// //                                                                         : 'border-[#3a5555]'
-// //                                                                     }
-// //                     `}
-// //                                                             >
-// //                                                                 {/* ID */}
-// //                                                                 <span className="text-[9px] text-center text-slate-300">
-// //                                                                     {rack.rackId}
-// //                                                                 </span>
-
-// //                                                                 {/* SHELVES */}
-// //                                                                 <div className="flex-1 flex flex-col-reverse gap-[2px] py-1">
-// //                                                                     {Array.from({ length: rack.shelves }).map((_, i) => {
-// //                                                                         const hasItem = rack.items.length > i
-
-// //                                                                         return (
-// //                                                                             <div
-// //                                                                                 key={i}
-// //                                                                                 className={`h-5 flex items-center justify-center text-[8px] font-bold rounded
-// //                               ${hasItem
-// //                                                                                         ? 'bg-emerald-400 text-black'
-// //                                                                                         : 'bg-gray-600/40 text-gray-500'
-// //                                                                                     }
-// //                             `}
-// //                                                                             >
-// //                                                                                 {i + 1}
-// //                                                                             </div>
-// //                                                                         )
-// //                                                                     })}
-// //                                                                 </div>
-// //                                                             </div>
-// //                                                         ) : (
-// //                                                             <span className="text-white/10 text-xs">+</span>
-// //                                                         )}
-// //                                                     </div>
-// //                                                 )
-// //                                             })}
-// //                                         </div>
-// //                                     </div>
-// //                                 )
-// //                             })}
-// //                         </div>
-// //                     </div>
-// //                 </div>
-
-// //                 {/* CONTROLS */}
-// //                 <div className="absolute bottom-30 right-6 flex flex-col gap-2">
-// //                     <button onClick={() => handleZoom(0.2)} className="size-10 bg-black/60 rounded">+</button>
-// //                     <button onClick={() => handleZoom(-0.2)} className="size-10 bg-black/60 rounded">-</button>
-// //                     <button onClick={() => { setZoom(1); setPosition({ x: 0, y: 0 }) }} className="size-10 bg-black/60 rounded">⦿</button>
-// //                 </div>
-// //             </main>
-
-// //             {/* SIDEBAR */}
-// //             <aside className={`mt-20 fixed right-0 top-0 w-[420px] h-full bg-[#0b101a] border-l border-white/10 transition-transform ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-// //                 {selectedRack && (
-// //                     <div className="p-6">
-// //                         <div className="flex justify-between items-center mb-4">
-// //                             <div>
-// //                                 <h2 className="text-xl font-bold">{selectedRack.rackId}</h2>
-// //                                 <p className="text-sm text-gray-400">{selectedRack.shelves} Levels</p>
-// //                             </div>
-
-// //                             <button onClick={() => setIsSidebarOpen(false)}>
-// //                                 ✕
-// //                             </button>
-// //                         </div>
-
-// //                         <div className="mt-4 space-y-2">
-// //                             {selectedRack.items.length > 0 ? (
-// //                                 selectedRack.items.map(item => (
-// //                                     <div key={item.sku} className="p-2 bg-white/5 rounded">
-// //                                         {item.name} (x{item.total})
-// //                                     </div>
-// //                                 ))
-// //                             ) : (
-// //                                 <p className="text-gray-500">Empty</p>
-// //                             )}
-// //                         </div>
-// //                     </div>
-// //                 )}
-// //             </aside>
-// //         </div>
-// //     )
-// // }
-
-
-
-// interface Level {
-//     levelId: string;
-//     levelNumber: number;
-//     heightClearance: string;
-// }
-
-// interface Rack {
-//     rackId: string;
-//     rackCode: string;
-//     zoneId: string;
-//     levels: Level[]; // Chúng ta sẽ map levels vào đây sau khi fetch
-// }
-
-// interface Zone {
-//     zoneId: string;
-//     zoneCode: string;
-//     zoneName: string;
-//     racks: Rack[]; // Chúng ta sẽ map racks vào đây
-// }
-
-// interface Warehouse {
-//     warehouseId: string;
-//     warehouseName: string;
-//     address: string;
-//     zones: Zone[];
-// }
-// import { useState, useEffect } from 'react'
-// import { useParams, Link } from 'react-router-dom'
-// import { warehouseApi } from '../../service/warehouseApi'
-// import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
-
-// export const WarehouseDetailView: React.FC = () => {
-//     const { id } = useParams()
-//     const [warehouse, setWarehouse] = useState<any>(null)
-//     const [loading, setLoading] = useState(true)
-    
-//     // UI States
-//     const [selectedRack, setSelectedRack] = useState<any>(null)
-//     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-//     const [zoom, setZoom] = useState(1)
-//     const [position, setPosition] = useState({ x: 0, y: 0 })
-
-//     useEffect(() => {
-//     const fetchFullData = async () => {
-//         if (!id) return;
-//         try {
-//             setLoading(true);
-            
-//             // 1. Lấy thông tin Warehouse
-//             const whRes = await warehouseApi.getById(id);
-//             const whData = whRes.data;
-
-//             // 2. Lấy danh sách Zone (đảm bảo đúng tên hàm getZonesByWarehouseId)
-//             const zonesRes = await warehouseApi.getZonesByWarehouseId(id);
-//             // Kiểm tra nếu data là object { zones: [] } hoặc mảng []
-//             const zonesRaw = Array.isArray(zonesRes.data) ? zonesRes.data : (zonesRes.data.zones || []);
-
-//             // 3. Fetch đệ quy Racks và Levels
-//             const fullZones = await Promise.all(zonesRaw.map(async (zone: any) => {
-//                 try {
-//                     const racksRes = await warehouseApi.getRacksByZone(zone.zoneId);
-//                     const racksRaw = Array.isArray(racksRes.data) ? racksRes.data : (racksRes.data.racks || []);
-
-//                     const racksWithLevels = await Promise.all(racksRaw.map(async (rack: any) => {
-//                         try {
-//                             const levelsRes = await warehouseApi.getLevelsByRack(rack.rackId);
-//                             const levelsRaw = Array.isArray(levelsRes.data) ? levelsRes.data : (levelsRes.data.levels || []);
-//                             return { ...rack, levels: levelsRaw };
-//                         } catch {
-//                             return { ...rack, levels: [] };
-//                         }
-//                     }));
-//                     return { ...zone, racks: racksWithLevels };
-//                 } catch {
-//                     return { ...zone, racks: [] };
-//                 }
-//             }));
-
-//             setWarehouse({ ...whData, zones: fullZones });
-//         } catch (error) {
-//             console.error("Lỗi tải sơ đồ kho:", error);
-//         } finally {
-//             setLoading(false);
-//         }
-//     };
-//     fetchFullData();
-// }, [id]);
-
-//     const handleRackClick = (rack: any) => {
-//         setSelectedRack(rack)
-//         setIsSidebarOpen(true)
-//     }
-
-//     if (loading || !warehouse) return <LoadingOverlay show={true} text="ĐANG TẢI SƠ ĐỒ KHO..." />
-
-//     return (
-//         <div className="flex h-screen w-full overflow-hidden bg-[#0b101a] text-white">
-//             <main className={`relative flex flex-col transition-all duration-300 ${isSidebarOpen ? 'mr-[420px]' : 'w-full'}`}>
-//                 {/* Back Button & Header */}
-//                 <div className="absolute top-8 left-6 z-10">
-//                     <Link to="/admin/warehouse" className="text-cyan-400 hover:underline flex items-center gap-2 mb-4">
-//                         ← Quay lại danh sách
-//                     </Link>
-//                     <h1 className="text-2xl font-bold text-white">{warehouse.warehouseName}</h1>
-//                     <p className="text-slate-400 text-sm">{warehouse.address}</p>
-//                 </div>
-
-//                 {/* SƠ ĐỒ (MAP) */}
-//                 <div 
-//                     className="flex-1 flex items-center justify-center cursor-grab active:cursor-grabbing overflow-hidden"
-//                     onWheel={(e) => setZoom(prev => Math.min(Math.max(prev + (e.deltaY > 0 ? -0.1 : 0.1), 0.5), 2))}
-//                 >
-//                     <div style={{ transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})` }} className="transition-transform duration-75">
-//                         <div className="flex flex-col gap-16 p-20">
-//                             {warehouse.zones?.map((zone: any) => (
-//                                 <div key={zone.zoneId} className="border border-white/5 bg-white/[0.02] p-8 rounded-3xl relative">
-//                                     {/* Tên Zone */}
-//                                     <div className="absolute -top-4 left-8 bg-cyan-500 text-black px-4 py-1 rounded-full font-bold">
-//                                         Zone {zone.zoneCode}
-//                                     </div>
-
-//                                     {/* GRID RACKS TRONG ZONE */}
-//                                     <div className="grid grid-cols-4 gap-6"> 
-//                                         {zone.racks?.map((rack: any) => (
-//                                             <div 
-//                                                 key={rack.rackId}
-//                                                 onClick={() => handleRackClick(rack)}
-//                                                 className={`group relative w-32 cursor-pointer transition-all hover:scale-105 ${
-//                                                     selectedRack?.rackId === rack.rackId ? 'ring-2 ring-cyan-400' : ''
-//                                                 }`}
-//                                             >
-//                                                 {/* Vẽ Rack với 3 Level */}
-//                                                 <div className="bg-[#1a2333] border border-slate-700 rounded-lg p-2 shadow-xl">
-//                                                     <div className="text-[10px] text-slate-500 mb-2 text-center font-mono">
-//                                                         {rack.rackCode}
-//                                                     </div>
-                                                    
-//                                                     {/* Levels hiển thị từ cao xuống thấp hoặc thấp lên cao */}
-//                                                     <div className="flex flex-col-reverse gap-1.5">
-//                                                         {rack.levels?.sort((a: any, b: any) => a.levelNumber - b.levelNumber).map((level: any) => (
-//                                                             <div 
-//                                                                 key={level.levelId}
-//                                                                 className="h-8 bg-emerald-500/20 border border-emerald-500/40 rounded flex items-center justify-center text-[10px] text-emerald-300 font-bold group-hover:bg-emerald-500/40"
-//                                                             >
-//                                                                 Lvl {level.levelNumber}
-//                                                             </div>
-//                                                         ))}
-//                                                         {/* Nếu chưa đủ 3 level thì render ô trống */}
-//                                                         {Array.from({ length: Math.max(0, 3 - (rack.levels?.length || 0)) }).map((_, i) => (
-//                                                             <div key={i} className="h-8 border border-dashed border-slate-700 rounded opacity-30" />
-//                                                         ))}
-//                                                     </div>
-//                                                 </div>
-//                                             </div>
-//                                         ))}
-//                                     </div>
-//                                 </div>
-//                             ))}
-//                         </div>
-//                     </div>
-//                 </div>
-//             </main>
-
-//             {/* SIDEBAR CHI TIẾT RACK */}
-//             <aside className={`fixed right-0 top-0 w-[420px] h-full bg-[#0d1421] border-l border-white/10 p-6 transition-transform duration-300 z-30 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-//                 {selectedRack && (
-//                     <div className="space-y-6 mt-16">
-//                         <div className="flex justify-between items-start">
-//                             <div>
-//                                 <h2 className="text-2xl font-bold text-cyan-400">Rack: {selectedRack.rackCode}</h2>
-//                                 <p className="text-slate-400 italic">ID: {selectedRack.rackId}</p>
-//                             </div>
-//                             <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/10 rounded-full">✕</button>
-//                         </div>
-
-//                         <div className="grid grid-cols-2 gap-4">
-//                             <div className="bg-white/5 p-3 rounded-lg">
-//                                 <p className="text-xs text-slate-500 uppercase">Sức chứa tối đa</p>
-//                                 <p className="text-lg font-semibold">{selectedRack.maxWeightCapacity} kg</p>
-//                             </div>
-//                             <div className="bg-white/5 p-3 rounded-lg">
-//                                 <p className="text-xs text-slate-500 uppercase">Kích thước (LxWxH)</p>
-//                                 <p className="text-sm font-semibold">{selectedRack.length}x{selectedRack.width}x{selectedRack.height}</p>
-//                             </div>
-//                         </div>
-
-//                         <div className="space-y-3">
-//                             <h3 className="text-sm font-bold text-slate-300 uppercase">Danh sách Levels</h3>
-//                             {selectedRack.levels?.map((level: any) => (
-//                                 <div key={level.levelId} className="flex items-center justify-between p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
-//                                     <div className="flex items-center gap-3">
-//                                         <div className="size-8 bg-emerald-500 text-black rounded-lg flex items-center justify-center font-bold">
-//                                             {level.levelNumber}
-//                                         </div>
-//                                         <div>
-//                                             <p className="font-bold">Tầng {level.levelNumber}</p>
-//                                             <p className="text-[10px] text-slate-400">Tải trọng tối đa: {level.maxWeight}kg</p>
-//                                         </div>
-//                                     </div>
-//                                     <span className="text-xs text-emerald-400 font-mono">{level.levelId}</span>
-//                                 </div>
-//                             ))}
-//                         </div>
-//                     </div>
-//                 )}
-//             </aside>
-//         </div>
-//     )
-// }
-
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { warehouseApi } from '../../service/warehouseApi' // Đảm bảo api này có method getHierarchy
-import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
+import { warehouseApi } from '../../service/warehouseApi'
+import { AlertModal } from '../../components/ui/modal/AlertModal'
+import type {
+  WarehouseResponse, ZoneResponse, ZoneRequest, ZoneType,
+  RackResponse, RackRequest, RackType,
+  LevelResponse, LevelRequest,
+  BinResponse, BinRequest, BinStatus, BoxType, ReservationType
+} from '../../types/Warehouse'
+
+type CrudTarget = 'ZONE' | 'RACK' | 'LEVEL' | 'BIN'
+type CrudMode = 'CREATE' | 'EDIT' | null
 
 export const WarehouseDetailView: React.FC = () => {
-    const { id } = useParams()
-    const [warehouse, setWarehouse] = useState<any>(null)
-    const [loading, setLoading] = useState(true)
-    
-    // UI States
-    const [selectedRack, setSelectedRack] = useState<any>(null)
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-    const [zoom, setZoom] = useState(1)
-    const [position, setPosition] = useState({ x: 0, y: 0 })
+  const { id } = useParams<{ id: string }>()
+  const [loading, setLoading] = useState<boolean>(false)
+  const [warehouse, setWarehouse] = useState<WarehouseResponse | null>(null)
 
-    useEffect(() => {
-        const fetchAndFilterData = async () => {
-            if (!id) return;
-            try {
-                setLoading(true);
-                // 1. Gọi API lấy toàn bộ cấu trúc hierarchy
-                const response = await warehouseApi.getHierarchy();
-                const branches = response.data.branches || [];
+  // Lưu trữ danh sách các thực thể phẳng theo phân cấp
+  const [zones, setZones] = useState<ZoneResponse[]>([])
+  const [racks, setRacks] = useState<RackResponse[]>([])
+  const [levels, setLevels] = useState<LevelResponse[]>([])
+  const [bins, setBins] = useState<BinResponse[]>([])
 
-                // 2. Tìm warehouse có ID trùng với params trong tất cả các branches
-                let foundWarehouse = null;
-                for (const branch of branches) {
-                    const wh = branch.warehouses.find((w: any) => w.warehouseId === id);
-                    if (wh) {
-                        foundWarehouse = wh;
-                        break;
-                    }
-                }
+  // Tiêu điểm điều hướng sơ đồ
+  const [selectedZone, setSelectedZone] = useState<ZoneResponse | null>(null)
+  const [selectedRack, setSelectedRack] = useState<RackResponse | null>(null)
+  const [selectedLevel, setSelectedLevel] = useState<LevelResponse | null>(null)
 
-                if (foundWarehouse) {
-                    setWarehouse(foundWarehouse);
-                } else {
-                    console.error("Không tìm thấy kho với ID:", id);
-                }
-            } catch (error) {
-                console.error("Lỗi tải sơ đồ kho:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
+  const [zoom, setZoom] = useState<number>(1)
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false)
 
-        fetchAndFilterData();
-    }, [id]);
+  // Trạng thái Quản lý CRUD Động
+  const [crudState, setCrudState] = useState<{
+    target: CrudTarget;
+    mode: CrudMode;
+    parentId?: string;
+    data?: any
+  }>({ target: 'ZONE', mode: null })
 
-    const handleRackClick = (rack: any) => {
-        setSelectedRack(rack)
-        setIsSidebarOpen(true)
+  // ================= FORM FIELDS STATE ĐỒNG BỘ TYPES TỰ ĐỘNG =================
+  const [zoneForm, setZoneForm] = useState<Partial<ZoneRequest>>({ zoneCode: '', zoneName: '', zoneType: 'SHARED', areaM2: 0, isDedicated: false, status: 'ACTIVE' })
+  const [rackForm, setRackForm] = useState<Partial<RackRequest>>({ rackCode: '', rackType: 'STANDARD', maxLevels: 1, status: 'ACTIVE' })
+  const [levelForm, setLevelForm] = useState<Partial<LevelRequest>>({ levelCode: '', levelNumber: 1, maxBins: 10, maxWeightKg: 1000, heightCm: 200, levelPriority: 1 })
+  const [binForm, setBinForm] = useState<Partial<BinRequest>>({ binCode: '', supportedBoxType: 'MEDIUM', maxLpnCount: 5, maxVolumeUnits: 100, maxOwnerCount: 1, reservationType: 'SHARED', status: 'EMPTY' })
+
+  const [alert, setAlert] = useState<{ open: boolean; type: 'success' | 'confirm'; message: string; onConfirm?: () => void }>({
+    open: false, type: 'success', message: ''
+  })
+
+  // ================= SIDE-EFFECTS NẠP DỮ LIỆU CHỦ ĐỘNG =================
+
+  // 1. Lấy thông tin kho và danh sách Zone ban đầu
+  useEffect(() => {
+    const initPage = async () => {
+      if (!id) return
+      setLoading(true)
+      try {
+        const whRes = await warehouseApi.getById(id)
+        setWarehouse(whRes.data.data)
+
+        const zoneRes = await warehouseApi.getZones(id)
+        setZones(zoneRes.data.data || [])
+      } catch (err) {
+        console.error('Lỗi khởi tạo dữ liệu kho:', err)
+      } finally {
+        setLoading(false)
+      }
     }
+    initPage()
+  }, [id])
 
-    const handleZoom = (delta: number) => {
-        setZoom(prev => Math.min(Math.max(prev + delta, 0.5), 2))
+  // 2. Tự động tải tất cả các Racks của TẤT CẢ các Zone cùng một lúc (Không cần click mới show)
+  useEffect(() => {
+    const fetchAllRacks = async () => {
+      if (zones.length === 0) return
+      try {
+        const rackPromises = zones.map(zone => warehouseApi.getRacks(zone.zoneId))
+        const responses = await Promise.all(rackPromises)
+        // Gộp dữ liệu rack từ tất cả các zone thành một mảng phẳng duy nhất
+        const combinedRacks = responses.flatMap(res => res.data.data || [])
+        setRacks(combinedRacks)
+      } catch (err) {
+        console.error('Lỗi khi tải toàn bộ danh sách dãy kệ hàng:', err)
+      }
     }
+    fetchAllRacks()
+  }, [zones])
 
-    if (loading) return <LoadingOverlay show={true} text="ĐANG TẢI SƠ ĐỒ KHO..." />
-    if (!warehouse) return <div className="text-white p-10">Không tìm thấy dữ liệu kho.</div>
+  // 3. Tự động tải Levels khi chọn hoặc đổi Rack ở thanh Sidebar chi tiết
+  useEffect(() => {
+    const fetchLevels = async () => {
+      if (!selectedRack) { setLevels([]); return }
+      try {
+        const res = await warehouseApi.getLevels(selectedRack.rackId)
+        setLevels(res.data.data || [])
+        setSelectedLevel(null)
+        setBins([])
+      } catch (err) { console.error(err) }
+    }
+    fetchLevels()
+  }, [selectedRack])
 
-    return (
-        <div className="flex h-screen w-full overflow-hidden bg-[#0b101a] text-white">
-            <main className={`relative flex flex-col transition-all duration-300 ${isSidebarOpen ? 'mr-[420px]' : 'w-full'}`}>
-                
-                {/* HEADER & BACK BUTTON */}
-                <div className="absolute top-8 left-6 z-10 bg-[#0b101a]/80 p-4 rounded-xl backdrop-blur-md border border-white/5">
-                    <Link to="/admin/warehouse" className="text-cyan-400 hover:text-cyan-300 flex items-center gap-2 mb-2 transition-colors">
-                        <span className="text-xl">←</span> Quay lại danh sách
-                    </Link>
-                    <h1 className="text-2xl font-bold text-white uppercase tracking-tight">{warehouse.warehouseName}</h1>
-                    <div className="flex gap-4 mt-1">
-                        <p className="text-slate-400 text-sm">📍 {warehouse.district}</p>
-                        <p className="text-slate-400 text-sm">📏 Diện tích: {warehouse.totalArea} m²</p>
-                    </div>
-                </div>
+  // 4. Tự động tải Bins khi chọn hoặc đổi Tầng (Level) ở thanh Sidebar chi tiết
+  useEffect(() => {
+    const fetchBins = async () => {
+      if (!selectedLevel) { setBins([]); return }
+      try {
+        const res = await warehouseApi.getBins(selectedLevel.rackLevelId)
+        setBins(res.data.data || [])
+      } catch (err) { console.error(err) }
+    }
+    fetchBins()
+  }, [selectedLevel])
 
-                {/* CONTROLS (Floating) */}
-                <div className="absolute bottom-10 left-6 z-10 flex flex-col gap-2">
-                    <button onClick={() => handleZoom(0.2)} className="size-10 bg-slate-800 border border-white/10 rounded-lg hover:bg-slate-700 transition-colors">+</button>
-                    <button onClick={() => handleZoom(-0.2)} className="size-10 bg-slate-800 border border-white/10 rounded-lg hover:bg-slate-700 transition-colors">-</button>
-                    <button onClick={() => { setZoom(1); setPosition({ x: 0, y: 0 }) }} className="size-10 bg-cyan-600 border border-white/10 rounded-lg hover:bg-cyan-500 transition-colors">⦿</button>
-                </div>
+  // ================= ĐIỀU KHIỂN ĐÓNG/MỞ FORM CRUD ĐỘNG =================
+  const openCrudForm = (target: CrudTarget, mode: CrudMode, parentId?: string, currentData?: any) => {
+    setCrudState({ target, mode, parentId, data: currentData })
+    setSidebarOpen(true)
 
-                {/* MAP AREA */}
-                <div 
-                    className="flex-1 flex items-center justify-center cursor-grab active:cursor-grabbing overflow-hidden"
-                    onWheel={(e) => handleZoom(e.deltaY > 0 ? -0.1 : 0.1)}
-                >
-                    <div 
-                        style={{ 
-                            transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
-                        }} 
-                        className="transition-transform duration-150 ease-out"
-                    >
-                        <div className="flex flex-col gap-16 p-32">
-                            {warehouse.zones?.map((zone: any) => (
-                                <div key={zone.zoneId} className="border border-white/10 bg-white/[0.03] p-10 rounded-[2rem] relative min-w-[600px]">
-                                    {/* Zone Label */}
-                                    <div className="absolute -top-5 left-10 bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-6 py-1.5 rounded-full font-black shadow-lg shadow-cyan-500/20">
-                                        ZONE {zone.zoneCode}
-                                    </div>
+    if (mode === 'EDIT' && currentData) {
+      if (target === 'ZONE') setZoneForm(currentData)
+      if (target === 'RACK') setRackForm(currentData)
+      if (target === 'LEVEL') setLevelForm(currentData)
+      if (target === 'BIN') setBinForm(currentData)
+    } else {
+      if (target === 'ZONE') setZoneForm({ zoneCode: '', zoneName: '', zoneType: 'SHARED', areaM2: 0, isDedicated: false, status: 'ACTIVE' })
+      if (target === 'RACK') setRackForm({ rackCode: '', rackType: 'STANDARD', maxLevels: 1, status: 'ACTIVE' })
+      if (target === 'LEVEL') setLevelForm({ levelCode: '', levelNumber: (levels.length + 1), maxBins: 10, maxWeightKg: 1000, heightCm: 200, levelPriority: 1 })
+      if (target === 'BIN') setBinForm({ binCode: '', supportedBoxType: 'MEDIUM', maxLpnCount: 5, maxVolumeUnits: 100, maxOwnerCount: 1, reservationType: 'SHARED', status: 'EMPTY' })
+    }
+  }
 
-                                    {/* RACKS GRID */}
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8"> 
-                                        {zone.racks?.length > 0 ? zone.racks.map((rack: any) => (
-                                            <div 
-                                                key={rack.rackId}
-                                                onClick={() => handleRackClick(rack)}
-                                                className={`group relative w-36 cursor-pointer transition-all duration-300 hover:scale-110 ${
-                                                    selectedRack?.rackId === rack.rackId ? 'ring-2 ring-cyan-400 ring-offset-4 ring-offset-[#0b101a]' : ''
-                                                }`}
-                                            >
-                                                <div className="bg-[#161e2d] border border-slate-700 rounded-xl p-3 shadow-2xl">
-                                                    <div className="text-[10px] text-cyan-400/70 mb-2 text-center font-mono font-bold">
-                                                        {rack.rackCode}
-                                                    </div>
-                                                    
-                                                    {/* Levels Visualizer */}
-                                                    <div className="flex flex-col-reverse gap-1.5">
-                                                        {/* Lấy 3 levels cao nhất hoặc hiển thị đủ theo data */}
-                                                        {rack.levels?.length > 0 ? (
-                                                            rack.levels.sort((a: any, b: any) => a.levelNumber - b.levelNumber).map((level: any) => (
-                                                                <div 
-                                                                    key={level.levelId}
-                                                                    className="h-7 bg-emerald-500/20 border border-emerald-500/40 rounded-md flex items-center justify-center text-[9px] text-emerald-300 font-bold group-hover:bg-emerald-500/40 transition-colors"
-                                                                >
-                                                                    LVL {level.levelNumber}
-                                                                </div>
-                                                            ))
-                                                        ) : (
-                                                            <div className="h-20 flex items-center justify-center border border-dashed border-slate-700 rounded-md text-[10px] text-slate-500">
-                                                                Trống
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )) : (
-                                            <div className="col-span-full py-10 text-center text-slate-600 italic">
-                                                Khu vực này chưa bố trí kệ hàng
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </main>
+  // ================= XỬ LÝ SUBMIT BIỂU MẪU LÊN API =================
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      if (crudState.target === 'ZONE') {
+        if (crudState.mode === 'CREATE') await warehouseApi.createZone({ ...zoneForm, warehouseId: id } as ZoneRequest)
+        else await warehouseApi.updateZone(crudState.data.zoneId, zoneForm as ZoneRequest)
+        const res = await warehouseApi.getZones(id!)
+        setZones(res.data.data || [])
+      }
+      else if (crudState.target === 'RACK') {
+        if (crudState.mode === 'CREATE') await warehouseApi.createRack({ ...rackForm, zoneId: crudState.parentId } as RackRequest)
+        else await warehouseApi.updateRack(crudState.data.rackId, rackForm as RackRequest)
 
-            {/* SIDEBAR DETAIL */}
-            <aside className={`fixed right-0 top-0 w-[420px] h-full bg-[#0d1421] border-l border-white/10 p-8 transition-transform duration-500 ease-in-out z-30 shadow-2xl ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-                {selectedRack && (
-                    <div className="space-y-8 mt-12">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <div className="text-cyan-500 text-xs font-bold uppercase tracking-widest mb-1">Rack Detail</div>
-                                <h2 className="text-3xl font-black text-white">{selectedRack.rackCode}</h2>
-                                <p className="text-slate-500 font-mono text-sm">{selectedRack.rackId}</p>
-                            </div>
-                            <button 
-                                onClick={() => setIsSidebarOpen(false)} 
-                                className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400"
-                            >
-                                ✕
-                            </button>
-                        </div>
+        // Refresh lại toàn bộ danh sách zone để kích hoạt lại effect tải racks
+        const res = await warehouseApi.getZones(id!)
+        setZones(res.data.data || [])
+      }
+      else if (crudState.target === 'LEVEL') {
+        if (crudState.mode === 'CREATE') await warehouseApi.createLevel({ ...levelForm, rackId: crudState.parentId } as LevelRequest)
+        else await warehouseApi.updateLevel(crudState.data.rackLevelId, levelForm as LevelRequest)
+        const res = await warehouseApi.getLevels(selectedRack!.rackId)
+        setLevels(res.data.data || [])
+      }
+      else if (crudState.target === 'BIN') {
+        if (crudState.mode === 'CREATE') await warehouseApi.createBin({ ...binForm, rackLevelId: crudState.parentId } as BinRequest)
+        else await warehouseApi.updateBin(crudState.data.binId, binForm as BinRequest)
+        const res = await warehouseApi.getBins(selectedLevel!.rackLevelId)
+        setBins(res.data.data || [])
+      }
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                                <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Tải trọng tối đa</p>
-                                <p className="text-xl font-semibold text-emerald-400">{selectedRack.maxWeightCapacity} <span className="text-xs text-slate-400">kg</span></p>
-                            </div>
-                            <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                                <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Kích thước</p>
-                                <p className="text-sm font-semibold">{selectedRack.length}m x {selectedRack.width}m</p>
-                            </div>
-                        </div>
+      setAlert({ open: true, type: 'success', message: `Đã đồng bộ dữ liệu cấu trúc ${crudState.target} thành công!` })
+      setCrudState({ target: 'ZONE', mode: null })
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-bold text-slate-300 uppercase tracking-tighter">Cấu trúc tầng ({selectedRack.levels?.length || 0})</h3>
-                            <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
-                                {selectedRack.levels?.sort((a: any, b: any) => b.levelNumber - a.levelNumber).map((level: any) => (
-                                    <div key={level.levelId} className="group flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-2xl hover:border-cyan-500/50 transition-all">
-                                        <div className="flex items-center gap-4">
-                                            <div className="size-10 bg-cyan-500/10 text-cyan-400 rounded-xl flex items-center justify-center font-black group-hover:bg-cyan-500 group-hover:text-black transition-colors">
-                                                {level.levelNumber}
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-slate-200">Tầng {level.levelNumber}</p>
-                                                <p className="text-[10px] text-slate-500 uppercase">Sức chứa: {level.maxWeight}kg</p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <span className="text-[10px] text-slate-600 block font-mono">{level.levelId}</span>
-                                            <span className="text-[10px] text-emerald-500/70 font-bold">● Khả dụng</span>
-                                        </div>
-                                    </div>
-                                ))}
-                                {(!selectedRack.levels || selectedRack.levels.length === 0) && (
-                                    <p className="text-slate-500 italic text-sm py-4">Kệ này chưa được chia tầng.</p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </aside>
+  // ================= XỬ LÝ XÓA NÚT THẮT PHÂN CẤP (DELETE) =================
+  const handleDeleteNode = (target: CrudTarget, targetId: string) => {
+    setAlert({
+      open: true,
+      type: 'confirm',
+      message: `Bạn chắc chắn muốn xóa phân cấp này? Mọi dữ liệu con phụ thuộc trực tiếp vào ${target} này sẽ bị gỡ bỏ khỏi hệ thống.`,
+      onConfirm: async () => {
+        setLoading(true)
+        try {
+          if (target === 'ZONE') {
+            await warehouseApi.deleteZone(targetId)
+            setZones(prev => prev.filter(z => z.zoneId !== targetId))
+            if (selectedZone?.zoneId === targetId) setSelectedZone(null)
+          } else if (target === 'RACK') {
+            await warehouseApi.deleteRack(targetId)
+            setRacks(prev => prev.filter(r => r.rackId !== targetId))
+            if (selectedRack?.rackId === targetId) setSelectedRack(null)
+          } else if (target === 'LEVEL') {
+            await warehouseApi.deleteLevel(targetId)
+            setLevels(prev => prev.filter(l => l.rackLevelId !== targetId))
+            if (selectedLevel?.rackLevelId === targetId) setSelectedLevel(null)
+          } else if (target === 'BIN') {
+            await warehouseApi.deleteBin(targetId)
+            setBins(prev => prev.filter(b => b.binId !== targetId))
+          }
+          setAlert({ open: true, type: 'success', message: `Xóa phần tử cấu trúc thành công!` })
+        } catch (err) {
+          console.error(err)
+        } finally {
+          setLoading(false)
+        }
+      }
+    })
+  }
+
+  if (!warehouse && loading) return <div className="flex h-screen items-center justify-center bg-[#0b101a] text-cyan-400 font-mono">ĐANG PHÂN TÍCH HỆ THỐNG KHO...</div>
+  if (!warehouse) return <div className="flex h-screen items-center justify-center bg-[#0b101a] text-slate-400">Không tìm thấy mã cấu hình kho hàng được yêu cầu.</div>
+
+  return (
+    <div className="flex h-screen w-full overflow-hidden bg-[#0b101a] text-slate-100 flex-col">
+
+      {/* ================= HEADER PHÍA TRÊN CỐ ĐỊNH - KHÔNG CHE KHUẤT BẢN ĐỒ ================= */}
+      <header className="w-full border-b border-white/5 bg-[#0b101a]/90 p-5 backdrop-blur-md shadow-2xl z-10">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+
+          {/* Thông tin kho bên trái */}
+          <div>
+            <Link to="/admin/warehouse" className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-cyan-400 hover:text-cyan-300 mb-1">
+              <span className="material-symbols-outlined text-xs">arrow_back</span> Quản lý kho tổng
+            </Link>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-black text-white uppercase tracking-tight">{warehouse.warehouseName}</h1>
+              <span className="text-xs px-2.5 py-0.5 bg-cyan-500/10 border border-cyan-400/20 text-cyan-400 font-mono rounded-md">{warehouse.warehouseCode}</span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">🗺️ {warehouse.address}</p>
+          </div>
+
+          {/* Chỉ số diện tích và Nút tạo Zone mới bên phải */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="text-[11px] font-mono text-slate-500 bg-white/5 px-4 py-2 rounded-xl border border-white/5">
+              Diện tích khả dụng: <span className="text-white font-bold">{warehouse.usableAreaM2}</span> / {warehouse.totalAreaM2} m²
+            </div>
+            <button
+              onClick={() => openCrudForm('ZONE', 'CREATE', warehouse.warehouseId)}
+              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold rounded-xl hover:bg-cyan-500 hover:text-black transition-all shadow-md"
+            >
+              <span className="material-symbols-outlined text-xs">add_box</span> Cấu hình Khu (Zone) mới
+            </button>
+          </div>
+
         </div>
-    )
+      </header>
+
+      {/* ================= KHU VỰC THÂN TRANG CHỨA MAP & SIDEBAR BÊN DƯỚI ================= */}
+      <div className="flex flex-1 overflow-hidden relative w-full">
+
+        {/* MAIN CONTENT VẼ SƠ ĐỒ LƯỚI */}
+        <main className={`relative flex flex-1 flex-col h-full transition-all duration-300 ${sidebarOpen ? 'mr-[450px]' : 'w-full'}`}>
+
+          {/* Bộ điều khiển thu phóng (Zoom Controls di động) */}
+          <div className="absolute bottom-6 left-6 z-10 flex items-center gap-1 bg-[#121926]/90 p-1.5 rounded-xl border border-white/5 backdrop-blur shadow-xl">
+            <button onClick={() => setZoom(prev => Math.min(prev + 0.15, 2))} className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded-lg text-sm font-black hover:bg-slate-700">+</button>
+            <button onClick={() => setZoom(prev => Math.max(prev - 0.15, 0.5))} className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded-lg text-sm font-black hover:bg-slate-700">-</button>
+            <button onClick={() => setZoom(1)} className="px-3 h-8 text-xs font-bold bg-cyan-500/20 text-cyan-400 rounded-lg hover:bg-cyan-500 hover:text-black transition-colors">100%</button>
+          </div>
+
+          {/* Khu vực vẽ lưới sơ đồ chi tiết các Zone & Rack */}
+          <div className="flex-1 overflow-auto bg-[#080d16] p-8 flex items-start justify-center">
+            {zones.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-slate-400 text-sm">
+                <span className="material-symbols-outlined text-4xl mb-3 opacity-50">layers</span>
+                <p className="text-center">Không có khu vực (Zone) nào</p>
+                <p className="text-xs text-slate-500 mt-1">Hãy tạo khu vực mới để bắt đầu</p>
+              </div>
+            ) : (
+              <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }} className="transition-transform duration-150 ease-out flex flex-col gap-10 w-full max-w-7xl mt-4">
+                {/* ... Zone mapping ... */}
+              </div>
+            )}
+            <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }} className="transition-transform duration-150 ease-out flex flex-col gap-10 w-full max-w-7xl mt-4">
+
+              {zones.map((zone) => (
+                <div
+                  key={zone.zoneId}
+                  className={`group/zone relative border-2 border-dashed p-8 pt-12 rounded-3xl transition-all ${selectedZone?.zoneId === zone.zoneId ? 'border-cyan-400 bg-cyan-500/[0.02]' : 'border-white/10 bg-white/[0.01]'
+                    }`}
+                >
+                  {/* Thanh Actions Điều khiển Zone */}
+                  <div className="absolute -top-4 left-6 flex items-center gap-1 bg-[#0b101a] p-1 rounded-full border border-white/10 shadow-xl">
+                    <span
+                      onClick={() => setSelectedZone(zone)}
+                      className="bg-cyan-500 text-black px-4 py-1 rounded-full text-xs font-black tracking-widest cursor-pointer hover:bg-cyan-400"
+                    >
+                      ZONE: {zone.zoneCode} ({zone.zoneType})
+                    </span>
+                    <button onClick={() => openCrudForm('RACK', 'CREATE', zone.zoneId)} className="p-1 text-emerald-400 hover:bg-white/5 rounded-full" title="Thêm Kệ"><span className="material-symbols-outlined text-sm">add_circle</span></button>
+                    <button onClick={() => openCrudForm('ZONE', 'EDIT', warehouse.warehouseId, zone)} className="p-1 text-slate-400 hover:bg-white/5 rounded-full" title="Sửa Zone"><span className="material-symbols-outlined text-sm">edit</span></button>
+                    <button onClick={() => handleDeleteNode('ZONE', zone.zoneId)} className="p-1 text-red-400 hover:bg-white/5 rounded-full opacity-0 group-hover/zone:opacity-100 transition-opacity" title="Xóa Zone"><span className="material-symbols-outlined text-sm">delete</span></button>
+                  </div>
+
+                  {/* HIỂN THỊ TRỰC TIẾP TOÀN BỘ RACKS THUỘC ZONE NÀY (Không cần qua bước click) */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+                    {racks
+                      .filter((rack) => rack.zoneId === zone.zoneId)
+                      .map((rack) => (
+                        <div
+                          key={rack.rackId}
+                          onClick={() => {
+                            setSelectedZone(zone)
+                            setSelectedRack(rack)
+                            setCrudState({ target: 'RACK', mode: null })
+                            setSidebarOpen(true)
+                          }}
+                          className={`group/rack relative bg-[#131b29] border rounded-xl p-4 cursor-pointer shadow-lg transition-all hover:scale-[1.05] ${selectedRack?.rackId === rack.rackId ? 'border-orange-400 ring-2 ring-orange-500/10' : 'border-white/5'
+                            }`}
+                        >
+                          {/* Nút xóa nhanh Rack */}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteNode('RACK', rack.rackId) }}
+                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/rack:opacity-100 transition-opacity text-xs font-bold shadow-md z-10"
+                          >
+                            ×
+                          </button>
+
+                          <div className="text-[11px] text-cyan-400 font-mono font-black text-center mb-1">{rack.rackCode}</div>
+                          <div className="text-[9px] text-slate-500 text-center mb-2 uppercase font-medium">{rack.rackType}</div>
+
+                          <div className="text-[10px] bg-slate-800 text-slate-300 py-1 rounded text-center font-bold">
+                            {rack.maxLevels} TẦNG LƯU TRỮ
+                          </div>
+                        </div>
+                      ))}
+
+                    {/* Thông báo nếu Zone trống */}
+                    {racks.filter((rack) => rack.zoneId === zone.zoneId).length === 0 && (
+                      <div className="col-span-full text-left text-xs text-slate-500 italic py-2">Khu vực này chưa cấu hình dãy kệ (Rack) nào.</div>
+                    )}
+                  </div>
+
+                </div>
+              ))}
+            </div>
+          </div>
+        </main>
+
+        {/* ================= SIDEBAR QUẢN LÝ CRUD & PHÂN CẤP TRỰC QUAN (GIỮ NGUYÊN HÀM) ================= */}
+        <aside className={`fixed right-0 top-0 h-full w-[450px] bg-[#0d1421] border-l border-white/10 p-6 shadow-2xl transition-transform duration-300 flex flex-col justify-between z-20 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}>
+
+          {crudState.mode ? (
+            /* TRƯỜNG HỢP A: HIỂN THỊ BIỂU MẪU FORM NHẬP LIỆU (CREATE / EDIT) */
+            <div className="flex-1 flex flex-col h-full mt-6">
+              <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                <h3 className="text-xs font-black text-cyan-400 uppercase tracking-widest">
+                  {crudState.mode === 'CREATE' ? 'Khởi tạo mới' : 'Cập nhật cấu hình'} {crudState.target}
+                </h3>
+                <button onClick={() => setCrudState({ target: 'ZONE', mode: null })} className="text-slate-400 hover:text-white text-xs">Quay lại</button>
+              </div>
+
+              <form onSubmit={handleFormSubmit} className="space-y-4 mt-4 flex-1 overflow-y-auto pr-1">
+
+                {crudState.target === 'ZONE' && (
+                  <>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Mã khu vực (Zone Code)*</label>
+                      <input type="text" required value={zoneForm.zoneCode} onChange={(e) => setZoneForm({ ...zoneForm, zoneCode: e.target.value })} className="w-full px-4 py-2 bg-[#161f30] border border-white/10 rounded-xl text-sm focus:outline-none focus:border-cyan-400 text-white" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Tên mô tả phân khu</label>
+                      <input type="text" required value={zoneForm.zoneName} onChange={(e) => setZoneForm({ ...zoneForm, zoneName: e.target.value })} className="w-full px-4 py-2 bg-[#161f30] border border-white/10 rounded-xl text-sm focus:outline-none focus:border-cyan-400 text-white" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Loại Zone (Zone Type)</label>
+                        <select value={zoneForm.zoneType} onChange={(e) => setZoneForm({ ...zoneForm, zoneType: e.target.value as ZoneType })} className="w-full px-3 py-2 bg-[#161f30] border border-white/10 rounded-xl text-sm focus:outline-none focus:border-cyan-400 text-white">
+                          <option value="SHARED">SHARED</option>
+                          <option value="FAST_MOVING">FAST_MOVING</option>
+                          <option value="BULK">BULK</option>
+                          <option value="PREMIUM">PREMIUM</option>
+                          <option value="QC">QC</option>
+                          <option value="RETURN">RETURN</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Diện tích m²</label>
+                        <input type="number" value={zoneForm.areaM2} onChange={(e) => setZoneForm({ ...zoneForm, areaM2: Number(e.target.value) })} className="w-full px-4 py-2 bg-[#161f30] border border-white/10 rounded-xl text-sm focus:outline-none focus:border-cyan-400 text-white" />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {crudState.target === 'RACK' && (
+                  <>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Mã kệ (Rack Code)*</label>
+                      <input type="text" required value={rackForm.rackCode} onChange={(e) => setRackForm({ ...rackForm, rackCode: e.target.value })} className="w-full px-4 py-2 bg-[#161f30] border border-white/10 rounded-xl text-sm focus:outline-none focus:border-cyan-400 text-white" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Loại kết cấu Rack</label>
+                        <select value={rackForm.rackType} onChange={(e) => setRackForm({ ...rackForm, rackType: e.target.value as RackType })} className="w-full px-3 py-2 bg-[#161f30] border border-white/10 rounded-xl text-sm focus:outline-none text-white">
+                          <option value="STANDARD">STANDARD</option>
+                          <option value="HIGH_CAPACITY">HIGH_CAPACITY</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Số tầng tối đa (Max Level)</label>
+                        <input type="number" value={rackForm.maxLevels} onChange={(e) => setRackForm({ ...rackForm, maxLevels: Number(e.target.value) })} className="w-full px-4 py-2 bg-[#161f30] border border-white/10 rounded-xl text-sm focus:outline-none text-white" />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {crudState.target === 'LEVEL' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Mã tầng (Level Code)*</label>
+                        <input type="text" required value={levelForm.levelCode} onChange={(e) => setLevelForm({ ...levelForm, levelCode: e.target.value })} className="w-full px-4 py-2 bg-[#161f30] border border-white/10 rounded-xl text-sm focus:outline-none text-white" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Tầng số (Level Number)</label>
+                        <input type="number" value={levelForm.levelNumber} onChange={(e) => setLevelForm({ ...levelForm, levelNumber: Number(e.target.value) })} className="w-full px-4 py-2 bg-[#161f30] border border-white/10 rounded-xl text-sm focus:outline-none text-white" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Số Bins tối đa</label>
+                        <input type="number" value={levelForm.maxBins} onChange={(e) => setLevelForm({ ...levelForm, maxBins: Number(e.target.value) })} className="w-full px-3 py-2 bg-[#161f30] border border-white/10 rounded-xl text-xs focus:outline-none text-white" />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Tải trọng (kg)</label>
+                        <input type="number" value={levelForm.maxWeightKg} onChange={(e) => setLevelForm({ ...levelForm, maxWeightKg: Number(e.target.value) })} className="w-full px-3 py-2 bg-[#161f30] border border-white/10 rounded-xl text-xs focus:outline-none text-white" />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Chiều cao (cm)</label>
+                        <input type="number" value={levelForm.heightCm} onChange={(e) => setLevelForm({ ...levelForm, heightCm: Number(e.target.value) })} className="w-full px-3 py-2 bg-[#161f30] border border-white/10 rounded-xl text-xs focus:outline-none text-white" />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {crudState.target === 'BIN' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Mã vị trí ô (Bin Code)*</label>
+                        <input type="text" required value={binForm.binCode} onChange={(e) => setBinForm({ ...binForm, binCode: e.target.value })} className="w-full px-4 py-2 bg-[#161f30] border border-white/10 rounded-xl text-sm focus:outline-none text-white" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Loại thùng hỗ trợ</label>
+                        <select value={binForm.supportedBoxType} onChange={(e) => setBinForm({ ...binForm, supportedBoxType: e.target.value as BoxType })} className="w-full px-3 py-2 bg-[#161f30] border border-white/10 rounded-xl text-sm focus:outline-none text-white">
+                          <option value="SMALL">SMALL</option>
+                          <option value="MEDIUM">MEDIUM</option>
+                          <option value="LARGE">LARGE</option>
+                          <option value="EXTRA">EXTRA</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Cơ chế đặt chỗ</label>
+                        <select value={binForm.reservationType} onChange={(e) => setBinForm({ ...binForm, reservationType: e.target.value as ReservationType })} className="w-full px-3 py-2 bg-[#161f30] border border-white/10 rounded-xl text-sm focus:outline-none text-white">
+                          <option value="SHARED">SHARED</option>
+                          <option value="RESERVED">RESERVED</option>
+                          <option value="DEDICATED">DEDICATED</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Trạng thái chứa</label>
+                        <select value={binForm.status} onChange={(e) => setBinForm({ ...binForm, status: e.target.value as BinStatus })} className="w-full px-3 py-2 bg-[#161f30] border border-white/10 rounded-xl text-sm focus:outline-none text-white">
+                          <option value="EMPTY">EMPTY</option>
+                          <option value="PARTIAL">PARTIAL</option>
+                          <option value="FULL">FULL</option>
+                          <option value="RESERVED">RESERVED</option>
+                          <option value="BLOCKED">BLOCKED</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Số LPN tối đa</label>
+                        <input type="number" value={binForm.maxLpnCount} onChange={(e) => setBinForm({ ...binForm, maxLpnCount: Number(e.target.value) })} className="w-full px-4 py-2 bg-[#161f30] border border-white/10 rounded-xl text-sm focus:outline-none text-white" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Thể tích chứa tối đa</label>
+                        <input type="number" value={binForm.maxVolumeUnits} onChange={(e) => setBinForm({ ...binForm, maxVolumeUnits: Number(e.target.value) })} className="w-full px-4 py-2 bg-[#161f30] border border-white/10 rounded-xl text-sm focus:outline-none text-white" />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="pt-4 flex gap-2">
+                  <button type="button" onClick={() => setCrudState({ target: 'ZONE', mode: null })} className="flex-1 py-2 bg-slate-800 text-xs font-bold rounded-xl hover:bg-slate-700 transition-colors">Hủy</button>
+                  <button type="submit" className="flex-1 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-black text-xs font-black rounded-xl hover:opacity-95 shadow-lg shadow-cyan-500/10">Lưu dữ liệu</button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            /* TRƯỜNG HỢP B: HIỂN THỊ DÒNG PHÂN CHÃ PHÂN CẤP SÂU CỦA KỆ ĐÃ CHỌN (RACK -> LEVEL -> BIN) */
+            <div className="flex-1 flex flex-col h-full mt-6 overflow-hidden">
+              {selectedRack ? (
+                <div className="flex-1 flex flex-col h-full overflow-hidden">
+
+                  <div className="flex justify-between items-start border-b border-white/5 pb-3">
+                    <div>
+                      <span className="text-orange-400 text-[9px] font-mono font-bold block uppercase tracking-wider">Thông số chi tiết Rack</span>
+                      <h2 className="text-lg font-black text-white flex items-center gap-2 uppercase">
+                        {selectedRack.rackCode}
+                        <button onClick={() => openCrudForm('RACK', 'EDIT', undefined, selectedRack)} className="text-slate-400 hover:text-white"><span className="material-symbols-outlined text-xs">edit</span></button>
+                      </h2>
+                    </div>
+                    <button onClick={() => setSidebarOpen(false)} className="text-slate-400 hover:text-white">✕</button>
+                  </div>
+
+                  <div className="space-y-2 my-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Danh sách các tầng khả dụng</h3>
+                      <button onClick={() => openCrudForm('LEVEL', 'CREATE', selectedRack.rackId)} className="text-orange-400 hover:text-orange-300 text-xs font-bold flex items-center">+ Thêm tầng mới</button>
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-thin">
+                      {levels.sort((a, b) => a.levelNumber - b.levelNumber).map((lvl) => (
+                        <div
+                          key={lvl.rackLevelId}
+                          onClick={() => setSelectedLevel(lvl)}
+                          className={`px-3 py-1.5 text-xs font-mono font-bold rounded-lg cursor-pointer border transition-all flex items-center gap-2 shrink-0 ${selectedLevel?.rackLevelId === lvl.rackLevelId ? 'bg-orange-500 text-black border-orange-500' : 'bg-[#161f30] border-white/5 text-slate-400'
+                            }`}
+                        >
+                          {lvl.levelCode} [T{lvl.levelNumber}]
+                          <span onClick={(e) => { e.stopPropagation(); handleDeleteNode('LEVEL', lvl.rackLevelId) }} className="hover:text-red-700 font-normal text-[11px]">✕</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex-1 bg-black/20 rounded-xl border border-white/5 p-4 flex flex-col overflow-hidden">
+                    {selectedLevel ? (
+                      <div className="flex-1 flex flex-col h-full overflow-hidden">
+                        <div className="flex items-center justify-between border-b border-white/5 pb-2.5 mb-3">
+                          <div>
+                            <h4 className="text-xs font-bold text-white uppercase">Vị trí ô chứa (Bins) - {selectedLevel.levelCode}</h4>
+                            <span className="text-[10px] text-slate-500 font-mono block">Chịu tải tối đa: {selectedLevel.maxWeightKg}kg | Cao: {selectedLevel.heightCm}cm</span>
+                          </div>
+                          <button onClick={() => openCrudForm('BIN', 'CREATE', selectedLevel.rackLevelId)} className="px-2 py-1 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-lg text-[10px] font-black hover:bg-cyan-500 hover:text-black transition-all">+ Ô (Bin)</button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-2.5 pr-1 content-start">
+                          {bins.map((bin) => (
+                            <div key={bin.binId} className="group/bin relative bg-[#182235] border border-white/5 p-3 rounded-lg hover:border-cyan-500/30 transition-colors">
+                              <div className="absolute top-1 right-1 flex items-center opacity-0 group-hover/bin:opacity-100 transition-opacity">
+                                <button onClick={() => openCrudForm('BIN', 'EDIT', selectedLevel.rackLevelId, bin)} className="text-slate-400 hover:text-white p-0.5"><span className="material-symbols-outlined text-xs">edit</span></button>
+                                <button onClick={() => handleDeleteNode('BIN', bin.binId)} className="text-red-400 hover:text-red-300 p-0.5"><span className="material-symbols-outlined text-xs">delete</span></button>
+                              </div>
+                              <span className="text-xs font-mono font-black text-white block tracking-wide">{bin.binCode}</span>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                                <span className="text-[9px] px-1 bg-slate-800 text-slate-400 rounded uppercase font-bold">{bin.supportedBoxType}</span>
+                                <span className={`text-[9px] px-1.5 rounded font-black ${bin.status === 'EMPTY' ? 'bg-emerald-500/10 text-emerald-400' :
+                                    bin.status === 'FULL' ? 'bg-red-500/10 text-red-400' : 'bg-yellow-500/10 text-yellow-400'
+                                  }`}>{bin.status}</span>
+                              </div>
+                            </div>
+                          ))}
+                          {bins.length === 0 && (
+                            <p className="col-span-full text-center text-xs text-slate-500 italic py-8">Tầng này hiện tại chưa phân rã hoặc chưa có vị trí chứa (Bins) nào.</p>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-xs italic text-center p-4">Vui lòng chọn hoặc thêm mới một Tầng (Level) ở trên để truy xuất sơ đồ lưới ô chứa hàng (Bins).</div>
+                    )}
+                  </div>
+
+                </div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-slate-500 text-xs italic text-center">Hãy nhấp vào một dãy kệ (Rack) trên bản đồ để mở trung tâm quản lý thiết lập phân cấp chuyên sâu.</div>
+              )}
+            </div>
+          )}
+        </aside>
+
+      </div>
+
+      {/* ALERT MODAL HỆ THỐNG */}
+      {alert.open && (
+        <AlertModal
+          title="Thông báo hệ thống"
+          message={alert.message}
+          type={alert.type}
+          onConfirm={alert.onConfirm}
+          onClose={() => setAlert({ ...alert, open: false })}
+        />
+      )}
+    </div>
+  )
 }

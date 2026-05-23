@@ -1,34 +1,72 @@
-import type { ChangeEvent } from 'react'
+import { useState, useEffect, type ChangeEvent } from 'react'
 import { navigationService } from '../../../utils/NavigationService'
+import { api } from '../../../utils/Axios'
 
 type AdminHeaderProps = {
   title?: string
   onSearchChange?: (value: string) => void
 }
 
+interface CurrentUserResponse {
+  success: boolean
+  message: string
+  data: {
+    userId: string
+    fullName: string
+    email: string
+    role: string
+    status: string
+  }
+}
+
 export const AdminHeader: React.FC<AdminHeaderProps> = ({
-  title = 'Admin Dashboard',
+  title = 'SYSTEM ADMIN DASHBOARD',
   onSearchChange,
 }) => {
+  const [userId, setUserId] = useState('')
+  const [username, setUsername] = useState('Người dùng')
+  const [role, setRole] = useState('Thành viên')
+  const [loading, setLoading] = useState(true)
+
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     onSearchChange?.(event.target.value)
   }
-  const userId = localStorage.getItem('userId');
-  const username = localStorage.getItem('fullName') || 'Người dùng';
-  const role = localStorage.getItem('role') || 'Thành viên';
+
+  // Gọi API để lấy thông tin user hiện tại
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        setLoading(true)
+        const response = await api.get<CurrentUserResponse>('/users/me')
+
+        if (response.data?.success && response.data?.data) {
+          const userData = response.data.data
+          setUserId(userData.userId)
+          setUsername(userData.fullName || 'Người dùng')
+          setRole(userData.role || 'Thành viên')
+        }
+      } catch (error) {
+        console.error('Lỗi khi lấy thông tin user hiện tại:', error)
+        // Fallback về localStorage nếu API fail
+        setUserId(localStorage.getItem('userId') || '')
+        setUsername(localStorage.getItem('fullName') || 'Người dùng')
+        setRole(localStorage.getItem('role') || 'Thành viên')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCurrentUser()
+  }, [])
 
   return (
     <header className="relative z-10 flex items-center justify-between border-b border-white/5 bg-[#0b101a]/40 px-8 py-5 backdrop-blur-md">
       <div className="flex flex-col">
-        <h2 className="text-xl font-bold tracking-tight text-white">{title}</h2>
-        <p className="mt-1 flex items-center gap-2 font-mono text-xs text-slate-400">
-          <span className="size-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />
-          SYSTEM ONLINE
-        </p>
+        <h1 className="text-3xl font-bold tracking-tight text-white">{title}</h1>
       </div>
 
       <div className="flex items-center gap-6">
-        <div className="group relative hidden w-96 md:block">
+        {/* <div className="group relative hidden w-96 md:block">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
             <span className="material-symbols-outlined text-slate-500 transition-colors group-focus-within:text-[#06edf9]">
               search
@@ -40,27 +78,32 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             onChange={handleSearchChange}
             className="block w-full rounded-lg border border-white/10 bg-[#1a2333]/60 py-2.5 pl-10 pr-3 font-mono text-sm text-white placeholder-slate-500 transition-all focus:border-[#06edf9]/50 focus:outline-none focus:ring-1 focus:ring-[#06edf9]"
           />
-        </div>
+        </div> */}
 
-        <button className="relative p-2 text-slate-400 transition-colors hover:text-white">
+        {/* <button className="relative p-2 text-slate-400 transition-colors hover:text-white">
           <span className="material-symbols-outlined">notifications</span>
           <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-[#06edf9] shadow-[0_0_8px_rgba(6,237,249,0.8)]" />
-        </button>
+        </button> */}
 
         <div
-         onClick={() => navigationService.goTo(userId ? `/profile/${userId}` : '/profile')}
-          className="flex items-center gap-3 border-l border-white/10 pl-6">
+          onClick={() => navigationService.goTo(userId ? `/profile/${userId}` : '/profile')}
+          className="flex items-center gap-3 border-l border-white/10 pl-6 cursor-pointer"
+        >
           <div className="hidden text-right sm:block">
             <p className="text-sm font-medium text-white">{username}</p>
             <p className="text-xs text-slate-400">{role}</p>
           </div>
           <div className="size-10 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 p-[1px]">
             <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-slate-900">
-              <img
-                alt="Commander Shepard profile avatar"
-                className="size-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBsVyck8J6yG6wyKiW9T9ek_HT2x6Yvz7bumBiPHIsKIE85oYY7u4KjAsoHvLNeKLRdjwKnct8cv6zmdQchBCqWhNDZMk6IrV2hxXfhRLbfIJdR_zUZ4CXvWfiCJJ0E_b-SVsHvFbhGxP9f-yDZrb-0pCi-J8IIfp1BWhFxzKDKQlH3TmM0B8XUiTjN8JulGxZGzGDp97jvuQgzULJ4ntH5zxzCxELKO3fyx1G8xTffzLsAnCsAgxH9MsRJFjaGSt5ltlSjgQLdvw4"
-              />
+              {loading ? (
+                <div className="animate-spin">
+                  <span className="material-symbols-outlined text-xs">hourglass_empty</span>
+                </div>
+              ) : (
+                <span className="text-sm font-bold uppercase text-cyan-400">
+                  {username ? username.charAt(0) : '?'}
+                </span>
+              )}
             </div>
           </div>
         </div>

@@ -1,24 +1,26 @@
 import { api } from "../utils/Axios";
-import type { AccountResponse, AccountRequest } from "../types/Account";
+import type { GetAllUsersResponse, GetUsersResponse, UserRequest, UserResponse } from "../types/Account";
+import type { ApiResponse } from "../types/ApiResponse";
 
 export const accountApi = {
     getById: (userId: string) => {
-        return api.get<AccountResponse>(`/users/${userId}`);
+        return api.get<GetUsersResponse>(`/users/${userId}`);
     },
     getAll: () => {
-        return api.get<AccountResponse[]>("/users");
+        return api.get<GetAllUsersResponse>("/users");
     },
-    create: (data: AccountRequest) => {
-        return api.post<AccountResponse>("/users", data);
+    create: (data: UserRequest) => {
+        return api.post<ApiResponse<UserResponse>>("/users", data);
     },
-    update: (userId: string, data: AccountRequest) => {
-        return api.patch<AccountResponse>(`/users/${userId}`, data);
+    update: (userId: string, data: UserRequest) => {
+        return api.patch<ApiResponse<UserResponse>>(`/users/${userId}`, data);
     },
     delete: (userId: string) => {
         return api.delete(`/users/${userId}`);
     },
-    getTenant: (tenantId: string) => {
-        return api.get(`/tenants/${tenantId}`);
-    }
-   
+    updateBlock: (userId: string, data: { status: string }) => {
+        return api.patch<ApiResponse<UserResponse>>(`/users/${userId}`, data);
+    },
+
+
 };

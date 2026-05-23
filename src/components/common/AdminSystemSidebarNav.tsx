@@ -14,14 +14,15 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/admin' },
-  { label: 'Quản lý Yêu cầu', icon: 'description', key: 'requests', href: '/admin/requests' },
+  // { label: 'Quản lý Yêu cầu', icon: 'description', key: 'requests', href: '/admin/requests' },
   { label: 'Quản lý Tài khoản', icon: 'people', key: 'accounts', href: '/admin/accounts' },
   { label: 'Quản lý Kho', icon: 'warehouse', key: 'warehouse', href: '/admin/warehouse' },
   // { label: 'Quản lý Hàng', icon: 'inventory_2', key: 'inventory', href: '/admin/inventory' },
-  { label: 'Quản lý Hợp đồng', icon: 'description', key: 'contracts', href: '/admin/contract' },
+  // { label: 'Quản lý Hợp đồng', icon: 'description', key: 'contracts', href: '/admin/contract' },
   // { label: 'Vận chuyển', icon: 'local_shipping', key: 'transportation', href: '/admin/transportation' },
-  { label: 'Xuất nhập Kho', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
-  { label: 'Báo cáo', icon: 'bar_chart', key: 'reports', href: '/admin/reports' },
+  // { label: 'Xuất nhập Kho', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
+  // { label: 'Báo cáo', icon: 'bar_chart', key: 'reports', href: '/admin/reports' },
+  { label: 'Quản lý Công ty', icon: 'apartment', key: 'tenants', href: '/admin/tenants' },
 ]
 
 type BottomAction = {

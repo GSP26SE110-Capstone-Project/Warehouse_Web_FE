@@ -1,138 +1,126 @@
 
+export type WarehouseStatus = 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE' | 'CLOSED';
+export type Status = 'ACTIVE' | 'BLOCKED';
+export type ZoneType = 'SHARED' | 'FAST_MOVING' | 'BULK' | 'PREMIUM' | 'QC' | 'RETURN';
+export type RackType = 'STANDARD' | 'HIGH_CAPACITY';
+export type BinStatus = 'EMPTY' | 'PARTIAL' |'FULL'| 'RESERVED' | 'BLOCKED';
+export type ReservationType = 'SHARED' | 'RESERVED' | 'DEDICATED';
+export type BoxType = 'SMALL' | 'MEDIUM' | 'LARGE' | 'EXTRA';
 
-export interface InventoryItem {
-    sku: string
-    name: string
-    category: string
-    warehouse: string
-    location: string
-    importDate: string // YYYY-MM-DD
-    stock: number
-    total: number
-    customer?: string
-}
-
-export interface Rack {
-    rackId: string
-    row: number
-    col: number
-    shelves: number
-    status: 'healthy' | 'warning' | 'maintenance'
-    occupancyPercentage: number
-    capacity: string
-    items: InventoryItem[]
-    topBarColor: 'green' | 'orange' | 'gray'
-}
-
-export interface Zone {
-    zoneId: string
-    zoneName: string
-    subZone: string
-    rows: number
-    cols: number
-    racks: Rack[]
-}
-
-// export interface Warehouse {
-//     warehouseId: string;
-//     warehouseName: string;
-//     address: string;
-//     zones: Zone[];
-// }
-
-export interface Warehouse {
-    warehouseId: string;
-    branchId: string;
-    managerId: string;
-    warehouseCode: string;
-    warehouseName: string;
-    warehouseType: string;
-    warehouseSize: string,
+export interface WarehouseRequest {
+    warehouseCode: string,
+    warehouseName: string,
     address: string,
-    city: string,
-    district: string,
-    operatingHours: string,
-    length: string,
-    width: string,
-    height: string,
-    totalArea: string,
-    usableArea: null,
-    isActive: true,
+    totalAreaM2: number,
+    usableAreaM2: number,
+    status: WarehouseStatus
+}
+export interface WarehouseResponse {
+    warehouseId: string,
+    warehouseCode: string,
+    warehouseName: string,
+    address: string,
+    totalAreaM2: number,
+    usableAreaM2: number,
+    status: WarehouseStatus
     createdAt: string,
     updatedAt: string
 }
 
-export interface WarehouseResponse {
-    data: Warehouse[]
-    pagination: {
-        page: number;
-        limit: number;
-        total: number;
-        totalPages: number;
-    };
+export interface GetAllWarehousesResponse {
+    success: boolean;
+    message: string;
+    data: WarehouseResponse[];
 }
 
-export interface WarehouseRequest {
-    branchId: string,
-    managerId: string,
-    warehouseCode: string,
-    warehouseName: string,
-    warehouseType: string,
-    warehouseSize: string,
-    address: string,
-    city: string,
-    district: string,
-    operatingHours: string,
-    length: number,
-    width: number,
-    height: number,
-    temperatureMin: number,
-    temperatureMax: number
-}
-
-export interface StockMovement {
-    id: string
-    sku: string
-    productName: string
-    warehouse: string
-    type: 'Import' | 'Export'
-    quantity: number
-    status: 'Completed' | 'Pending' | 'Cancelled'
-    statusClassName: string
-    date: string
-    striped?: boolean
-}
-
-export interface BranchRequest {
-    managerId: string;
-    branchCode: string;
-    branchName: string;
-    address: string;
-    city: string;
+export interface ZoneResponse {
+    zoneId: string,
+    warehouseId: string,
+    zoneCode: string,
+    zoneName: string,
+    zoneType: ZoneType,
+    areaM2: number,
+    isDedicated: boolean,
+    status: Status,
+    createdAt: string,
+    updatedAt: string
 }
 
 export interface ZoneRequest {
     warehouseId: string,
     zoneCode: string,
     zoneName: string,
-    zoneType: string,
-    length: number,
-    width: number
+    zoneType: ZoneType,
+    areaM2: number,
+    isDedicated: boolean,
+    status: Status,
+}
+
+export interface RackResponse {
+    rackId: string,
+    zoneId: string,
+    rackCode: string,
+    rackType: RackType,
+    maxLevels: number,
+    status: Status,
+    createdAt: string,
+    updatedAt: string
 }
 
 export interface RackRequest {
     zoneId: string,
     rackCode: string,
-    rackSizeType: string,
-    length: number,
-    width: number,
-    height: number,
-    maxWeightCapacity: number
+    rackType: RackType,
+    maxLevels: number,
+    status: Status,
 }
+
+export interface LevelResponse {
+    rackLevelId: string,
+    rackId: string,
+    levelCode: string,
+    levelNumber: number,
+    maxBins: number,
+    maxWeightKg: number,
+    heightCm: number,
+    levelPriority: number,
+    createdAt: string,
+    updatedAt: string
+} 
 
 export interface LevelRequest {
     rackId: string,
+    levelCode: string,
     levelNumber: number,
-    heightClearance: number,
-    maxWeight: number
+    maxBins: number,
+    maxWeightKg: number,
+    heightCm: number,
+    levelPriority: number,
+}
+
+export interface BinResponse {
+    binId: string,
+    rackLevelId: string,
+    binCode: string,
+    supportedBoxType: BoxType,
+    maxLpnCount: number,
+    currentLpnCount: number,
+    maxVolumeUnits: number,
+    usedVolumeUnits: number,
+    maxOwnerCount: number,
+    reservationType: ReservationType,
+    status: BinStatus,
+    createdAt: string,
+    updatedAt: string
+}
+
+export interface BinRequest {
+    rackLevelId: string,
+    binCode: string,
+    supportedBoxType: BoxType,
+    maxLpnCount: number,
+    maxVolumeUnits: number,
+    maxOwnerCount: number,
+    reservationType: ReservationType,
+    status: BinStatus,
 }
