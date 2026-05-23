@@ -1,74 +1,18 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
 import { ContractModal } from '../../components/ui/modal/ContractModal'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import type { Contract } from '../../types/Contract'
 import { Pagination } from '../../components/ui/Pagination'
-
-/* ================= DATA ================= */
-
-const initialContracts: Contract[] = [
-  {
-    id: '#CTR-001',
-    customerName: 'Công ty ABC',
-    warehouse: 'Kho A - Zone 1',
-    startDate: '2025-01-01',
-    endDate: '2025-12-31',
-    status: 'Active',
-    statusClassName: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20',
-    price: 50000000,
-    createdAt: '2h ago',
-  },
-  {
-    id: '#CTR-002',
-    customerName: 'Công ty XYZ',
-    warehouse: 'Kho B - Zone 3',
-    startDate: '2024-01-01',
-    endDate: '2024-12-31',
-    status: 'Expired',
-    statusClassName: 'bg-gray-400/10 text-gray-400 ring-gray-400/20',
-    price: 30000000,
-    createdAt: '1d ago',
-  },
-  {
-    id: '#CTR-003',
-    customerName: 'Công ty XYZ',
-    warehouse: 'Kho B - Zone 3',
-    startDate: '2024-01-01',
-    endDate: '2024-12-31',
-    status: 'Expired',
-    statusClassName: 'bg-gray-400/10 text-gray-400 ring-gray-400/20',
-    price: 30000000,
-    createdAt: '1d ago',
-  },
-  {
-    id: '#CTR-004',
-    customerName: 'Công ty XYZ',
-    warehouse: 'Kho B - Zone 3',
-    startDate: '2024-01-01',
-    endDate: '2024-12-31',
-    status: 'Expired',
-    statusClassName: 'bg-gray-400/10 text-gray-400 ring-gray-400/20',
-    price: 30000000,
-    createdAt: '1d ago',
-  },
-  {
-    id: '#CTR-005',
-    customerName: 'Công ty XYZ',
-    warehouse: 'Kho B - Zone 3',
-    startDate: '2024-01-01',
-    endDate: '2024-12-31',
-    status: 'Expired',
-    statusClassName: 'bg-gray-400/10 text-gray-400 ring-gray-400/20',
-    price: 30000000,
-    createdAt: '1d ago',
-  },
-]
-
-/* ================= PAGE ================= */
+import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
+import { ApiError } from '../../api/client'
+import * as contractsApi from '../../api/contracts'
+import { contractToRow } from '../../mappers'
 
 export const ContractManagement: React.FC = () => {
-  const [contracts, setContracts] = useState<Contract[]>(initialContracts)
+  const [contracts, setContracts] = useState<Contract[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const [modal, setModal] = useState<{
     open: boolean
@@ -83,49 +27,28 @@ export const ContractManagement: React.FC = () => {
     onConfirm?: () => void
   }>({ open: false, type: 'success', message: '' })
 
-  /* ================= HANDLERS ================= */
-
-  const handleSubmit = (form: any) => {
-    if (modal.mode === 'create') {
-      const newContract: Contract = {
-        id: `#CTR-${Math.floor(Math.random() * 1000)}`,
-        createdAt: 'now',
-        status: 'Pending',
-        statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
-        ...form,
-      }
-
-      setContracts([newContract, ...contracts])
-
-      setAlert({
-        open: true,
-        type: 'success',
-        message: 'Tạo hợp đồng thành công',
-      })
+  const loadContracts = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const { items } = await contractsApi.listContracts({ limit: 100 })
+      setContracts(items.map(contractToRow))
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Không tải được hợp đồng')
+    } finally {
+      setLoading(false)
     }
+  }, [])
 
-    if (modal.mode === 'edit' && modal.data) {
-      const updated = contracts.map((c) =>
-        c.id === modal.data!.id ? { ...c, ...form } : c
-      )
+  useEffect(() => {
+    loadContracts()
+  }, [loadContracts])
 
-      setContracts(updated)
-
-      setAlert({
-        open: true,
-        type: 'success',
-        message: 'Cập nhật thành công',
-      })
-    }
-  }
-
-  const handleDelete = (id: string) => {
-    setContracts(contracts.filter((c) => c.id !== id))
-
+  const handleSubmit = async () => {
     setAlert({
       open: true,
       type: 'success',
-      message: 'Xóa thành công',
+      message: 'Vui lòng tạo hợp đồng từ màn Yêu cầu thuê sau khi duyệt.',
     })
   }
   const [search, setSearch] = useState('')
@@ -172,13 +95,17 @@ export const ContractManagement: React.FC = () => {
 
   return (
     <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100 ">
-
+      <LoadingOverlay show={loading} text="Đang tải hợp đồng..." />
       <main className="relative flex flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072')] bg-cover bg-center">
         <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" />
 
         <div className="relative z-10 p-8">
           <div className="max-w-[1400px] mx-auto flex flex-col gap-8">
-
+            {error && (
+              <p className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg px-4 py-2">
+                {error}
+              </p>
+            )}
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <StatsCard title="Tổng hợp đồng" value={contracts.length} icon="description" accentColor="emerald" />
@@ -279,21 +206,6 @@ export const ContractManagement: React.FC = () => {
                               className="hover:bg-white/10 rounded p-1"
                             >
                               <span className="material-symbols-outlined">edit</span>
-                            </button>
-
-                            {/* Delete */}
-                            <button
-                              onClick={() =>
-                                setAlert({
-                                  open: true,
-                                  type: 'confirm',
-                                  message: 'Bạn có chắc muốn xóa?',
-                                  onConfirm: () => handleDelete(c.id),
-                                })
-                              }
-                              className="hover:bg-white/10 rounded p-1"
-                            >
-                              <span className="material-symbols-outlined">delete</span>
                             </button>
 
                           </div>

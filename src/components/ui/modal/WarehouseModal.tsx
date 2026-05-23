@@ -18,7 +18,7 @@ export const WarehouseModal: React.FC<Props> = ({
   const isView = mode === 'view'
 
   const [form, setForm] = useState({
-    warehouseId: '',
+    warehouseCode: '',
     warehouseName: '',
     address: '',
     numberOfPallets: 0,
@@ -100,9 +100,10 @@ export const WarehouseModal: React.FC<Props> = ({
               <input
                 disabled={mode !== 'create'}
                 className={inputStyle}
-                value={form.warehouseId}
+                value={form.warehouseCode}
+                placeholder="WH-HCM-02"
                 onChange={(e) =>
-                  setForm({ ...form, warehouseId: e.target.value })
+                  setForm({ ...form, warehouseCode: e.target.value })
                 }
               />
             </div>
