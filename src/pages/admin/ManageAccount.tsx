@@ -7,8 +7,10 @@ import { Pagination } from '../../components/ui/Pagination'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { ApiError } from '../../api/client'
 import * as usersApi from '../../api/users'
-import { roleToApiRole, statusToApiStatus, userToAccount } from '../../mappers'
+import { statusToApiStatus, userToAccount } from '../../mappers'
 import { useAuth } from '../../auth/AuthContext'
+import type { AccountFormValues } from '../../components/ui/modal/AccountModal'
+import type { UserRole } from '../../api/types'
 
 export const AccountManagement: React.FC = () => {
   const { user: currentUser } = useAuth()
@@ -48,33 +50,34 @@ export const AccountManagement: React.FC = () => {
     loadAccounts()
   }, [loadAccounts])
 
-  const handleSubmit = async (form: {
-    fullName?: string
-    name?: string
-    email: string
-    password?: string
-    role: string
-    status: string
-    phone?: string
-  }) => {
+  const handleSubmit = async (form: AccountFormValues) => {
     try {
       if (modal.mode === 'create') {
-        await usersApi.createUser({
-          fullName: form.fullName || form.name || '',
-          email: form.email,
-          password: form.password || '',
-          role: roleToApiRole(form.role),
-          phone: form.phone,
-          warehouseId: currentUser?.warehouseId ?? undefined,
-          tenantId: currentUser?.tenantId ?? undefined,
+        const body: Parameters<typeof usersApi.createUser>[0] = {
+          fullName: form.fullName,
+          email: form.email.trim(),
+          password: form.password,
+          role: form.role as UserRole,
+          phone: form.phone || undefined,
           status: statusToApiStatus(form.status),
-        })
+        }
+
+        if (currentUser?.role === 'SYSTEM_ADMIN') {
+          if (form.role === 'WH_ADMIN') body.warehouseId = form.warehouseId
+          if (form.role === 'TENANT_ADMIN') body.tenantId = form.tenantId
+        } else if (currentUser?.role === 'WH_ADMIN') {
+          body.warehouseId = currentUser.warehouseId ?? undefined
+        } else if (currentUser?.role === 'TENANT_ADMIN') {
+          body.tenantId = currentUser.tenantId ?? undefined
+        }
+
+        await usersApi.createUser(body)
         setAlert({ open: true, type: 'success', message: 'Tạo tài khoản thành công' })
       }
 
       if (modal.mode === 'edit' && modal.data) {
         await usersApi.updateUser(modal.data.id, {
-          fullName: form.fullName || form.name,
+          fullName: form.fullName,
           phone: form.phone,
           status: statusToApiStatus(form.status),
         })
@@ -278,6 +281,7 @@ export const AccountManagement: React.FC = () => {
       {modal.open && (
         <AccountModal
           mode={modal.mode}
+          creatorRole={currentUser?.role}
           data={
             modal.data
               ? { ...modal.data, fullName: modal.data.name, name: modal.data.name }

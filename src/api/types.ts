@@ -64,6 +64,8 @@ export interface ApiWarehouse {
   warehouseCode: string
   warehouseName: string
   address?: string | null
+  city?: string | null
+  district?: string | null
   totalAreaM2?: number | null
   usableAreaM2?: number | null
   status: WarehouseStatus
@@ -81,14 +83,10 @@ export type RentalRequestStatus =
 export interface ApiRentalRequest {
   rentalRequestId: string
   requestCode: string
-  companyName: string
-  companyCode?: string | null
-  taxCode?: string | null
-  address?: string | null
-  contactName?: string | null
-  contactEmail?: string | null
-  contactPhone?: string | null
-  warehouseId: string
+  tenantId: string
+  city: string
+  district: string
+  warehouseId?: string | null
   contractType?: string | null
   pricingModel?: string | null
   billingCycle?: string | null

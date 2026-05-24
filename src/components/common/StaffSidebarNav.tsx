@@ -27,7 +27,7 @@ type BottomAction = {
 
 const bottomActions: BottomAction[] = [
   { label: 'Settings', icon: 'settings', href: '/admin/settings' },
-  { label: 'Log Out', icon: 'logout', href: '/logout', className: 'text-slate-500 hover:text-red-400' },
+  { label: 'Log Out', icon: 'logout', href: '/login', className: 'text-slate-500 hover:text-red-400' },
 ]
 
 interface SidebarProps {

@@ -16,6 +16,7 @@ type Status = 'pending' | 'approved' | 'rejected'
 
 export const RequestManagement = () => {
   const [requests, setRequests] = useState<RentalRequestRow[]>([])
+  const [warehouses, setWarehouses] = useState<Awaited<ReturnType<typeof warehousesApi.listWarehouses>>['items']>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
@@ -32,12 +33,16 @@ export const RequestManagement = () => {
     setLoading(true)
     setError('')
     try {
-      const [{ items: rentalItems }, { items: warehouseItems }] = await Promise.all([
-        rentalRequestsApi.listRentalRequests({ limit: 100 }),
-        warehousesApi.listWarehouses({ limit: 100 }),
-      ])
+      const [{ items: rentalItems }, { items: warehouseItems }, { items: tenantItems }] =
+        await Promise.all([
+          rentalRequestsApi.listRentalRequests({ limit: 100 }),
+          warehousesApi.listWarehouses({ limit: 100 }),
+          tenantsApi.listTenants({ limit: 100 }),
+        ])
+      setWarehouses(warehouseItems)
       const whMap = new Map(warehouseItems.map((w) => [w.warehouseId, w.warehouseName]))
-      setRequests(rentalItems.map((r) => rentalRequestToRow(r, whMap)))
+      const tenantMap = new Map(tenantItems.map((t) => [t.tenantId, t]))
+      setRequests(rentalItems.map((r) => rentalRequestToRow(r, whMap, tenantMap)))
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không tải được yêu cầu thuê')
     } finally {
@@ -75,19 +80,17 @@ export const RequestManagement = () => {
     await loadRequests()
   }
 
-  const resolveTenantId = async (row: RentalRequestRow) => {
-    const { items } = await tenantsApi.listTenants({ limit: 100 })
-    const found = items.find(
-      (t) => t.companyName.toLowerCase() === row.customer.toLowerCase()
+  const resolveClaimWarehouseId = (row: RentalRequestRow) => {
+    if (row.warehouseId) return row.warehouseId
+    const match = warehouses.find(
+      (w) =>
+        w.city?.toLowerCase() === row.city.toLowerCase() &&
+        w.district?.toLowerCase() === row.district.toLowerCase()
     )
-    if (found) return found.tenantId
-
-    const created = await tenantsApi.createTenant({
-      companyName: row.customer,
-      contactEmail: row.customerEmail !== '—' ? row.customerEmail : undefined,
-      companyCode: row.customer.replace(/\s+/g, '-').slice(0, 20).toUpperCase(),
-    })
-    return created.tenantId
+    if (!match) {
+      throw new Error(`Không tìm thấy kho tại ${row.district}, ${row.city}`)
+    }
+    return match.warehouseId
   }
 
   const stats = {
@@ -151,6 +154,7 @@ export const RequestManagement = () => {
                     <tr className="bg-[#131b29] text-xs uppercase text-slate-400 border-b border-white/5">
                       <th className="p-3">Mã</th>
                       <th>Khách hàng</th>
+                      <th>Khu vực</th>
                       <th>Kho</th>
                       <th>Loại</th>
                       <th>Thời gian</th>
@@ -163,6 +167,7 @@ export const RequestManagement = () => {
                       <tr key={r.rentalRequestId}>
                         <td className="p-3 font-mono text-cyan-400 text-xs">{r.id}</td>
                         <td>{r.customer}</td>
+                        <td>{r.district}, {r.city}</td>
                         <td>{r.warehouse}</td>
                         <td>{r.type === 'rent' ? 'Thuê mới' : 'Gia hạn'}</td>
                         <td>
@@ -238,10 +243,15 @@ export const RequestManagement = () => {
           onSubmit={async (form) => {
             try {
               const row = contractModal.data!
-              const tenantId = await resolveTenantId(row)
+              const tenantId = row.tenantId
+              const warehouseId = resolveClaimWarehouseId(row)
+              await rentalRequestsApi.updateRentalRequest(row.rentalRequestId, {
+                status: 'APPROVED',
+                warehouseId,
+              })
               await contractsApi.createContract({
                 tenantId,
-                warehouseId: row.warehouseId,
+                warehouseId,
                 rentalRequestId: row.rentalRequestId,
                 contractType: 'SHARED_STORAGE',
                 pricingModel: 'FIXED',
@@ -252,7 +262,7 @@ export const RequestManagement = () => {
                 estimatedTotalAmount: form.totalValue,
                 status: 'DRAFT',
               })
-              await updateStatus(row.rentalRequestId, 'APPROVED')
+              await loadRequests()
               setAlert({ open: true, message: 'Đã tạo hợp đồng & duyệt yêu cầu!' })
               setContractModal({ open: false })
             } catch (err) {

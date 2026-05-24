@@ -16,11 +16,11 @@ export function ProtectedRoute({ allowedRoles }: Props) {
   }
 
   if (!isAuthenticated || !user) {
-    return <Navigate to="/" replace state={{ from: location }} />
+    return <Navigate to="/login" replace state={{ from: location }} />
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/login" replace />
   }
 
   return <Outlet />

@@ -17,6 +17,8 @@ export function createWarehouse(body: {
   warehouseCode: string
   warehouseName: string
   address?: string
+  city?: string
+  district?: string
   totalAreaM2?: number
   usableAreaM2?: number
   status?: WarehouseStatus

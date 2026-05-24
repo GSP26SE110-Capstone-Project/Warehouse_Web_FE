@@ -1,6 +1,7 @@
 import React from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Login } from './pages/auth/Login'
+import { Landing } from './pages/public/Landing'
 import { Dashboard } from './pages/admin/Dashboard'
 import { Inventory } from './pages/admin/Inventory'
 import { AdminLayout } from './components/common/layout/AdminLayout'
@@ -29,7 +30,8 @@ export const Router: React.FC = () => {
     <BrowserRouter>
       <NavigationProvider>
         <Routes>
-          <Route path="/" element={<Login />} />
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 

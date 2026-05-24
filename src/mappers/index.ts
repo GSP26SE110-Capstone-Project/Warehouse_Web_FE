@@ -1,4 +1,5 @@
 import type { ApiContract, ApiRentalRequest, ApiUser, ApiWarehouse } from '../api/types'
+import type { ApiTenant } from '../api/tenants'
 import type { Account } from '../types/Account'
 import type { Contract } from '../types/Contract'
 import type { Warehouse } from '../types/Warehouse'
@@ -79,10 +80,13 @@ export function warehouseToRow(w: ApiWarehouse): Warehouse {
 export type RentalRequestRow = {
   id: string
   rentalRequestId: string
+  tenantId: string
   customer: string
   customerEmail: string
+  city: string
+  district: string
   warehouse: string
-  warehouseId: string
+  warehouseId?: string | null
   type: 'rent' | 'extend'
   startDate: string
   endDate: string
@@ -99,15 +103,23 @@ const RENTAL_STATUS_FE: Record<string, RentalRequestRow['status']> = {
 
 export function rentalRequestToRow(
   r: ApiRentalRequest,
-  warehouseNameById: Map<string, string> = new Map()
+  warehouseNameById: Map<string, string> = new Map(),
+  tenantById: Map<string, ApiTenant> = new Map()
 ): RentalRequestRow {
+  const tenant = tenantById.get(r.tenantId)
+  const regionLabel = `${r.district}, ${r.city}`
   return {
     id: r.requestCode,
     rentalRequestId: r.rentalRequestId,
-    customer: r.companyName,
-    customerEmail: r.contactEmail ?? '—',
-    warehouse: warehouseNameById.get(r.warehouseId) ?? r.warehouseId.slice(0, 8),
-    warehouseId: r.warehouseId,
+    tenantId: r.tenantId,
+    customer: tenant?.companyName ?? r.tenantId.slice(0, 8),
+    customerEmail: tenant?.contactEmail ?? '—',
+    city: r.city,
+    district: r.district,
+    warehouse: r.warehouseId
+      ? (warehouseNameById.get(r.warehouseId) ?? r.warehouseId.slice(0, 8))
+      : regionLabel,
+    warehouseId: r.warehouseId ?? undefined,
     type: 'rent',
     startDate: formatDate(r.expectedStartDate),
     endDate: formatDate(r.expectedEndDate),

@@ -20,7 +20,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 
   const handleLogout = () => {
     logout()
-    navigationService.goTo('/')
+    navigationService.goTo('/login')
   }
 
   return (

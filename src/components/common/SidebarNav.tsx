@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { navigationService } from '../../utils/NavigationService'
 import logo from '../../assets/logo.png'
+import { useAuth } from '../../auth/AuthContext'
 
 
 type NavItem = {
@@ -24,18 +25,6 @@ const navItems: NavItem[] = [
   { label: 'Báo cáo', icon: 'bar_chart', key: 'reports', href: '/admin/reports' },
 ]
 
-type BottomAction = {
-  label: string
-  icon: string
-  href: string
-  className?: string
-}
-
-const bottomActions: BottomAction[] = [
-  { label: 'Settings', icon: 'settings', href: '/admin/settings' },
-  { label: 'Log Out', icon: 'logout', href: '/logout', className: 'text-slate-500 hover:text-red-400' },
-]
-
 interface SidebarProps {
   collapsed: boolean
   onToggle: () => void
@@ -44,6 +33,7 @@ interface SidebarProps {
 export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const location = useLocation()
   const [scanOpen, setScanOpen] = useState(false)
+  const { logout } = useAuth()
 
   const isActive = (path: string) => {
     if (path === '/admin') {
@@ -54,6 +44,11 @@ export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
 
   const handleItemClick = (path: string) => {
     navigationService.goTo(path)
+  }
+
+  const handleLogout = () => {
+    logout()
+    navigationService.goTo('/login')
   }
 
   return (
@@ -121,19 +116,21 @@ export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
           </button>
         )}
 
-        {bottomActions.map((item) => (
           <button
-            key={item.label}
-            onClick={() => handleItemClick(item.href)}
-            className={`flex items-center gap-3 rounded-lg px-4 py-2 transition-all hover:text-white ${item.className ?? 'text-slate-500'}`}
+            onClick={() => navigationService.goTo('/admin/settings')}
+            className="flex items-center gap-3 rounded-lg px-4 py-2 transition-all hover:text-white text-slate-500 hover:text-red-400"
           >
-            <span className="material-symbols-outlined text-xl">{item.icon}</span>
-
-            {!collapsed && (
-              <span className="text-sm font-medium">{item.label}</span>
-            )}
+            <span className="material-symbols-outlined text-xl">settings</span>
+            <span>Setting </span>
           </button>
-        ))}
+
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 rounded-lg px-4 py-2 transition-all hover:text-white text-slate-500 hover:text-red-400"
+          >
+            <span className="material-symbols-outlined text-xl">logout</span>
+            <span>Log Out</span>
+          </button>
       </div>
     </aside>
 

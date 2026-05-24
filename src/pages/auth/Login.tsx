@@ -153,6 +153,12 @@ export const Login: React.FC = () => {
                 </span>
               </button>
 
+              <p className="text-sm text-center text-[#9bb9bb]">
+                <a href="/" className="text-cyan-400/70 hover:text-cyan-400 hover:underline">
+                  ← Về trang chủ
+                </a>
+              </p>
+
               <p className="text-xs text-slate-500 text-center font-mono">
                 Demo: admin@warehouse.local / admin12345
               </p>
