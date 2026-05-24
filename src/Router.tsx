@@ -18,6 +18,7 @@ import { Reports } from './pages/admin/Report'
 import { AdminSettings } from './pages/admin/Setting'
 import { Profile } from './pages/profile/Profile'
 import { RequestManagement } from './pages/admin/RequestManagement'
+import { ZoneManagement } from './pages/admin/ZoneManagement'
 import { StaffDashboard } from './pages/staff/Dashboard'
 import { StaffLayout } from './components/common/layout/StaffLayout'
 import { StaffRequestManagement } from './pages/staff/TransportManagement'
@@ -40,6 +41,7 @@ export const Router: React.FC = () => {
               <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
               <Route path="/admin/dashboard" element={<Dashboard />} />
               <Route path="/admin/warehouse" element={<WarehouseManagement />} />
+              <Route path="/admin/zones" element={<ZoneManagement />} />
               <Route path="/warehouses/:id" element={<WarehouseDetailView />} />
               <Route path="/admin/contract" element={<ContractManagement />} />
               <Route path="/admin/inventory" element={<Inventory />} />

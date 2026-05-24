@@ -4,26 +4,63 @@ import { useLocation } from 'react-router-dom'
 import { navigationService } from '../../utils/NavigationService'
 import logo from '../../assets/logo.png'
 import { useAuth } from '../../auth/AuthContext'
-
+import type { ApiUser } from '../../api/types'
 
 type NavItem = {
   label: string
   icon: string
   key: string
   href: string
+  roles?: ApiUser['role'][]
 }
 
 const navItems: NavItem[] = [
-  { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/admin' },
+  { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/admin/dashboard' },
   { label: 'Quản lý Yêu cầu', icon: 'description', key: 'requests', href: '/admin/requests' },
-  { label: 'Quản lý Tài khoản', icon: 'people', key: 'accounts', href: '/admin/accounts' },
-  { label: 'Quản lý Kho', icon: 'warehouse', key: 'warehouse', href: '/admin/warehouse' },
+  {
+    label: 'Quản lý Tài khoản',
+    icon: 'people',
+    key: 'accounts',
+    href: '/admin/accounts',
+    roles: ['SYSTEM_ADMIN'],
+  },
+  {
+    label: 'Quản lý Kho',
+    icon: 'warehouse',
+    key: 'warehouse',
+    href: '/admin/warehouse',
+    roles: ['SYSTEM_ADMIN', 'WH_ADMIN'],
+  },
+  {
+    label: 'Quản lý Zone',
+    icon: 'grid_view',
+    key: 'zones',
+    href: '/admin/zones',
+    roles: ['SYSTEM_ADMIN', 'WH_ADMIN'],
+  },
   { label: 'Quản lý Hàng', icon: 'inventory_2', key: 'inventory', href: '/admin/inventory' },
   { label: 'Quản lý Hợp đồng', icon: 'description', key: 'contracts', href: '/admin/contract' },
-  { label: 'Vận chuyển', icon: 'local_shipping', key: 'transportation', href: '/admin/transportation' },
+  {
+    label: 'Vận chuyển',
+    icon: 'local_shipping',
+    key: 'transportation',
+    href: '/admin/transportation',
+    roles: ['SYSTEM_ADMIN'],
+  },
   { label: 'Xuất nhập Kho', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
-  { label: 'Báo cáo', icon: 'bar_chart', key: 'reports', href: '/admin/reports' },
+  {
+    label: 'Báo cáo',
+    icon: 'bar_chart',
+    key: 'reports',
+    href: '/admin/reports',
+    roles: ['SYSTEM_ADMIN'],
+  },
 ]
+
+function navItemsForRole(role?: ApiUser['role']) {
+  if (!role) return navItems
+  return navItems.filter((item) => !item.roles || item.roles.includes(role))
+}
 
 interface SidebarProps {
   collapsed: boolean
@@ -33,11 +70,12 @@ interface SidebarProps {
 export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const location = useLocation()
   const [scanOpen, setScanOpen] = useState(false)
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
+  const visibleNav = navItemsForRole(user?.role)
 
   const isActive = (path: string) => {
-    if (path === '/admin') {
-      return location.pathname === '/admin'
+    if (path === '/admin/dashboard') {
+      return location.pathname === '/admin' || location.pathname === '/admin/dashboard'
     }
     return location.pathname.startsWith(path)
   }
@@ -84,7 +122,7 @@ export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
 
         {/* Navigation */}
         <nav className="flex flex-col gap-1">
-          {navItems.map((item) => (
+          {visibleNav.map((item) => (
             <button
               key={item.key}
               onClick={() => handleItemClick(item.href)}

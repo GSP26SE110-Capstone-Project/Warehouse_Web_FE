@@ -1,6 +1,10 @@
 import { apiRequest, apiPaginated, buildQuery } from './client'
 import type { ApiContract } from './types'
 
+export function getContract(contractId: string) {
+  return apiRequest<ApiContract>(`/contracts/${contractId}`)
+}
+
 export function listContracts(params?: {
   tenantId?: string
   warehouseId?: string

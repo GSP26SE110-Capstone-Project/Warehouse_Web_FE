@@ -175,17 +175,31 @@ const CONTRACT_STATUS_CLASS: Record<string, string> = {
   Pending: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
 }
 
-export function contractToRow(c: ApiContract): Contract {
+export function contractToRow(
+  c: ApiContract,
+  warehouseNameById: Map<string, string> = new Map(),
+  tenantNameById: Map<string, string> = new Map()
+): Contract {
   const status = CONTRACT_STATUS_FE[c.status] ?? 'Pending'
   return {
+    contractId: c.contractId,
     id: c.contractCode,
-    customerName: c.contractName ?? c.contractCode,
-    warehouse: c.warehouseId.slice(0, 8),
+    customerName:
+      tenantNameById.get(c.tenantId) ?? c.contractName ?? c.contractCode,
+    warehouse:
+      warehouseNameById.get(c.warehouseId) ?? c.warehouseId.slice(0, 8),
+    warehouseId: c.warehouseId,
+    tenantId: c.tenantId,
+    contractType: c.contractType,
+    pricingModel: c.pricingModel,
+    billingCycle: c.billingCycle,
+    rentalRequestId: c.rentalRequestId,
     startDate: formatDate(c.startDate),
     endDate: formatDate(c.endDate),
     status,
+    apiStatus: c.status,
     statusClassName: CONTRACT_STATUS_CLASS[status],
-    price: c.estimatedTotalAmount ?? 0,
+    price: Number(c.estimatedTotalAmount ?? 0),
     createdAt: formatRelativeTime(c.createdAt),
   }
 }

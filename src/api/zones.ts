@@ -1,4 +1,4 @@
-import { apiPaginated, buildQuery } from './client'
+import { apiRequest, apiPaginated, buildQuery } from './client'
 
 export interface ApiZone {
   zoneId: string
@@ -19,4 +19,33 @@ export function listZones(params: {
   limit?: number
 }) {
   return apiPaginated<ApiZone>(`/zones${buildQuery(params)}`)
+}
+
+export function createZone(body: {
+  warehouseId: string
+  zoneCode: string
+  zoneName?: string
+  zoneType?: string
+  areaM2?: number
+  isDedicated?: boolean
+  status?: string
+}) {
+  return apiRequest<ApiZone>('/zones', { method: 'POST', body })
+}
+
+export function updateZone(
+  zoneId: string,
+  body: {
+    zoneName?: string
+    zoneType?: string
+    areaM2?: number
+    isDedicated?: boolean
+    status?: string
+  }
+) {
+  return apiRequest<ApiZone>(`/zones/${zoneId}`, { method: 'PATCH', body })
+}
+
+export function deleteZone(zoneId: string) {
+  return apiRequest<ApiZone>(`/zones/${zoneId}`, { method: 'DELETE' })
 }
