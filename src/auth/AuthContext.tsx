@@ -100,6 +100,7 @@ export function useAuth() {
 export function getHomePathForRole(role: ApiUser['role']) {
   if (role === 'WH_STAFF' || role === 'TENANT_STAFF') return '/staff/dashboard'
   if (role === 'TENANT_ADMIN') return '/staff/dashboard'
+  if (role === 'SYSTEM_ADMIN') return '/admin/requests'
   return '/admin/dashboard'
 }
 

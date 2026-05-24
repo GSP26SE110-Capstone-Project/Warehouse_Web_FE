@@ -25,7 +25,13 @@ import { StaffLayout } from './components/common/layout/StaffLayout'
 import { StaffRequestManagement } from './pages/staff/TransportManagement'
 import { ImportExportManagement } from './pages/staff/ImportExportManagement'
 import { ProtectedRoute } from './auth/ProtectedRoute'
-import { ADMIN_ROLES, STAFF_ROLES } from './auth/AuthContext'
+import { ADMIN_ROLES, getHomePathForRole, STAFF_ROLES, useAuth } from './auth/AuthContext'
+
+function AdminHomeRedirect() {
+  const { user } = useAuth()
+  const target = user?.role ? getHomePathForRole(user.role) : '/admin/requests'
+  return <Navigate to={target} replace />
+}
 
 export const Router: React.FC = () => {
   return (
@@ -39,7 +45,7 @@ export const Router: React.FC = () => {
 
           <Route element={<ProtectedRoute allowedRoles={ADMIN_ROLES} />}>
             <Route element={<AdminLayout />}>
-              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="/admin" element={<AdminHomeRedirect />} />
               <Route path="/admin/dashboard" element={<Dashboard />} />
               <Route path="/admin/warehouse" element={<WarehouseManagement />} />
               <Route path="/admin/zones" element={<ZoneManagement />} />

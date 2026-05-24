@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
-import type { UserRole } from '../../../api/types'
+import type { ApiUser, UserRole } from '../../../api/types'
 import * as warehousesApi from '../../../api/warehouses'
 import * as tenantsApi from '../../../api/tenants'
+import type { ApiTenant } from '../../../api/tenants'
+import * as usersApi from '../../../api/users'
 
 type Mode = 'view' | 'edit' | 'create'
 
@@ -82,7 +84,9 @@ export const AccountModal: React.FC<Props> = ({
 
   const [form, setForm] = useState({ ...EMPTY_FORM })
   const [warehouses, setWarehouses] = useState<{ id: string; label: string }[]>([])
-  const [tenants, setTenants] = useState<{ id: string; label: string }[]>([])
+  const [tenants, setTenants] = useState<ApiTenant[]>([])
+  const [selectedTenant, setSelectedTenant] = useState<ApiTenant | null>(null)
+  const [whAdminByWarehouse, setWhAdminByWarehouse] = useState<Map<string, ApiUser>>(new Map())
 
   const roleOptions =
     creatorRole === 'SYSTEM_ADMIN'
@@ -118,13 +122,19 @@ export const AccountModal: React.FC<Props> = ({
     let cancelled = false
     ;(async () => {
       try {
-        const [{ items: wh }, { items: tn }] = await Promise.all([
+        const [{ items: wh }, { items: tn }, { items: whAdmins }] = await Promise.all([
           warehousesApi.listWarehouses({ limit: 100 }),
           tenantsApi.listTenants({ limit: 100 }),
+          usersApi.listUsers({ role: 'WH_ADMIN', limit: 200 }),
         ])
         if (cancelled) return
         setWarehouses(wh.map((w) => ({ id: w.warehouseId, label: `${w.warehouseCode} — ${w.warehouseName}` })))
-        setTenants(tn.map((t) => ({ id: t.tenantId, label: t.companyName })))
+        setTenants(tn)
+        const adminMap = new Map<string, ApiUser>()
+        for (const u of whAdmins) {
+          if (u.warehouseId) adminMap.set(u.warehouseId, u)
+        }
+        setWhAdminByWarehouse(adminMap)
       } catch {
         /* lists optional for UX */
       }
@@ -133,6 +143,47 @@ export const AccountModal: React.FC<Props> = ({
       cancelled = true
     }
   }, [isCreate, creatorRole])
+
+  const applyTenantToForm = (tenant: ApiTenant | null) => {
+    setSelectedTenant(tenant)
+    if (!tenant) {
+      setForm((prev) => ({ ...prev, tenantId: '' }))
+      return
+    }
+    const status =
+      tenant.status === 'ACTIVE'
+        ? 'Active'
+        : tenant.status === 'SUSPENDED'
+          ? 'Suspended'
+          : 'Active'
+    setForm((prev) => ({
+      ...prev,
+      tenantId: tenant.tenantId,
+      fullName: tenant.contactName?.trim() || prev.fullName,
+      email: tenant.contactEmail?.trim() || prev.email,
+      phone: tenant.contactPhone?.trim() || prev.phone,
+      status,
+    }))
+  }
+
+  const handleTenantChange = async (tenantId: string) => {
+    if (!tenantId) {
+      applyTenantToForm(null)
+      return
+    }
+    let tenant = tenants.find((t) => t.tenantId === tenantId) ?? null
+    try {
+      tenant = await tenantsApi.getTenant(tenantId)
+    } catch {
+      /* dùng bản từ danh sách nếu GET lỗi */
+    }
+    applyTenantToForm(tenant)
+  }
+
+  const existingWhAdmin =
+    form.role === 'WH_ADMIN' && form.warehouseId
+      ? whAdminByWarehouse.get(form.warehouseId)
+      : undefined
 
   const handleSubmit = () => {
     if (isCreate && !form.email.trim()) {
@@ -150,6 +201,12 @@ export const AccountModal: React.FC<Props> = ({
     if (isCreate && creatorRole === 'SYSTEM_ADMIN') {
       if (form.role === 'WH_ADMIN' && !form.warehouseId) {
         alert('Vui lòng chọn kho cho Warehouse Admin')
+        return
+      }
+      if (form.role === 'WH_ADMIN' && existingWhAdmin) {
+        alert(
+          `Kho này đã có Warehouse Admin: ${existingWhAdmin.fullName} (${existingWhAdmin.email}). Mỗi kho chỉ được một WH Admin.`
+        )
         return
       }
       if (form.role === 'TENANT_ADMIN' && !form.tenantId) {
@@ -242,14 +299,15 @@ export const AccountModal: React.FC<Props> = ({
                   <select
                     className={inputStyle}
                     value={form.role}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      setSelectedTenant(null)
                       setForm({
                         ...form,
                         role: e.target.value as UserRole,
                         warehouseId: '',
                         tenantId: '',
                       })
-                    }
+                    }}
                   >
                     {roleOptions.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -284,38 +342,101 @@ export const AccountModal: React.FC<Props> = ({
 
             {isCreate && creatorRole === 'SYSTEM_ADMIN' && form.role === 'WH_ADMIN' && (
               <div>
-                <label className={labelStyle}>Kho (bắt buộc)</label>
+                <label className={labelStyle} htmlFor="account-warehouse">
+                  Kho (bắt buộc)
+                </label>
                 <select
+                  id="account-warehouse"
                   className={inputStyle}
                   value={form.warehouseId}
                   onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
                 >
                   <option value="">— Chọn kho —</option>
-                  {warehouses.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.label}
-                    </option>
-                  ))}
+                  {warehouses.map((w) => {
+                    const taken = whAdminByWarehouse.has(w.id)
+                    return (
+                      <option key={w.id} value={w.id} disabled={taken}>
+                        {w.label}
+                        {taken ? ' — đã có WH Admin' : ''}
+                      </option>
+                    )
+                  })}
                 </select>
+                <p className="mt-1 text-[10px] text-slate-500">
+                  Mỗi kho chỉ được gán một Warehouse Admin
+                </p>
+                {existingWhAdmin && (
+                  <p className="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                    Kho đã có WH Admin: <strong>{existingWhAdmin.fullName}</strong> (
+                    {existingWhAdmin.email}). Chọn kho khác hoặc dùng tài khoản hiện có.
+                  </p>
+                )}
               </div>
             )}
 
             {isCreate && creatorRole === 'SYSTEM_ADMIN' && form.role === 'TENANT_ADMIN' && (
-              <div>
-                <label className={labelStyle}>Tenant (bắt buộc)</label>
-                <select
-                  className={inputStyle}
-                  value={form.tenantId}
-                  onChange={(e) => setForm({ ...form, tenantId: e.target.value })}
-                >
-                  <option value="">— Chọn tenant —</option>
-                  {tenants.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <>
+                <div>
+                  <label className={labelStyle} htmlFor="account-tenant">
+                    Tenant (bắt buộc)
+                  </label>
+                  <select
+                    id="account-tenant"
+                    className={inputStyle}
+                    value={form.tenantId}
+                    onChange={(e) => handleTenantChange(e.target.value)}
+                  >
+                    <option value="">— Chọn tenant —</option>
+                    {tenants.map((t) => (
+                      <option key={t.tenantId} value={t.tenantId}>
+                        {t.companyName}
+                        {t.companyCode ? ` (${t.companyCode})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[10px] text-slate-500">
+                    Chọn tenant để tự điền họ tên, email, SĐT từ người liên hệ công ty
+                  </p>
+                </div>
+
+                {selectedTenant && (
+                  <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-4 space-y-3">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-400">
+                      Thông tin tenant
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className={labelStyle}>Tên công ty</span>
+                        <p className="text-white">{selectedTenant.companyName}</p>
+                      </div>
+                      <div>
+                        <span className={labelStyle}>Mã công ty</span>
+                        <p className="text-slate-300">{selectedTenant.companyCode || '—'}</p>
+                      </div>
+                      <div>
+                        <span className={labelStyle}>Mã số thuế</span>
+                        <p className="text-slate-300">{selectedTenant.taxCode || '—'}</p>
+                      </div>
+                      <div>
+                        <span className={labelStyle}>Trạng thái tenant</span>
+                        <p className="text-slate-300">{selectedTenant.status}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <span className={labelStyle}>Địa chỉ</span>
+                        <p className="text-slate-300">{selectedTenant.address || '—'}</p>
+                      </div>
+                      <div>
+                        <span className={labelStyle}>Người liên hệ</span>
+                        <p className="text-slate-300">{selectedTenant.contactName || '—'}</p>
+                      </div>
+                      <div>
+                        <span className={labelStyle}>Email liên hệ</span>
+                        <p className="text-slate-300">{selectedTenant.contactEmail || '—'}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
 

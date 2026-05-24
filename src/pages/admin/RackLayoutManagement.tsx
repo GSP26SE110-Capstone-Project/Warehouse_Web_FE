@@ -14,8 +14,8 @@ import { ensureRackLevels } from '../../components/rack/ensureRackLevels'
 import { RACK_FIXED_LEVEL_COUNT, RACK_FIXED_TYPE } from '../../data/rackStructure'
 import {
   computeZoneStorageCapacity,
+  formatZoneCapacitySummary,
   RACK_FOOTPRINT_M2,
-  BIN_SLOT_FOOTPRINT_M2,
 } from '../../utils/warehouseCapacity'
 import { ApiError } from '../../api/client'
 import * as warehousesApi from '../../api/warehouses'
@@ -405,11 +405,11 @@ export const RackLayoutManagement = () => {
           {capacity.hasArea ? (
             <p>
               Zone <span className="font-mono text-cyan-400">{activeZone.zoneCode}</span>:{' '}
-              <strong>{capacity.areaM2}</strong> m² → tối đa{' '}
-              <strong className="text-white">{capacity.maxRacks}</strong> rack ·{' '}
-              <strong className="text-white">{capacity.binsPerLevel}</strong> bin/tầng ·{' '}
-              <strong className="text-white">{capacity.totalBinSlots}</strong> ô bin (quy đổi{' '}
-              {BIN_SLOT_FOOTPRINT_M2} m²/ô) · đang có{' '}
+              <strong>{capacity.areaM2}</strong> m² tổng · trừ{' '}
+              <strong>{Math.round(capacity.aisleRatio * 100)}%</strong> lối đi xe (
+              {capacity.aisleAreaM2.toFixed(1)} m²) →{' '}
+              <strong>{capacity.storageAreaM2.toFixed(1)}</strong> m² đặt rack →{' '}
+              {formatZoneCapacitySummary(capacity).split('(')[0].trim()} · đang có{' '}
               <strong className="text-amber-300">{racks.length}</strong> rack
             </p>
           ) : (

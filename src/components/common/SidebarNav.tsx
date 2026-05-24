@@ -64,8 +64,14 @@ const navItems: NavItem[] = [
   },
 ]
 
+/** System Admin chỉ vận hành 3 module cốt lõi */
+const SYSTEM_ADMIN_NAV_KEYS = new Set(['requests', 'accounts', 'warehouse'])
+
 function navItemsForRole(role?: ApiUser['role']) {
   if (!role) return navItems
+  if (role === 'SYSTEM_ADMIN') {
+    return navItems.filter((item) => SYSTEM_ADMIN_NAV_KEYS.has(item.key))
+  }
   return navItems.filter((item) => !item.roles || item.roles.includes(role))
 }
 
