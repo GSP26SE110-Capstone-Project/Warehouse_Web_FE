@@ -12,10 +12,14 @@ type NavItem = {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/admin-system' },
-  { label: 'Quản lý Tài khoản', icon: 'people', key: 'accounts', href: '/admin-system/accounts' },
-  { label: 'Quản lý Kho', icon: 'warehouse', key: 'warehouse', href: '/admin-system/warehouse' },
-  { label: 'Quản lý Công ty', icon: 'apartment', key: 'tenants', href: '/admin-system/tenants' },
+  { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/admin' },
+  { label: 'Quản lý Hợp đồng', icon: 'description', key: 'contracts', href: '/admin/contract' },
+  { label: 'Quản lý Hàng', icon: 'inventory_2', key: 'inventory', href: '/admin/inventory' },
+  { label: 'Xuất  Kho', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
+  { label: ' Nhập Kho', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
+  { label: 'Lịch sử giao dịch', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
+  { label: 'Báo cáo', icon: 'bar_chart', key: 'reports', href: '/admin/reports' },
+  { label: 'Quản lý nhân viên', icon: 'bar_chart', key: 'reports', href: '/admin/reports' },
 ]
 
 type BottomAction = {
@@ -45,10 +49,12 @@ interface SidebarProps {
 
 export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const location = useLocation()
+  const [scanOpen, setScanOpen] = useState(false)
+
 
   const isActive = (path: string) => {
-    if (path === '/admin-system') {
-      return location.pathname === '/admin-system'
+    if (path === '/admin') {
+      return location.pathname === '/admin'
     }
     return location.pathname.startsWith(path)
   }

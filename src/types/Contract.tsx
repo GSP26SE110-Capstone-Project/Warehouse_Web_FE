@@ -1,98 +1,62 @@
-import type { tenant } from "./Account";
+export type status = "DRAFT" | "PENDING_APPROVAL" | "ACTIVE" | "EXPIRED" | "TERMINATED" | "CANCELLED";
+export type contractType = 'SHARED_STORAGE' | 'RESERVED_STORAGE' | 'DEDICATED_ZONE' | 'DEDICATED_WAREHOUSE';
+export type pricingModel = 'USAGE_BASED' | 'FIXED' | 'HYBRID';
+export type billingCycle = "DAILY" | "MONTHLY" | "QUARTERLY";
 
-export interface Contract {
-  id: string
-  customerName: string
-  customerEmail: string
-  warehouse: string
-  startDate: string
-  endDate: string
-  status: 'ACTIVE' | 'EXPIRED' | 'PENDING'
-  price: number
-  createdAt: string
-}
-
-export interface ContractDetails {
-  contractId: string;
-  requestId: string;
+export interface ContractRequest {
   tenantId: string;
-  approvedBy: string;
+  warehouseId: string;
+  rentalRequestId: string;
   contractCode: string;
+  contractName: string;
+  contractType: contractType;
+  pricingModel: pricingModel;
+  billingCycle: billingCycle;
+  allowDynamicRelocation: boolean;
+  autoRenew: boolean;
   startDate: string;
   endDate: string;
-  billingCycle: "MONTH";
-  rentalDurationDays: 300;
-  totalRentalFee: "0.00";
-  contractFileUrl: null;
-  sentAt: null;
-  tenantSignedAt: null;
-  signedBy: null;
-  signatureMethod: null;
-  status: string;
+  minimumBillingDays: number;
+  minimumReservedCapacity: number;
+  estimatedTotalAmount: number;
+  status: status;
+  tenantSignature: string;
+  warehouseSignature: string;
+  createdBy: string;
+  approvedBy: string
+}
+
+export interface ContractResponse {
+  contractId: string;
+  tenantId: string;
+  warehouseId: string;
+  rentalRequestId: string;
+  contractCode: string;
+  contractName: string;
+  contractType: contractType;
+  pricingModel: pricingModel;
+  billingCycle: billingCycle;
+  allowDynamicRelocation: boolean;
+  autoRenew: boolean;
+  startDate: string;
+  endDate: string;
+  minimumBillingDays: number;
+  minimumReservedCapacity: number;
+  estimatedTotalAmount: number;
+  status: status;
+  tenantSignature: string;
+  warehouseSignature: string;
+  createdBy: string;
+  approvedBy: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface ContractResponse {
-  contracts: ContractDetails[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  }
-}
-
-export interface ContractRequest {
-  requestId: RentalRequest['requestId'],
-  contractCode: string,
-  startDate: string,
-  endDate: string,
-  billingCycle: "MONTH",
-  rentalDurationDays: number,
-  totalRentalFee: number,
-  tenantId: "TEN0001",
-  approvedBy: string,
-  status: "DRAFT"
-
-}
-
-export interface Request {
-  id: string
-  customer: string
-  customerEmail: string
-  warehouse: string
-  type: 'rent' | 'lease'
-  startDate: string
-  endDate: string
-  status: 'PENDING' | 'APPROVED' | 'REJECTED'
-}
-
-export interface RentalRequest {
-  requestId: string,
-  customerType: 'individual' | 'company',
-  tenantId: string,
-  warehouseId: string,
-  rentalType:'RACK' | 'LEVEL',
-  status: 'PENDING' | 'APPROVED' | 'REJECTED',
-  requestedStartDate: string,
-  rentalTermUnit: 'DAY' | 'MONTH' | 'YEAR',
-  rentalTermValue: number,
-  durationDays: number,
-  goodsType: string,
-  goodsDescription: string,
-  goodsQuantity: string,
-  goodsWeightKg: string,
-  notes: string,
-  approvedBy: string | null,
-  rejectedReason: string | null,
-  createdAt: string,
-  updatedAt: string,
-}
-
-export interface RentalRequestResponse {
-  requests: RentalRequest[];
-  pagination: {
+export interface GetAllContractsResponse {
+  success: boolean;
+  message: string;
+  data: ContractResponse[];
+  meta: {
     page: number;
     limit: number;
     total: number;

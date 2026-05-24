@@ -1,20 +1,18 @@
 import { api } from "../utils/Axios";
-import type { ContractResponse } from "../types/Contract";
+import type { ContractRequest, ContractResponse, GetAllContractsResponse } from "../types/Contract";
+import type { ApiResponse } from "../types/ApiResponse";
 
 export const contractApi = {
-    getAll: async (size: number = 100, page: number = 0) => {
-        return api.get<ContractResponse>(`/contracts`);
+    getAllContractsByWarehouse: (warehouseId: string) => {
+        return api.get<GetAllContractsResponse>(`/contracts?warehouseId=${warehouseId}`);
     },
-    create: async (payload: {
-    requestId: string;
-    totalRentalFee: number;
-    selectedRackIds: string[];
-    approvedBy: string;
-    status: string;
-  }) => {
-    return await api.post(`/contracts`, payload);
-  },
-  sendContract: async (id: string, data: { contractFileUrl: string }) => {
-        return api.post(`/contracts/${id}/send`, data);
+    create: (data: ContractRequest) => {
+        return api.post<ApiResponse<ContractResponse>>("/contracts", data);
+    },
+    update: (contractId: string, data: ContractRequest) => {
+        return api.patch<ApiResponse<ContractResponse>>(`/contracts/${contractId}`, data);
+    },
+    delete: (contractId: string) => {
+        return api.delete(`/contracts/${contractId}`);
     }
 }

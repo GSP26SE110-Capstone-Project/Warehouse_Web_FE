@@ -6,7 +6,6 @@ import React from 'react'
 import { authApi } from '../../service/authApi'
 import { navigationService } from '../../utils/NavigationService'
 import type { FormErrors } from '../../types'
-import { PublicHeader } from '../../components/common/header/PublicHeader'
 
 export const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false)
@@ -46,7 +45,7 @@ export const Login: React.FC = () => {
     try {
       const response = await authApi.login(formData)
       // response.data đại diện cho toàn bộ Object JSON nhận được
-      const apiResult = response.data 
+      const apiResult = response.data
 
       if (apiResult.success && apiResult.data) {
         const { accessToken, user } = apiResult.data
@@ -54,15 +53,19 @@ export const Login: React.FC = () => {
         // Lưu thông tin vào localStorage
         localStorage.setItem('accessToken', accessToken)
         localStorage.setItem('user', JSON.stringify(user))
-        
+
         console.log('🚀 Login successful:', apiResult.data)
         await delay(800)
 
         // Kiểm tra role theo đúng định dạng "SYSTEM_ADMIN" từ API
         if (user.role === 'SYSTEM_ADMIN') {
-          navigationService.goTo('/admin/dashboard')
-        } else {
-          navigationService.goTo('/staff/dashboard')
+          navigationService.goTo('/admin-system/dashboard')
+        }
+        else if (user.role === 'WH_ADMIN') {
+          navigationService.goTo('/admin-warehouse/warehouses')
+        }
+        else {
+          navigationService.goTo('/admin-tenant/dashboard')
         }
       } else {
         setError({ general: apiResult.message || 'Đăng nhập thất bại.' })

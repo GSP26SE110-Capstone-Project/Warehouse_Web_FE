@@ -2,10 +2,10 @@ import React from 'react'
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom'
 import { Login } from './pages/auth/Login'
 import { Dashboard } from './pages/admin/Dashboard'
-import { Inventory } from './pages/admin/Inventory'
+import { Inventory } from './pages/adminWarehouse/Inventory'
 import { AdminLayout } from './components/common/layout/AdminLayout'
 import { WarehouseManagement } from './pages/admin/Warehouse'
-import { ContractManagement } from './pages/admin/Contract'
+import { ManageContracts } from './pages/adminWarehouse/Contract'
 import { WarehouseDetailView } from './pages/admin/WarehouseDetail'
 import { ForgotPassword } from './pages/auth/ForgotPassword'
 import { ResetPassword } from './pages/auth/ResetPassword'
@@ -13,12 +13,11 @@ import { NavigationProvider } from './utils/NavigationProvider'
 import { AccountManagement } from './pages/admin/ManageAccount'
 import { TransportationManagement } from './pages/admin/ManageTransportation'
 import { StockMovementManagement } from './pages/admin/StockMovement'
-import { Reports } from './pages/admin/Report'
+import { Reports } from './pages/adminTenant/Report'
 import { AdminSettings } from './pages/admin/Setting'
 import { Profile } from './pages/profile/Profile'
 import { RequestManagement } from './pages/admin/RequestManagement'
 import { StaffDashboard } from './pages/staff/Dashboard'
-import { StaffLayout } from './components/common/layout/StaffLayout'
 import { StaffRequestManagement } from './pages/staff/TransportManagement'
 import { ImportExportManagement } from './pages/staff/ImportExportManagement'
 import { ReportManagement } from './pages/staff/ReportManagement'
@@ -27,6 +26,10 @@ import { AuthorizationRoute } from './components/AuthorizationRoute'
 import { TenantCompany } from './pages/admin/TenantCompany'
 import { HomePage } from './pages/public/Homepage'
 import { AboutUs } from './pages/public/AboutUs'
+import { AdminWarehouseLayout } from './components/common/layout/AdminWarehouseLayout'
+import { AdminWarehouseDashboard } from './pages/adminWarehouse/Dashboard'
+import { Warehouse } from './pages/adminWarehouse/Warehouse'
+import { ManageRequestRental } from './pages/adminWarehouse/ManageRequestRental'
 
 export const Router: React.FC = () => {
     return (
@@ -41,39 +44,54 @@ export const Router: React.FC = () => {
                     <Route path="/home" element={<HomePage />} />
                     <Route path="/about-us" element={<AboutUs />} />
 
-                    {/* Admin Routes with Layout */}
-                    <Route path='/admin' element={
+                    {/* ==================Admin System Routes with Layout=============== */}
+                    <Route path='/admin-system' element={
                         <AuthorizationRoute requiredRoles={['SYSTEM_ADMIN']} requireAuth={true} redirectTo='/login'>
                             <AdminLayout />
                         </AuthorizationRoute>
                     }>
                         <Route index element={<Dashboard />} />
-                        <Route path='/admin/dashboard' element={<Dashboard />} />
-                        <Route path='/admin/warehouse' element={<WarehouseManagement />} />
-                        <Route path="/admin/warehouses/:id" element={<WarehouseDetailView />} />
-                        <Route path='/admin/contract' element={<ContractManagement />} />
-                        <Route path='/admin/inventory' element={<Inventory />} />
-                        <Route path='/admin/accounts' element={<AccountManagement />} />
-                        <Route path='/admin/stock-movements' element={<StockMovementManagement />} />
-                        <Route path='/admin/transportation' element={<TransportationManagement />} />
-                        <Route path='/admin/reports' element={<Reports />} />
-                        <Route path='/admin/settings' element={<AdminSettings />} />
-                        <Route path='/admin/requests' element={<RequestManagement />} />
-                        <Route path='/admin/tenants' element={<TenantCompany />} />
+                        <Route path='/admin-system/dashboard' element={<Dashboard />} />
+                        <Route path='/admin-system/warehouse' element={<WarehouseManagement />} />
+                        <Route path="/admin-system/warehouses/:id" element={<WarehouseDetailView />} />
+                        <Route path='/admin-system/inventory' element={<Inventory />} />
+                        <Route path='/admin-system/accounts' element={<AccountManagement />} />
+                        <Route path='/admin-system/stock-movements' element={<StockMovementManagement />} />
+                        <Route path='/admin-system/transportation' element={<TransportationManagement />} />
+                        <Route path='/admin-system/reports' element={<Reports />} />
+                        <Route path='/admin-system/settings' element={<AdminSettings />} />
+                        <Route path='/admin-system/requests' element={<RequestManagement />} />
+                        <Route path='/admin-system/tenants' element={<TenantCompany />} />
                     </Route>
 
-                    {/* Staff Routes with Layout */}
-                    <Route path='/staff' element={
-                        <AuthorizationRoute requiredRoles={['WH_STAFF']} requireAuth={true} redirectTo='/login'>
-                            <StaffLayout />
+                    {/* ==================Admin Warehouse Routes with Layout=============== */}
+                    <Route path='/admin-warehouse' element={
+                        <AuthorizationRoute requiredRoles={['WH_ADMIN']} requireAuth={true} redirectTo='/login'>
+                            <AdminWarehouseLayout />
+                        </AuthorizationRoute>
+                    }>
+                        <Route index element={<AdminWarehouseDashboard />} />
+                        <Route path='/admin-warehouse/dashboard' element={<AdminWarehouseDashboard />} />
+                        <Route path='/admin-warehouse/requests' element={<ManageRequestRental />} />
+                        <Route path='/admin-warehouse/contracts' element={<ManageContracts />} />
+                        <Route path='/admin-warehouse/import-export' element={<ImportExportManagement />} />
+                        <Route path='/admin-warehouse/reports' element={<ReportManagement />} />
+                        <Route path='/admin-warehouse/inventory' element={<InventoryManagement />} />
+                        <Route path='/admin-warehouse/warehouses' element={<Warehouse />} />
+                    </Route>
+
+                    {/* ==================Admin Tenant Routes with Layout=============== */}
+                    <Route path='/admin-tenant' element={
+                        <AuthorizationRoute requiredRoles={['TENANT_ADMIN']} requireAuth={true} redirectTo='/login'>
+                            <AdminWarehouseLayout />
                         </AuthorizationRoute>
                     }>
                         <Route index element={<StaffDashboard />} />
-                        <Route path='/staff/dashboard' element={<StaffDashboard />} />
-                        <Route path='/staff/requests' element={<StaffRequestManagement />} />
-                        <Route path='/staff/import-export' element={<ImportExportManagement />} />
-                        <Route path='/staff/reports' element={<ReportManagement />} />
-                        <Route path='/staff/inventory' element={<InventoryManagement />} />
+                        <Route path='/admin-tenant/dashboard' element={<StaffDashboard />} />
+                        <Route path='/admin-tenant/requests' element={<StaffRequestManagement />} />
+                        <Route path='/admin-tenant/import-export' element={<ImportExportManagement />} />
+                        <Route path='/admin-tenant/reports' element={<ReportManagement />} />
+                        <Route path='/admin-tenant/inventory' element={<InventoryManagement />} />
                     </Route>
 
 

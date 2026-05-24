@@ -1,7 +1,7 @@
 type Props = {
   title: string
   message: string
-  type?: 'success' | 'confirm'
+  type?: 'success' | 'confirm' | 'error'
   onConfirm?: () => void
   onClose: () => void
 }

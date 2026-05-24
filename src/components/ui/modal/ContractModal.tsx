@@ -1,262 +1,536 @@
-import React, { useState, useEffect } from 'react'
-import type { RentalRequest } from '../../../types/Contract'
+import { useState, useEffect } from 'react'
+import type {
+    ContractResponse,
+    ContractRequest,
+    status,
+    pricingModel,
+    billingCycle,
+    contractType
+} from '../../../types/Contract'
+import type { TenantCompanyResponse } from '../../../types/TenantCompany'
+import { tenantCompanyApi } from '../../../service/tenantCompany'
 import { warehouseApi } from '../../../service/warehouseApi'
-import { contractApi } from '../../../service/contractApi'
+import type { RentalRequestResponse } from '../../../types/RentalRequest'
+import { rentalRequestApi } from '../../../service/rentalRequestApi'
 
-type Mode = 'create' | 'edit' | 'view'
+type Mode = 'view' | 'edit' | 'create'
 
 type Props = {
     mode: Mode
-    data: RentalRequest // Nhận dữ liệu từ RequestDetailModal
+    data?: ContractResponse
     onClose: () => void
-    onSubmit?: (contractId: string) => void
+    onSubmit?: (data: ContractRequest) => void
 }
 
-interface Rack {
-    rackId: string;
-    rackCode: string;
-    zoneCode: string;
-    maxWeightCapacity: number;
-    isRented: boolean;
-}
-
-export const ContractModal: React.FC<Props> = ({ mode, data, onClose, onSubmit }) => {
+export const ContractModal: React.FC<Props> = ({
+    mode,
+    data,
+    onClose,
+    onSubmit,
+}) => {
     const isView = mode === 'view'
-    const [loading, setLoading] = useState(false)
-    const [availableRacks, setAvailableRacks] = useState<Rack[]>([])
-    const [selectedRackIds, setSelectedRackIds] = useState<string[]>([])
-    const [warehouseInfo, setWarehouseInfo] = useState({ branchName: '', warehouseName: '' })
+    const isCreate = mode === 'create'
 
-    // Form state khởi tạo từ dữ liệu yêu cầu thuê
+    const [tenants, setTenants] = useState<TenantCompanyResponse[]>([])
+    const [loadingTenants, setLoadingTenants] = useState(false)
+    const [warehouseName, setWarehouseName] = useState('')
+    const [rentalRequests, setRentalRequests] = useState<RentalRequestResponse[]>([])
+    const [loadingRequests, setLoadingRequests] = useState(false)
+    // Fetch tenants on component mount
+    useEffect(() => {
+        const fetchTenants = async () => {
+            try {
+                setLoadingTenants(true)
+                const response = await tenantCompanyApi.getAll()
+                if (response.data.success && response.data.data) {
+                    setTenants(response.data.data)
+                }
+            } catch (err) {
+                console.error('Lỗi tải danh sách thương nhân:', err)
+            } finally {
+                setLoadingTenants(false)
+            }
+        }
+
+        fetchTenants()
+    }, [])
+
+    // Lấy warehouseId từ localStorage và fetch warehouse name
+    useEffect(() => {
+        const userString = localStorage.getItem('user')
+        if (userString) {
+            try {
+                const user = JSON.parse(userString)
+                if (user.warehouseId) {
+                    setForm(prev => ({
+                        ...prev,
+                        warehouseId: user.warehouseId,
+                        createdBy: user.userId,
+                        updatedBy: user.userId,
+                        approvedBy: user.userId,
+                    }))
+
+                    // Fetch warehouse name
+                    const fetchWarehouse = async () => {
+                        try {
+                            const response = await warehouseApi.getById(user.warehouseId)
+                            if (response.data.data?.warehouseName) {
+                                setWarehouseName(response.data.data.warehouseName)
+                            }
+                        } catch (err) {
+                            console.error('Lỗi tải thông tin kho hàng:', err)
+                        }
+                    }
+                    fetchWarehouse()
+                    // Fetch rental requests by warehouse
+                    const fetchRequests = async () => {
+                        try {
+                            setLoadingRequests(true)
+                            const response = await rentalRequestApi.getRentalRequestsByWarehouse(user.warehouseId)
+                            if (response.data.success && response.data.data) {
+                                setRentalRequests(response.data.data)
+                            }
+                        } catch (err) {
+                            console.error('Lỗi tải danh sách yêu cầu thuê:', err)
+                        } finally {
+                            setLoadingRequests(false)
+                        }
+                    }
+                    fetchRequests()
+                }
+            }
+            catch (err) {
+                console.error('Lỗi lấy warehouseId:', err)
+            }
+        }
+    }, [])
+
     const [form, setForm] = useState({
-        requestId: data.requestId,
-        totalRentalFee: 0,
-        approvedBy: (data as any).approvedBy,
-        status: "DRAFT"
+        tenantId: '',
+        warehouseId: '',
+        rentalRequestId: '',
+        contractCode: '',
+        contractName: '',
+        contractType: 'SHARED_STORAGE' as contractType,
+        pricingModel: 'FIXED' as pricingModel,
+        billingCycle: 'MONTHLY' as billingCycle,
+        allowDynamicRelocation: true,
+        autoRenew: false,
+        startDate: '',
+        endDate: '',
+        minimumBillingDays: 0,
+        minimumReservedCapacity: 0,
+        estimatedTotalAmount: 0,
+        status: 'DRAFT' as status,
+        tenantSignature: '',
+        warehouseSignature: '',
+        createdBy: '',
+        approvedBy: '',
     })
 
+    // Cập nhật form khi có dữ liệu (View/Edit mode)
     useEffect(() => {
-        const fetchHierarchyData = async () => {
-            if (!data.warehouseId) return;
-            try {
-                setLoading(true);
-                const res = await warehouseApi.getHierarchy();
-
-                // Lấy mảng branches từ API response
-                const branches = res.data?.branches || [];
-                let targetWarehouse: any = null;
-                let targetBranch: any = null;
-
-                // Tìm kho mục tiêu
-                for (const b of branches) {
-                    const wh = b.warehouses?.find((w: any) => String(w.warehouseId) === String(data.warehouseId));
-                    if (wh) {
-                        targetBranch = b;
-                        targetWarehouse = wh;
-                        break;
-                    }
-                }
-
-                if (targetWarehouse) {
-                    setWarehouseInfo({
-                        branchName: targetBranch.branchName,
-                        warehouseName: targetWarehouse.warehouseName
-                    });
-
-                    const emptyRacks: Rack[] = [];
-                    // Duyệt qua các zone và rack để tìm rack trống
-                    targetWarehouse.zones?.forEach((zone: any) => {
-                        // Chỉ lấy rack nếu Zone chưa bị thuê hoàn toàn
-                        if (zone.isRented == false) {
-                            zone.racks?.forEach((rack: any) => {
-                                // Kiểm tra nếu rack có thuộc tính isRented (nếu không mặc định là false)
-                                if (rack.isRented == false || rack.isRented == undefined) {
-                                    emptyRacks.push({
-                                        rackId: rack.rackId,
-                                        rackCode: rack.rackCode,
-                                        zoneCode: zone.zoneCode,
-                                        maxWeightCapacity: parseFloat(rack.maxWeightCapacity || '0'),
-                                        isRented: false
-                                    });
-                                }
-                            });
-                        }
-                    });
-                    setAvailableRacks(emptyRacks);
-                }
-            } catch (error) {
-                console.error("Lỗi lấy sơ đồ kho:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchHierarchyData();
-    }, [data.warehouseId]);
-
-    const toggleRack = (rackId: string) => {
-        if (isView) return;
-        setSelectedRackIds(prev =>
-            prev.includes(rackId) ? prev.filter(id => id !== rackId) : [...prev, rackId]
-        );
-    };
-
-    const handleSubmit = async () => {
-        if (selectedRackIds.length === 0) return alert("Vui lòng chọn ít nhất một Rack!");
-        if (form.totalRentalFee <= 0) return alert("Vui lòng nhập chi phí thuê!");
-
-        setLoading(true);
-        try {
-            const payload = { ...form, selectedRackIds };
-            const response = await contractApi.create(payload);
-            const newContractId = response.data.contractId;
-
-            if (response.status === 200 || response.status === 201) {
-
-                // 2. Gửi hợp đồng cho User qua email/hệ thống
-                if (newContractId) {
-                    try {
-                        await contractApi.sendContract(newContractId, { contractFileUrl: response.data.contractFileUrl });
-                        alert("Khởi tạo và Gửi hợp đồng thành công!");
-                    } catch (sendError) {
-                        console.error("Hợp đồng đã tạo nhưng lỗi khi gửi:", sendError);
-                        alert("Hợp đồng đã được tạo, nhưng không thể gửi thông báo cho khách hàng.");
-                    }
-                } else {
-                    alert("Khởi tạo hợp đồng thành công!");
-                }
-
-                onSubmit?.(newContractId);
-                onClose();
-            }
-        } catch (error: any) {
-            alert(error.response?.data?.message || "Lỗi hệ thống khi tạo hợp đồng");
-        } finally {
-            setLoading(false);
+        if (data) {
+            setForm({
+                tenantId: data.tenantId,
+                warehouseId: data.warehouseId,
+                rentalRequestId: data.rentalRequestId,
+                contractCode: data.contractCode,
+                contractName: data.contractName,
+                contractType: data.contractType,
+                pricingModel: data.pricingModel,
+                billingCycle: data.billingCycle,
+                allowDynamicRelocation: data.allowDynamicRelocation,
+                autoRenew: data.autoRenew,
+                startDate: data.startDate.split('T')[0], // Format YYYY-MM-DD
+                endDate: data.endDate.split('T')[0],
+                minimumBillingDays: data.minimumBillingDays,
+                minimumReservedCapacity: data.minimumReservedCapacity,
+                estimatedTotalAmount: data.estimatedTotalAmount,
+                status: data.status,
+                tenantSignature: data.tenantSignature,
+                warehouseSignature: data.warehouseSignature,
+                createdBy: data.createdBy,
+                approvedBy: data.approvedBy,
+            })
         }
-    };
+    }, [data])
 
-    const labelStyle = 'text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block';
-    const inputStyle = 'w-full bg-[#1a2333] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition-all';
+    const handleSubmit = () => {
+        if (isView) return
+
+        if (!form.tenantId) {
+            alert('Vui lòng chọn thương nhân')
+            return
+        }
+
+        // Validation
+        if (!form.contractCode || !form.contractName) {
+            alert('Vui lòng điền mã và tên hợp đồng')
+            return
+        }
+
+        if (!form.startDate || !form.endDate) {
+            alert('Vui lòng chọn ngày bắt đầu và kết thúc')
+            return
+        }
+
+        if (new Date(form.startDate) >= new Date(form.endDate)) {
+            alert('Ngày bắt đầu phải trước ngày kết thúc')
+            return
+        }
+
+        if (form.minimumBillingDays <= 0) {
+            alert('Ngày thanh toán tối thiểu phải lớn hơn 0')
+            return
+        }
+
+        const submitData: ContractRequest = {
+            tenantId: form.tenantId,
+            warehouseId: form.warehouseId,
+            rentalRequestId: form.rentalRequestId,
+            contractCode: form.contractCode,
+            contractName: form.contractName,
+            contractType: form.contractType,
+            pricingModel: form.pricingModel,
+            billingCycle: form.billingCycle,
+            allowDynamicRelocation: form.allowDynamicRelocation,
+            autoRenew: form.autoRenew,
+            startDate: form.startDate,
+            endDate: form.endDate,
+            minimumBillingDays: form.minimumBillingDays,
+            minimumReservedCapacity: form.minimumReservedCapacity,
+            estimatedTotalAmount: form.estimatedTotalAmount,
+            status: form.status,
+            tenantSignature: form.tenantSignature,
+            warehouseSignature: form.warehouseSignature,
+            createdBy: form.createdBy,
+            approvedBy: form.approvedBy,
+        }
+
+        onSubmit?.(submitData)
+        onClose()
+    }
+      const isEditMode = !isCreate && !isView
+
+    // Đổi màu label sang xám đậm hơn trên nền trắng
+    const labelStyle = 'text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5 block'
+    // Đổi màu input sang trắng, viền xám, chữ đen
+    const inputStyle = 'w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20 transition-all disabled:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed'
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-[#0b101a]/95 backdrop-blur-md" onClick={onClose} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Overlay tối vừa phải */}
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
-            <div className="relative z-10 w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-2xl border border-white/10 bg-[#0b101a] shadow-2xl flex flex-col">
+            {/* Container chính: nền trắng, viền nhẹ, đổ bóng đậm hơn */}
+            <div className="relative z-10 w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-xl border border-slate-100 bg-white shadow-xl flex flex-col">
 
-                {/* Header */}
-                <div className="flex items-center justify-between px-8 py-6 border-b border-white/5 bg-white/[0.01]">
+                {/* Header: nền xám rất nhẹ */}
+                <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-slate-50/50">
                     <div>
-                        <div className="flex items-center gap-2 text-cyan-400 text-[10px] font-bold uppercase tracking-widest mb-1">
-                            {warehouseInfo.branchName} / {warehouseInfo.warehouseName}
-                        </div>
-                        <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                            <span className="material-symbols-outlined text-cyan-400">contract</span>
-                            Thiết lập hợp đồng thuê kho
+                        <h2 className="text-lg font-bold text-slate-950 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-cyan-600">
+                                {isCreate ? 'description' : isView ? 'info' : 'edit'}
+                            </span>
+                            {isCreate ? 'Tạo hợp đồng mới' : isView ? 'Chi tiết hợp đồng' : 'Cập nhật hợp đồng'}
                         </h2>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-slate-400">
+                    <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors">
                         <span className="material-symbols-outlined">close</span>
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                    {loading && availableRacks.length === 0 ? (
-                        <div className="h-64 flex flex-col items-center justify-center text-slate-500">
-                            <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mb-4"></div>
-                            <p>Đang tải dữ liệu vị trí kho...</p>
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white">
+
+                    {/* Section: Thông tin cơ bản - Nền và viền điều chỉnh */}
+                    <div className="p-5 rounded-xl bg-slate-50 border border-slate-100 space-y-4">
+                        <h3 className="text-[10px] font-black text-cyan-700 tracking-[2px]">THÔNG TIN CƠ BẢN</h3>
+                        <div>
+                            <label className={labelStyle}>Kho hàng</label>
+                            <input
+                                disabled
+                                className={inputStyle}
+                                value={warehouseName || 'Đang tải...'}
+                                placeholder="Sẽ tự động điền"
+                            />
                         </div>
-                    ) : (
-                        <div className="grid grid-cols-12 gap-8">
-                            {/* Cột trái: Sơ đồ chọn Rack */}
-                            <div className="col-span-7 space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <h3 className="text-sm font-semibold text-orange-400 uppercase tracking-widest">Rack khả dụng</h3>
-                                    <span className="text-xs text-slate-500 italic">Chọn các rack để gán vào hợp đồng</span>
-                                </div>
 
-                                <div className="grid grid-cols-3 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                                    {availableRacks.length > 0 ? availableRacks.map(rack => (
-                                        <div
-                                            key={rack.rackId}
-                                            onClick={() => toggleRack(rack.rackId)}
-                                            className={`relative p-4 rounded-xl border transition-all cursor-pointer ${selectedRackIds.includes(rack.rackId)
-                                                    ? 'border-cyan-400 bg-cyan-400/10 ring-1 ring-cyan-400/50'
-                                                    : 'border-white/5 bg-white/[0.02] hover:border-white/20'
-                                                }`}
-                                        >
-                                            <div className="text-[10px] text-slate-500 font-bold mb-1 uppercase">Khu vực: {rack.zoneCode}</div>
-                                            <div className="text-base font-bold text-white">Rack {rack.rackCode}</div>
-                                            <div className="text-[11px] text-slate-400 mt-2 flex items-center gap-1">
-                                                <span className="material-symbols-outlined text-[14px]">weight</span>
-                                                Tải trọng: {rack.maxWeightCapacity}kg
-                                            </div>
-
-                                            {selectedRackIds.includes(rack.rackId) && (
-                                                <div className="absolute -top-2 -right-2 bg-cyan-400 text-black rounded-full size-6 flex items-center justify-center shadow-lg">
-                                                    <span className="material-symbols-outlined text-[16px] font-bold">check</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )) : (
-                                        <div className="col-span-3 py-20 text-center border border-dashed border-white/10 rounded-2xl">
-                                            <p className="text-slate-500 text-sm italic">Không có Rack trống khả dụng.</p>
-                                        </div>
-                                    )}
-                                </div>
+                        <div>
+                            <label className={labelStyle}>Yêu cầu thuê</label>
+                            <select
+                                disabled={isView || loadingRequests || isEditMode}
+                                className={inputStyle}
+                                value={form.rentalRequestId}
+                                onChange={(e) => setForm({ ...form, rentalRequestId: e.target.value })}
+                            >
+                                <option value="">-- Chọn yêu cầu --</option>
+                                {rentalRequests.map((req) => (
+                                    <option key={req.rentalRequestId} value={req.rentalRequestId}>
+                                        {req.requestCode}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className={labelStyle}>Thương nhân *</label>
+                                <select
+                                    disabled={isView || loadingTenants || isEditMode}
+                                    className={inputStyle}
+                                    value={form.tenantId}
+                                    onChange={(e) => setForm({ ...form, tenantId: e.target.value })}
+                                >
+                                    <option value="">-- Chọn thương nhân --</option>
+                                    {tenants.map((tenant) => (
+                                        <option key={tenant.tenantId} value={tenant.tenantId}>
+                                            {tenant.companyName} ({tenant.companyCode})
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
 
-                            {/* Cột phải: Thông tin thanh toán */}
-                            <div className="col-span-5">
-                                <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-6 sticky top-0">
-                                    <h3 className="text-sm font-semibold text-cyan-400 uppercase tracking-widest">Chi phí & Cam kết</h3>
+                            <div>
+                                <label className={labelStyle}>Mã hợp đồng *</label>
+                                <input
+                                    disabled={isView || isEditMode}
+                                    className={inputStyle}
+                                    placeholder="CT-001"
+                                    value={form.contractCode}
+                                    onChange={(e) => setForm({ ...form, contractCode: e.target.value })}
+                                />
+                            </div>
 
-                                    <div>
-                                        <label className={labelStyle}>Mã yêu cầu</label>
-                                        <div className={`${inputStyle} bg-slate-800/50 text-slate-400 font-mono`}>{data.requestId}</div>
-                                    </div>
+                            <div>
+                                <label className={labelStyle}>Tên hợp đồng *</label>
+                                <input
+                                    disabled={isView || isEditMode}
+                                    className={inputStyle}
+                                    placeholder="Hợp đồng thuê kho"
+                                    value={form.contractName}
+                                    onChange={(e) => setForm({ ...form, contractName: e.target.value })}
+                                />
+                            </div>
 
-                                    <div>
-                                        <label className={labelStyle}>Tổng thời hạn thuê</label>
-                                        <div className={`${inputStyle} bg-slate-800/50 text-slate-400`}>{data.durationDays} ngày</div>
-                                    </div>
+                            <div>
+                                <label className={labelStyle}>Loại hợp đồng</label>
+                                <select
+                                    disabled={isView || isEditMode}
+                                    className={inputStyle}
+                                    value={form.contractType}
+                                    onChange={(e) => setForm({ ...form, contractType: e.target.value as contractType })}
+                                >
+                                    <option value="SHARED_STORAGE">Kho chung</option>
+                                    <option value="RESERVED_STORAGE">Kho dự trữ</option>
+                                    <option value="DEDICATED_ZONE">Khu riêng</option>
+                                    <option value="DEDICATED_WAREHOUSE">Kho riêng</option>
+                                </select>
+                            </div>
 
-                                    <div>
-                                        <label className={labelStyle}>Tổng giá trị hợp đồng (VNĐ)</label>
-                                        <div className="relative">
-                                            <input
-                                                type="number"
-                                                className={`${inputStyle} text-lg font-bold text-cyan-400 pr-14`}
-                                                value={form.totalRentalFee}
-                                                onChange={e => setForm({ ...form, totalRentalFee: +e.target.value })}
-                                                placeholder="0"
-                                            />
-                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 font-bold">VNĐ</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-4 border-t border-white/5 space-y-3">
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-slate-400">Đã chọn:</span>
-                                            <span className="text-white font-bold">{selectedRackIds.length} vị trí</span>
-                                        </div>
-                                        <div className="flex justify-between text-lg border-t border-white/5 pt-3">
-                                            <span className="text-slate-400">Thành tiền:</span>
-                                            <span className="text-cyan-400 font-black">{(form.totalRentalFee).toLocaleString()} đ</span>
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        disabled={loading || selectedRackIds.length === 0}
-                                        onClick={handleSubmit}
-                                        className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 py-3.5 rounded-xl text-sm font-black text-black hover:opacity-90 disabled:opacity-30 transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <span className="material-symbols-outlined font-bold">verified_user</span>
-                                        {loading ? 'ĐANG XỬ LÝ...' : 'PHÊ DUYỆT HỢP ĐỒNG'}
-                                    </button>
-                                </div>
+                            <div>
+                                <label className={labelStyle}>Trạng thái</label>
+                                <select
+                                    disabled={isView }
+                                    className={inputStyle}
+                                    value={form.status}
+                                    onChange={(e) => setForm({ ...form, status: e.target.value as status })}
+                                >
+                                    <option value="DRAFT">Chờ xử lý</option>
+                                    <option value="PENDING_APPROVAL">Đang xem xét</option>
+                                    <option value="ACTIVE">Đã phê duyệt</option>
+                                    <option value="EXPIRED">Đã từ chối</option>
+                                    <option value="TERMINATED">Đã chuyển đổi</option>
+                                    <option value="CANCELLED">Đã hủy</option>
+                                </select>
                             </div>
                         </div>
+                    </div>
+
+                    {/* Section: Mô hình thanh toán */}
+                    <div className="p-5 rounded-xl bg-slate-50 border border-slate-100 space-y-4">
+                        <h3 className="text-[10px] font-black text-emerald-700 tracking-[2px]">MÔ HÌNH THANH TOÁN</h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className={labelStyle}>Mô hình định giá</label>
+                                <select
+                                    disabled={isView || isEditMode}
+                                    className={inputStyle}
+                                    value={form.pricingModel}
+                                    onChange={(e) => setForm({ ...form, pricingModel: e.target.value as pricingModel })}
+                                >
+                                    <option value="USAGE_BASED">Dựa trên sử dụng</option>
+                                    <option value="HYBRID">Kết hợp</option>
+                                    <option value="FIXED">Cố định</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className={labelStyle}>Chu kỳ thanh toán</label>
+                                <select
+                                    disabled={isView || isEditMode}
+                                    className={inputStyle}
+                                    value={form.billingCycle}
+                                    onChange={(e) => setForm({ ...form, billingCycle: e.target.value as billingCycle })}
+                                >
+                                    <option value="DAILY">Hàng ngày</option>
+                                    <option value="MONTHLY">Hàng tháng</option>
+                                    <option value="QUARTERLY">Hàng quý</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className={labelStyle}>Ngày thanh toán tối thiểu *</label>
+                                <input
+                                    disabled={isView || isEditMode}
+                                    type="number"
+                                    className={inputStyle}
+                                    placeholder="30"
+                                    value={form.minimumBillingDays}
+                                    onChange={(e) => setForm({ ...form, minimumBillingDays: parseInt(e.target.value) || 0 })}
+                                />
+                            </div>
+
+                            <div>
+                                <label className={labelStyle}>Số tiền thanh toán dự kiến</label>
+                                <input
+                                    disabled={isView || isEditMode}
+                                    type="number"
+                                    className={inputStyle}
+                                    placeholder="0"
+                                    value={form.estimatedTotalAmount}
+                                    onChange={(e) => setForm({ ...form, estimatedTotalAmount: parseFloat(e.target.value) || 0 })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Section: Thời hạn */}
+                    <div className="p-5 rounded-xl bg-slate-50 border border-slate-100 space-y-4">
+                        <h3 className="text-[10px] font-black text-orange-700 tracking-[2px]">THỜI HẠN HỢP ĐỒNG</h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className={labelStyle}>Ngày bắt đầu *</label>
+                                <input
+                                    disabled={isView || isEditMode}
+                                    type="date"
+                                    className={inputStyle}
+                                    value={form.startDate}
+                                    onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                                />
+                            </div>
+
+                            <div>
+                                <label className={labelStyle}>Ngày kết thúc *</label>
+                                <input
+                                    disabled={isView || isEditMode}
+                                    type="date"
+                                    className={inputStyle}
+                                    value={form.endDate}
+                                    onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Section: Cấu hình bổ sung */}
+                    <div className="p-5 rounded-xl bg-slate-50 border border-slate-100 space-y-4">
+                        <h3 className="text-[10px] font-black text-purple-700 tracking-[2px]">CẤU HÌNH BỔ SUNG</h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className={labelStyle}>Dung tích dự trữ tối thiểu (m²)</label>
+                                <input
+                                    disabled={isView || isEditMode}
+                                    type="number"
+                                    className={inputStyle}
+                                    placeholder="0"
+                                    value={form.minimumReservedCapacity}
+                                    onChange={(e) => setForm({ ...form, minimumReservedCapacity: parseFloat(e.target.value) || 0 })}
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-3 md:pt-6">
+                                <input
+                                    disabled={isView || isEditMode}
+                                    type="checkbox"
+                                    id="autoRenew"
+                                    checked={form.autoRenew}
+                                    onChange={(e) => setForm({ ...form, autoRenew: e.target.checked })}
+                                    className="w-5 h-5 cursor-pointer accent-cyan-600 border-slate-300 rounded"
+                                />
+                                <label htmlFor="autoRenew" className="text-sm font-medium text-slate-700 cursor-pointer">Gia hạn tự động</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Section: Chữ ký */}
+                    <div className="p-5 rounded-xl bg-slate-50 border border-slate-100 space-y-4">
+                        <h3 className="text-[10px] font-black text-red-700 tracking-[2px]">CHỮ KÝ</h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className={labelStyle}>Chữ ký của thương nhân</label>
+                                <input
+                                    disabled={isView }
+                                    className={inputStyle}
+                                    placeholder="Nhập tên người ký"
+                                    value={form.tenantSignature}
+                                    onChange={(e) => setForm({ ...form, tenantSignature: e.target.value })}
+                                />
+                            </div>
+
+                            <div>
+                                <label className={labelStyle}>Chữ ký của kho</label>
+                                <input
+                                    disabled={isView}
+                                    className={inputStyle}
+                                    placeholder="Nhập tên người ký"
+                                    value={form.warehouseSignature}
+                                    onChange={(e) => setForm({ ...form, warehouseSignature: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Nhật ký thời gian */}
+                    {!isCreate && data && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                            <div>
+                                <label className={labelStyle}>Ngày tạo</label>
+                                <input
+                                    disabled
+                                    className={inputStyle}
+                                    value={data.createdAt ? new Date(data.createdAt).toLocaleString('vi-VN') : '---'}
+                                />
+                            </div>
+                            <div>
+                                <label className={labelStyle}>Cập nhật cuối</label>
+                                <input
+                                    disabled
+                                    className={inputStyle}
+                                    value={data.updatedAt ? new Date(data.updatedAt).toLocaleString('vi-VN') : '---'}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer: Nền xám nhẹ */}
+                <div className="flex justify-end items-center gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                    <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+                        Hủy bỏ
+                    </button>
+                    {!isView && (
+                        <button
+                            onClick={handleSubmit}
+                            className="bg-cyan-600 hover:bg-cyan-700 px-6 py-2.5 rounded-lg text-sm font-bold text-white flex items-center gap-2 shadow-sm shadow-cyan-500/20 transition-all active:scale-95"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">save</span>
+                            {isCreate ? 'Tạo hợp đồng' : 'Lưu thay đổi'}
+                        </button>
                     )}
                 </div>
             </div>
