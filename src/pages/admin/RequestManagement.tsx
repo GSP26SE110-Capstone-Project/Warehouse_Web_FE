@@ -2,19 +2,23 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
 import { Pagination } from '../../components/ui/Pagination'
 import { RequestDetailModal } from '../../components/ui/modal/RequestDetailModal'
+import { RentalOnboardingWizard } from '../../components/ui/modal/RentalOnboardingWizard'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
-import { ContractModal } from '../../components/ui/modal/ContractModal'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { ApiError } from '../../api/client'
 import * as rentalRequestsApi from '../../api/rentalRequests'
-import * as contractsApi from '../../api/contracts'
 import * as tenantsApi from '../../api/tenants'
 import * as warehousesApi from '../../api/warehouses'
 import { rentalRequestToRow, type RentalRequestRow } from '../../mappers'
+import { CONTRACT_TYPE_LABELS, type ContractTypeValue } from '../../data/contractTypes'
+import { useAuth } from '../../auth/AuthContext'
+import { resolveClaimWarehouseId as resolveClaimWh } from '../../utils/warehouseRegion'
+import type { OnboardingOperator } from '../../components/ui/modal/RentalOnboardingWizard'
 
 type Status = 'pending' | 'approved' | 'rejected'
 
 export const RequestManagement = () => {
+  const { user: currentUser } = useAuth()
   const [requests, setRequests] = useState<RentalRequestRow[]>([])
   const [warehouses, setWarehouses] = useState<Awaited<ReturnType<typeof warehousesApi.listWarehouses>>['items']>([])
   const [loading, setLoading] = useState(true)
@@ -24,22 +28,54 @@ export const RequestManagement = () => {
   const [currentPage, setCurrentPage] = useState(1)
 
   const [modal, setModal] = useState<{ open: boolean; data?: RentalRequestRow }>({ open: false })
-  const [contractModal, setContractModal] = useState<{ open: boolean; data?: RentalRequestRow }>({
-    open: false,
-  })
+  const [wizard, setWizard] = useState<{ open: boolean; data?: RentalRequestRow }>({ open: false })
   const [alert, setAlert] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+
+  const operator: OnboardingOperator = useMemo(
+    () => ({
+      role: currentUser?.role ?? 'SYSTEM_ADMIN',
+      warehouseId: currentUser?.warehouseId,
+      warehouseName: undefined,
+    }),
+    [currentUser]
+  )
 
   const loadRequests = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const [{ items: rentalItems }, { items: warehouseItems }, { items: tenantItems }] =
-        await Promise.all([
-          rentalRequestsApi.listRentalRequests({ limit: 100 }),
-          warehousesApi.listWarehouses({ limit: 100 }),
-          tenantsApi.listTenants({ limit: 100 }),
+      const whId = currentUser?.warehouseId
+      const isWhAdmin = currentUser?.role === 'WH_ADMIN' && whId
+
+      let rentalItems: Awaited<ReturnType<typeof rentalRequestsApi.listRentalRequests>>['items']
+      if (isWhAdmin) {
+        const [inbox, mine] = await Promise.all([
+          rentalRequestsApi.listRentalRequests({
+            warehouseId: whId,
+            regionMatch: true,
+            limit: 100,
+          }),
+          rentalRequestsApi.listRentalRequests({ warehouseId: whId, limit: 100 }),
         ])
-      setWarehouses(warehouseItems)
+        const byId = new Map<string, (typeof inbox.items)[0]>()
+        for (const r of [...inbox.items, ...mine.items]) {
+          byId.set(r.rentalRequestId, r)
+        }
+        rentalItems = [...byId.values()]
+      } else {
+        const res = await rentalRequestsApi.listRentalRequests({ limit: 100 })
+        rentalItems = res.items
+      }
+
+      const [{ items: warehouseItems }, { items: tenantItems }] = await Promise.all([
+        warehousesApi.listWarehouses({ limit: 100 }),
+        tenantsApi.listTenants({ limit: 100 }),
+      ])
+
+      const scopedWarehouses = isWhAdmin
+        ? warehouseItems.filter((w) => w.warehouseId === whId)
+        : warehouseItems
+      setWarehouses(scopedWarehouses)
       const whMap = new Map(warehouseItems.map((w) => [w.warehouseId, w.warehouseName]))
       const tenantMap = new Map(tenantItems.map((t) => [t.tenantId, t]))
       setRequests(rentalItems.map((r) => rentalRequestToRow(r, whMap, tenantMap)))
@@ -48,7 +84,7 @@ export const RequestManagement = () => {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [currentUser?.role, currentUser?.warehouseId])
 
   useEffect(() => {
     loadRequests()
@@ -75,22 +111,30 @@ export const RequestManagement = () => {
     setCurrentPage(1)
   }, [search, filter])
 
-  const updateStatus = async (rentalRequestId: string, status: 'APPROVED' | 'REJECTED') => {
-    await rentalRequestsApi.updateRentalRequest(rentalRequestId, { status })
-    await loadRequests()
+  const resolveClaimWarehouseId = (row: RentalRequestRow) => {
+    if (currentUser?.role === 'WH_ADMIN' && currentUser.warehouseId) {
+      if (row.warehouseId && row.warehouseId !== currentUser.warehouseId) {
+        throw new Error('Yêu cầu đã được kho khác trong khu vực nhận trước')
+      }
+      return currentUser.warehouseId
+    }
+    return resolveClaimWh(warehouses, row.city, row.district, row.warehouseId)
   }
 
-  const resolveClaimWarehouseId = (row: RentalRequestRow) => {
-    if (row.warehouseId) return row.warehouseId
-    const match = warehouses.find(
-      (w) =>
-        w.city?.toLowerCase() === row.city.toLowerCase() &&
-        w.district?.toLowerCase() === row.district.toLowerCase()
-    )
-    if (!match) {
-      throw new Error(`Không tìm thấy kho tại ${row.district}, ${row.city}`)
-    }
-    return match.warehouseId
+  const operatorWithWhName: OnboardingOperator = useMemo(() => {
+    const wh = warehouses.find((w) => w.warehouseId === operator.warehouseId)
+    return { ...operator, warehouseName: wh?.warehouseName }
+  }, [operator, warehouses])
+
+  const canOnboard = (r: RentalRequestRow) =>
+    r.apiStatus === 'PENDING' ||
+    r.apiStatus === 'UNDER_REVIEW' ||
+    r.apiStatus === 'APPROVED'
+
+  const contractTypeLabel = (r: RentalRequestRow) => {
+    const ct = r.contractType as ContractTypeValue | undefined
+    if (!ct) return '—'
+    return CONTRACT_TYPE_LABELS[ct] ?? ct
   }
 
   const stats = {
@@ -110,6 +154,13 @@ export const RequestManagement = () => {
             {error && (
               <p className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg px-4 py-2">
                 {error}
+              </p>
+            )}
+            {currentUser?.role === 'WH_ADMIN' && currentUser.warehouseId && (
+              <p className="rounded-lg border border-cyan-400/20 bg-cyan-400/5 px-4 py-2 text-sm text-cyan-200">
+                Hộp thư vùng <strong>{operatorWithWhName.warehouseName ?? 'kho của bạn'}</strong>: yêu cầu
+                chưa claim trong cùng quận/thành phố. Duyệt = claim cho kho bạn — kho khác cùng vùng cạnh tranh,
+                ai duyệt trước nhận.
               </p>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -155,8 +206,8 @@ export const RequestManagement = () => {
                       <th className="p-3">Mã</th>
                       <th>Khách hàng</th>
                       <th>Khu vực</th>
+                      <th>Loại HĐ</th>
                       <th>Kho</th>
-                      <th>Loại</th>
                       <th>Thời gian</th>
                       <th>Trạng thái</th>
                       <th>Hành động</th>
@@ -167,9 +218,11 @@ export const RequestManagement = () => {
                       <tr key={r.rentalRequestId}>
                         <td className="p-3 font-mono text-cyan-400 text-xs">{r.id}</td>
                         <td>{r.customer}</td>
-                        <td>{r.district}, {r.city}</td>
+                        <td>
+                          {r.district}, {r.city}
+                        </td>
+                        <td className="text-xs">{contractTypeLabel(r)}</td>
                         <td>{r.warehouse}</td>
-                        <td>{r.type === 'rent' ? 'Thuê mới' : 'Gia hạn'}</td>
                         <td>
                           {r.startDate} → {r.endDate}
                         </td>
@@ -183,16 +236,27 @@ export const RequestManagement = () => {
                                   : 'bg-red-500/20 text-red-400'
                             }`}
                           >
-                            {r.status}
+                            {r.apiStatus === 'CONVERTED' ? 'converted' : r.status}
                           </span>
                         </td>
-                        <td>
+                        <td className="flex items-center gap-1">
                           <button
+                            type="button"
                             onClick={() => setModal({ open: true, data: r })}
                             className="hover:bg-white/10 rounded p-1"
+                            title="Xem"
                           >
-                            <span className="material-symbols-outlined">visibility</span>
+                            <span className="material-symbols-outlined text-[20px]">visibility</span>
                           </button>
+                          {canOnboard(r) && (
+                            <button
+                              type="button"
+                              onClick={() => setWizard({ open: true, data: r })}
+                              className="hover:bg-cyan-400/10 rounded px-2 py-1 text-xs font-bold text-cyan-400"
+                            >
+                              Xử lý
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -216,61 +280,24 @@ export const RequestManagement = () => {
         <RequestDetailModal
           data={modal.data}
           onClose={() => setModal({ open: false })}
-          onApprove={() => {
+          onStartOnboarding={() => {
+            const data = modal.data!
             setModal({ open: false })
-            setContractModal({ open: true, data: modal.data })
-          }}
-          onReject={async () => {
-            try {
-              if (modal.data) await updateStatus(modal.data.rentalRequestId, 'REJECTED')
-              setModal({ open: false })
-              setAlert({ open: true, message: 'Đã từ chối yêu cầu' })
-            } catch (err) {
-              setAlert({
-                open: true,
-                message: err instanceof ApiError ? err.message : 'Từ chối thất bại',
-              })
-            }
+            setWizard({ open: true, data })
           }}
         />
       )}
 
-      {contractModal.open && contractModal.data && (
-        <ContractModal
-          mode="create"
-          data={contractModal.data}
-          onClose={() => setContractModal({ open: false })}
-          onSubmit={async (form) => {
-            try {
-              const row = contractModal.data!
-              const tenantId = row.tenantId
-              const warehouseId = resolveClaimWarehouseId(row)
-              await rentalRequestsApi.updateRentalRequest(row.rentalRequestId, {
-                status: 'APPROVED',
-                warehouseId,
-              })
-              await contractsApi.createContract({
-                tenantId,
-                warehouseId,
-                rentalRequestId: row.rentalRequestId,
-                contractType: 'SHARED_STORAGE',
-                pricingModel: 'FIXED',
-                billingCycle: 'MONTHLY',
-                startDate: form.startDate || row.startDate,
-                endDate: form.endDate || row.endDate,
-                contractName: form.customerName || row.customer,
-                estimatedTotalAmount: form.totalValue,
-                status: 'DRAFT',
-              })
-              await loadRequests()
-              setAlert({ open: true, message: 'Đã tạo hợp đồng & duyệt yêu cầu!' })
-              setContractModal({ open: false })
-            } catch (err) {
-              setAlert({
-                open: true,
-                message: err instanceof ApiError ? err.message : 'Tạo hợp đồng thất bại',
-              })
-            }
+      {wizard.open && wizard.data && (
+        <RentalOnboardingWizard
+          row={wizard.data}
+          warehouses={warehouses}
+          operator={operatorWithWhName}
+          resolveWarehouseId={resolveClaimWarehouseId}
+          onClose={() => setWizard({ open: false })}
+          onComplete={async () => {
+            await loadRequests()
+            setAlert({ open: true, message: 'Hoàn tất onboarding tenant!' })
           }}
         />
       )}

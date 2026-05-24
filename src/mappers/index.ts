@@ -69,9 +69,14 @@ export function userToAccount(u: ApiUser, index = 0): Account {
 export function warehouseToRow(w: ApiWarehouse): Warehouse {
   return {
     warehouseId: w.warehouseId,
+    warehouseCode: w.warehouseCode,
     warehouseName: w.warehouseName,
     address: w.address ?? '—',
-    numberOfPallets: w.usableAreaM2 ? Math.round(w.usableAreaM2) : 0,
+    city: w.city ?? '',
+    district: w.district ?? '',
+    totalAreaM2: w.totalAreaM2 ?? null,
+    usableAreaM2: w.usableAreaM2 ?? null,
+    status: w.status,
     lastUpdated: formatRelativeTime(w.updatedAt ?? w.createdAt),
     zones: [],
   }
@@ -91,6 +96,20 @@ export type RentalRequestRow = {
   startDate: string
   endDate: string
   status: 'pending' | 'approved' | 'rejected'
+  apiStatus: ApiRentalRequest['status']
+  contractType?: string | null
+  pricingModel?: string | null
+  billingCycle?: string | null
+  estimatedBoxCount?: number | null
+  estimatedSkuCount?: number | null
+  estimatedInboundPerWeek?: number | null
+  estimatedOutboundPerWeek?: number | null
+  requestedAreaM2?: number | null
+  requiresFastPicking?: boolean
+  requiresPremiumStorage?: boolean
+  notes?: string | null
+  expectedStartDate?: string | null
+  expectedEndDate?: string | null
 }
 
 const RENTAL_STATUS_FE: Record<string, RentalRequestRow['status']> = {
@@ -124,6 +143,20 @@ export function rentalRequestToRow(
     startDate: formatDate(r.expectedStartDate),
     endDate: formatDate(r.expectedEndDate),
     status: RENTAL_STATUS_FE[r.status] ?? 'pending',
+    apiStatus: r.status,
+    contractType: r.contractType,
+    pricingModel: r.pricingModel,
+    billingCycle: r.billingCycle,
+    estimatedBoxCount: r.estimatedBoxCount,
+    estimatedSkuCount: r.estimatedSkuCount,
+    estimatedInboundPerWeek: r.estimatedInboundPerWeek,
+    estimatedOutboundPerWeek: r.estimatedOutboundPerWeek,
+    requestedAreaM2: r.requestedAreaM2,
+    requiresFastPicking: r.requiresFastPicking,
+    requiresPremiumStorage: r.requiresPremiumStorage,
+    notes: r.notes,
+    expectedStartDate: r.expectedStartDate,
+    expectedEndDate: r.expectedEndDate,
   }
 }
 

@@ -1,8 +1,31 @@
 import { apiRequest, apiPaginated, buildQuery } from './client'
 import type { ApiContract } from './types'
 
-export function listContracts(params?: { page?: number; limit?: number }) {
+export function listContracts(params?: {
+  tenantId?: string
+  warehouseId?: string
+  rentalRequestId?: string
+  status?: string
+  page?: number
+  limit?: number
+}) {
   return apiPaginated<ApiContract>(`/contracts${buildQuery(params ?? {})}`)
+}
+
+export function updateContract(
+  contractId: string,
+  body: {
+    status?: string
+    contractName?: string
+    billingCycle?: string
+    estimatedTotalAmount?: number
+    tenantSignature?: string
+    warehouseSignature?: string
+    startDate?: string
+    endDate?: string
+  }
+) {
+  return apiRequest<ApiContract>(`/contracts/${contractId}`, { method: 'PATCH', body })
 }
 
 export function createContract(body: {

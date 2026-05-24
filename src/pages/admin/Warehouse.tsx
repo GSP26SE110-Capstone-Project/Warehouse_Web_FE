@@ -3,12 +3,21 @@ import { StatsCard } from '../../components/ui/StatCard'
 import { Pagination } from '../../components/ui/Pagination'
 import { useNavigate } from 'react-router-dom'
 import type { Warehouse } from '../../types/Warehouse'
-import { WarehouseModal } from '../../components/ui/modal/WarehouseModal'
+import {
+  WarehouseModal,
+  type WarehouseFormPayload,
+} from '../../components/ui/modal/WarehouseModal'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { ApiError } from '../../api/client'
 import * as warehousesApi from '../../api/warehouses'
+import * as usersApi from '../../api/users'
 import { warehouseToRow } from '../../mappers'
+
+function formatArea(m2?: number | null) {
+  if (m2 == null || m2 === 0) return '—'
+  return new Intl.NumberFormat('vi-VN').format(m2)
+}
 
 export const WarehouseManagement: React.FC = () => {
   const navigate = useNavigate()
@@ -20,7 +29,7 @@ export const WarehouseManagement: React.FC = () => {
   const [modal, setModal] = useState<{
     open: boolean
     mode: 'create' | 'edit' | 'view'
-    data?: Warehouse & { warehouseCode?: string; status?: string }
+    data?: Warehouse
   }>({ open: false, mode: 'view' })
 
   const [alert, setAlert] = useState<{
@@ -47,28 +56,68 @@ export const WarehouseManagement: React.FC = () => {
     loadWarehouses()
   }, [loadWarehouses])
 
-  const handleSubmit = async (form: {
-    warehouseCode?: string
-    warehouseName: string
-    address?: string
-    status?: string
-  }) => {
+  const handleSubmit = async (form: WarehouseFormPayload) => {
     try {
       if (modal.mode === 'create') {
-        await warehousesApi.createWarehouse({
-          warehouseCode: form.warehouseCode || `WH-${Date.now()}`,
+        const created = await warehousesApi.createWarehouse({
+          warehouseCode: form.warehouseCode,
           warehouseName: form.warehouseName,
-          address: form.address,
-          status: (form.status?.toUpperCase() as 'ACTIVE') || 'ACTIVE',
+          address: form.address || undefined,
+          city: form.city,
+          district: form.district,
+          totalAreaM2: form.totalAreaM2 ?? undefined,
+          usableAreaM2: form.usableAreaM2 ?? undefined,
+          status: form.status,
         })
-        setAlert({ open: true, type: 'success', message: 'Tạo kho thành công' })
+
+        let adminMessage = ''
+        const admin = form.warehouseAdmin
+        try {
+          if (admin.mode === 'create') {
+            await usersApi.createUser({
+              fullName: admin.fullName,
+              email: admin.email,
+              password: admin.password,
+              phone: admin.phone || undefined,
+              role: 'WH_ADMIN',
+              warehouseId: created.warehouseId,
+              status: 'ACTIVE',
+            })
+            adminMessage = ` Đã tạo WH Admin: ${admin.email}.`
+          } else if (admin.mode === 'existing') {
+            await usersApi.updateUser(admin.userId, {
+              warehouseId: created.warehouseId,
+            })
+            adminMessage = ' Đã gán Warehouse Admin cho kho.'
+          }
+        } catch (adminErr) {
+          const detail =
+            adminErr instanceof ApiError ? adminErr.message : 'Gán admin thất bại'
+          setAlert({
+            open: true,
+            type: 'success',
+            message: `Tạo kho thành công nhưng ${detail}. Gán lại tại Quản lý tài khoản.`,
+          })
+          await loadWarehouses()
+          return
+        }
+
+        setAlert({
+          open: true,
+          type: 'success',
+          message: `Tạo kho thành công.${adminMessage}`,
+        })
       }
 
       if (modal.mode === 'edit' && modal.data) {
         await warehousesApi.updateWarehouse(modal.data.warehouseId, {
           warehouseName: form.warehouseName,
-          address: form.address,
-          status: form.status?.toUpperCase() as 'ACTIVE',
+          address: form.address || undefined,
+          city: form.city,
+          district: form.district,
+          totalAreaM2: form.totalAreaM2 ?? undefined,
+          usableAreaM2: form.usableAreaM2 ?? undefined,
+          status: form.status,
         })
         setAlert({ open: true, type: 'success', message: 'Cập nhật thành công' })
       }
@@ -80,6 +129,7 @@ export const WarehouseManagement: React.FC = () => {
         type: 'success',
         message: err instanceof ApiError ? err.message : 'Thao tác thất bại',
       })
+      throw err
     }
   }
 
@@ -97,12 +147,16 @@ export const WarehouseManagement: React.FC = () => {
     }
   }
 
+  const activeCount = warehouse.filter((w) => w.status === 'ACTIVE').length
+
   const searchWarehouse = useMemo(() => {
+    const q = search.toLowerCase()
     return warehouse.filter(
       (w) =>
-        w.warehouseName.toLowerCase().includes(search.toLowerCase()) ||
-        w.address.toLowerCase().includes(search.toLowerCase()) ||
-        w.warehouseId.toLowerCase().includes(search.toLowerCase())
+        w.warehouseName.toLowerCase().includes(q) ||
+        w.address.toLowerCase().includes(q) ||
+        (w.warehouseCode ?? '').toLowerCase().includes(q) ||
+        `${w.district} ${w.city}`.toLowerCase().includes(q)
     )
   }, [warehouse, search])
 
@@ -129,15 +183,15 @@ export const WarehouseManagement: React.FC = () => {
         <div className="relative z-10 flex-1 p-8">
           <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
             {error && (
-              <p className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg px-4 py-2">
+              <p className="rounded-lg border border-red-400/20 bg-red-400/10 px-4 py-2 text-sm text-red-400">
                 {error}
               </p>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-2">
               <StatsCard title="Số lượng kho" value={warehouse.length} icon="group" accentColor="emerald" />
               <StatsCard
                 title="Kho đang hoạt động"
-                value={warehouse.length}
+                value={activeCount}
                 icon="verified_user"
                 accentColor="primary"
               />
@@ -152,13 +206,14 @@ export const WarehouseManagement: React.FC = () => {
                     </span>
                     <input
                       type="text"
-                      placeholder="Tìm theo tên, địa chỉ..."
+                      placeholder="Tìm mã, tên, khu vực..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      className="pl-10 pr-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
+                      className="rounded-lg border border-white/10 bg-[#1a2333] py-2 pl-10 pr-4 text-sm text-white focus:border-cyan-400 focus:outline-none"
                     />
                   </div>
                   <button
+                    type="button"
                     onClick={() => setModal({ open: true, mode: 'create' })}
                     className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold text-black"
                   >
@@ -174,8 +229,10 @@ export const WarehouseManagement: React.FC = () => {
                     <tr className="border-b border-white/5 bg-[#131b29] text-xs uppercase tracking-wider text-slate-400">
                       <th className="px-6 py-4 font-medium">Mã kho</th>
                       <th className="px-6 py-4 font-medium">Tên kho</th>
-                      <th className="px-6 py-4 text-center font-medium">Địa chỉ</th>
-                      <th className="px-6 py-4 font-medium">Diện tích (m²)</th>
+                      <th className="px-6 py-4 font-medium">Khu vực</th>
+                      <th className="px-6 py-4 font-medium">Địa chỉ</th>
+                      <th className="px-6 py-4 text-center font-medium">DT sử dụng (m²)</th>
+                      <th className="px-6 py-4 text-center font-medium">Trạng thái</th>
                       <th className="px-6 py-4 text-center font-medium">Cập nhật</th>
                       <th className="px-6 py-4 text-center font-medium">Thao tác</th>
                     </tr>
@@ -183,26 +240,49 @@ export const WarehouseManagement: React.FC = () => {
                   <tbody className="divide-y divide-white/5 text-sm">
                     {paginatedWarehouses.map((item) => (
                       <tr key={item.warehouseId} className="group transition-colors hover:bg-white/5">
-                        <td className="px-6 py-4 font-mono text-cyan-400 text-xs">{item.warehouseId}</td>
+                        <td className="px-6 py-4 font-mono text-xs text-cyan-400">
+                          {item.warehouseCode ?? item.warehouseId.slice(0, 8)}
+                        </td>
                         <td className="px-6 py-4 font-medium text-white">{item.warehouseName}</td>
+                        <td className="px-6 py-4 text-slate-300">
+                          {item.district && item.city
+                            ? `${item.district}, ${item.city}`
+                            : '—'}
+                        </td>
                         <td className="px-6 py-4 text-white">{item.address}</td>
-                        <td className="px-6 py-4 text-center text-white">{item.numberOfPallets}</td>
-                        <td className="px-6 py-4 text-center text-white">{item.lastUpdated}</td>
+                        <td className="px-6 py-4 text-center text-white">
+                          {formatArea(item.usableAreaM2)}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span
+                            className={`rounded px-2 py-0.5 text-xs ${
+                              item.status === 'ACTIVE'
+                                ? 'bg-emerald-500/20 text-emerald-400'
+                                : 'bg-slate-500/20 text-slate-400'
+                            }`}
+                          >
+                            {item.status ?? '—'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center text-slate-400">{item.lastUpdated}</td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-3 opacity-60 group-hover:opacity-100">
                             <button
+                              type="button"
                               onClick={() => navigate(`/warehouses/${item.warehouseId}`, { state: item })}
                               className="rounded p-1.5 hover:bg-white/10"
                             >
                               <span className="material-symbols-outlined text-lg">visibility</span>
                             </button>
                             <button
+                              type="button"
                               onClick={() => setModal({ open: true, mode: 'edit', data: item })}
                               className="rounded p-1.5 hover:bg-white/10"
                             >
                               <span className="material-symbols-outlined text-lg">edit</span>
                             </button>
                             <button
+                              type="button"
                               onClick={() =>
                                 setAlert({
                                   open: true,

@@ -29,7 +29,13 @@ export function createUser(body: {
 
 export function updateUser(
   userId: string,
-  body: { fullName?: string; phone?: string; status?: UserStatus }
+  body: {
+    fullName?: string
+    phone?: string
+    status?: UserStatus
+    warehouseId?: string
+    tenantId?: string
+  }
 ) {
   return apiRequest<ApiUser>(`/users/${userId}`, { method: 'PATCH', body })
 }

@@ -111,7 +111,9 @@ export async function apiPaginated<T>(
   return { items: ok.data ?? [], meta: ok.meta }
 }
 
-export function buildQuery(params: Record<string, string | number | undefined | null>) {
+export function buildQuery(
+  params: Record<string, string | number | boolean | undefined | null>
+) {
   const q = new URLSearchParams()
   for (const [k, v] of Object.entries(params)) {
     if (v != null && v !== '') q.set(k, String(v))

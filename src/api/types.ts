@@ -90,6 +90,15 @@ export interface ApiRentalRequest {
   contractType?: string | null
   pricingModel?: string | null
   billingCycle?: string | null
+  estimatedSkuCount?: number | null
+  estimatedBoxCount?: number | null
+  estimatedVolume?: number | null
+  requestedAreaM2?: number | null
+  estimatedInboundPerWeek?: number | null
+  estimatedOutboundPerWeek?: number | null
+  requiresFastPicking?: boolean
+  requiresPremiumStorage?: boolean
+  notes?: string | null
   expectedStartDate?: string | null
   expectedEndDate?: string | null
   status: RentalRequestStatus
