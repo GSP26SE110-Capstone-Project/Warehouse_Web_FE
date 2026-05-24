@@ -599,7 +599,7 @@ export function RentalOnboardingWizard({
                           <option value="">— Chọn tầng —</option>
                           {rackLevels.map((l) => (
                             <option key={l.rackLevelId} value={l.rackLevelId}>
-                              Tầng {l.levelNo}
+                              Tầng {l.levelNumber}
                             </option>
                           ))}
                         </select>

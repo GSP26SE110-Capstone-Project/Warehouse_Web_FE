@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ApiZone } from '../../../api/zones'
 import { ZONE_STATUS_OPTIONS, ZONE_TYPE_OPTIONS } from '../../../data/zoneTypes'
+import { computeZoneStorageCapacity, RACK_FOOTPRINT_M2 } from '../../../utils/warehouseCapacity'
 
 type Mode = 'create' | 'edit' | 'view'
 
@@ -233,6 +234,14 @@ export function ZoneModal({
               value={areaInput}
               onChange={(e) => setAreaInput(e.target.value)}
             />
+            {areaInput.trim() && Number(areaInput) > 0 && (
+              <p className="mt-2 text-[10px] text-cyan-200/80">
+                {(() => {
+                  const c = computeZoneStorageCapacity(Number(areaInput))
+                  return `≈ ${c.maxRacks} rack (${RACK_FOOTPRINT_M2} m²/rack) · ${c.binsPerLevel} bin/tầng · ${c.totalBinSlots} ô bin`
+                })()}
+              </p>
+            )}
           </div>
           <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
             <input

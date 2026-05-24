@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { StatsCard } from '../../components/ui/StatCard'
 import { Pagination } from '../../components/ui/Pagination'
 import { ZoneModal, type ZoneFormPayload } from '../../components/ui/modal/ZoneModal'
@@ -17,6 +18,7 @@ function formatArea(m2?: number | null) {
 }
 
 export const ZoneManagement = () => {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const isWhAdmin = user?.role === 'WH_ADMIN'
   const fixedWarehouseId = isWhAdmin ? user?.warehouseId ?? '' : ''
@@ -297,6 +299,16 @@ export const ZoneManagement = () => {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              title="Sơ đồ rack"
+                              onClick={() =>
+                                navigate(`/admin/racks?zoneId=${encodeURIComponent(z.zoneId)}`)
+                              }
+                              className="rounded p-1.5 hover:bg-cyan-500/10 text-cyan-400"
+                            >
+                              <span className="material-symbols-outlined text-lg">view_module</span>
+                            </button>
                             <button
                               type="button"
                               onClick={() => setModal({ open: true, mode: 'view', data: z })}

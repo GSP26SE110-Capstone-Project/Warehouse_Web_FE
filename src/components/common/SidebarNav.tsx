@@ -38,6 +38,13 @@ const navItems: NavItem[] = [
     href: '/admin/zones',
     roles: ['SYSTEM_ADMIN', 'WH_ADMIN'],
   },
+  {
+    label: 'Sơ đồ Rack',
+    icon: 'view_module',
+    key: 'racks',
+    href: '/admin/racks',
+    roles: ['SYSTEM_ADMIN', 'WH_ADMIN'],
+  },
   { label: 'Quản lý Hàng', icon: 'inventory_2', key: 'inventory', href: '/admin/inventory' },
   { label: 'Quản lý Hợp đồng', icon: 'description', key: 'contracts', href: '/admin/contract' },
   {

@@ -1,4 +1,4 @@
-import { apiPaginated, buildQuery } from './client'
+import { apiRequest, apiPaginated, buildQuery } from './client'
 
 export interface ApiBin {
   binId: string
@@ -9,6 +9,8 @@ export interface ApiBin {
   supportedBoxType?: string | null
   maxLpnCount?: number
   currentLpnCount?: number
+  maxVolumeUnits?: number
+  usedVolumeUnits?: number
 }
 
 export function listBins(params: {
@@ -19,4 +21,29 @@ export function listBins(params: {
   limit?: number
 }) {
   return apiPaginated<ApiBin>(`/bins${buildQuery(params)}`)
+}
+
+export function createBin(body: {
+  rackLevelId: string
+  binCode: string
+  maxLpnCount: number
+  maxVolumeUnits: number
+  supportedBoxType?: string
+  maxOwnerCount?: number
+  reservationType?: string
+  status?: string
+}) {
+  return apiRequest<ApiBin>('/bins', { method: 'POST', body })
+}
+
+export function updateBin(
+  binId: string,
+  body: {
+    reservationType?: string
+    status?: string
+    maxLpnCount?: number
+    maxVolumeUnits?: number
+  }
+) {
+  return apiRequest<ApiBin>(`/bins/${binId}`, { method: 'PATCH', body })
 }
