@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { UserRequest, UserResponse } from '../../../types/Account'
-import { warehouseApi } from '../../../service/warehouseApi' 
-import { tenantCompanyApi,  } from '../../../service/tenantCompany'
+import { warehouseApi } from '../../../service/warehouseApi'
+import { tenantCompanyApi, } from '../../../service/tenantCompany'
 import type { GetAllTenantsResponse } from '../../../types/TenantCompany'
 
 type Mode = 'view' | 'edit' | 'create'
@@ -43,7 +43,7 @@ export const AccountModal: React.FC<Props> = ({
     fullName: '',
     email: '',
     phone: '',
-    role: '', 
+    role: '',
     status: 'ACTIVE',
     createdAt: '',
     updatedAt: '',
@@ -79,26 +79,36 @@ export const AccountModal: React.FC<Props> = ({
       if (!isCreate) return
       setLoadingData(true)
       try {
-        // 1. Lấy danh sách Warehouse từ API nếu cần
-        if (currentUserRole === 'SYSTEM_ADMIN' || currentUserRole === 'WH_ADMIN') {
-          const whRes = await warehouseApi.getAll()
-          setWarehouses(whRes.data?.data || whRes.data || [])
+        // Lấy danh sách Warehouse
+        const whRes = await warehouseApi.getAll()
+        if (whRes.data?.data && Array.isArray(whRes.data.data)) {
+          const warehouseOptions: WarehouseSelectOption[] = whRes.data.data.map((w) => ({
+            warehouseId: w.warehouseId,
+            warehouseName: w.warehouseName
+          }))
+          setWarehouses(warehouseOptions)
+        } else if (whRes.data?.data) {
+          // Nếu là object duy nhất
+          setWarehouses([{
+            warehouseId: whRes.data.data.warehouseId,
+            warehouseName: whRes.data.data.warehouseName
+          }])
         }
 
         // 2. Lấy danh sách Tenant từ API và map chuẩn cấu trúc GetAllTenantsResponse
         if (currentUserRole === 'SYSTEM_ADMIN' || currentUserRole === 'TENANT_ADMIN') {
           // Ép kiểu cụ thể cho kết quả trả về của API để bảo đảm an toàn dữ liệu
-          const tenantRes = await tenantCompanyApi.getAll() 
-          
+          const tenantRes = await tenantCompanyApi.getAll()
+
           if (tenantRes.data && tenantRes.data.success) {
             const rawCompanies = tenantRes.data.data || []
-            
+
             // Map dữ liệu TenantCompany thành cấu trúc TenantSelectOption cho component Select
             const tenantOptions: TenantSelectOption[] = rawCompanies.map((company: any) => ({
-              tenantId: company.tenantId ?? '', 
+              tenantId: company.tenantId ?? '',
               companyName: company.companyName ?? company.tenantName ?? 'N/A' // Dự phòng trường tên công ty
             }))
-            
+
             setTenants(tenantOptions)
           }
         }
@@ -296,9 +306,9 @@ export const AccountModal: React.FC<Props> = ({
           {isCreate && (
             <div className="p-4 rounded-lg bg-white/[0.01] border border-white/5 space-y-4">
               <h3 className="text-[10px] font-black text-cyan-500 tracking-[2px]">CẤU HÌNH ĐỊNH DANH</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
+
                 {/* SELECT TENANT */}
                 {(currentUserRole === 'TENANT_ADMIN' || (currentUserRole === 'SYSTEM_ADMIN' && form.role === 'TENANT_ADMIN')) && (
                   <div className={currentUserRole === 'TENANT_ADMIN' ? 'md:col-span-2' : ''}>
@@ -361,18 +371,18 @@ export const AccountModal: React.FC<Props> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={labelStyle}>Ngày tạo hệ thống</label>
-                <input 
-                  disabled 
-                  className={inputStyle} 
-                  value={form.createdAt ? new Date(form.createdAt).toLocaleString('vi-VN') : '---'} 
+                <input
+                  disabled
+                  className={inputStyle}
+                  value={form.createdAt ? new Date(form.createdAt).toLocaleString('vi-VN') : '---'}
                 />
               </div>
               <div>
                 <label className={labelStyle}>Cập nhật cuối</label>
-                <input 
-                  disabled 
-                  className={inputStyle} 
-                  value={form.updatedAt ? new Date(form.updatedAt).toLocaleString('vi-VN') : '---'} 
+                <input
+                  disabled
+                  className={inputStyle}
+                  value={form.updatedAt ? new Date(form.updatedAt).toLocaleString('vi-VN') : '---'}
                 />
               </div>
             </div>

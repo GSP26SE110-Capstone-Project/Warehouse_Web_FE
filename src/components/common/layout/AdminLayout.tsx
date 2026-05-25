@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { SidebarNav } from '../AdminSystemSidebarNav';
+import { AdminSystemSidebarNav } from '../AdminSystemSidebarNav';
 import { AdminHeader } from '../header/AdminHeader';
 
 export const AdminLayout: React.FC = () => {
@@ -13,7 +13,7 @@ export const AdminLayout: React.FC = () => {
     return (
         <div className="flex bg-[#0b101a] w-full h-screen overflow-hidden">
             {/* Sidebar */}
-            <SidebarNav collapsed={sidebarCollapsed} onToggle={handleToggleSidebar} />
+            <AdminSystemSidebarNav collapsed={sidebarCollapsed} onToggle={handleToggleSidebar} />
 
             {/* Main Content Area */}
             <div className={`flex-1 flex flex-col transition-all duration-300 

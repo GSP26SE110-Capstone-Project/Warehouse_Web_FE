@@ -14,9 +14,9 @@ const navItems: NavItem[] = [
   { label: 'Quản lý Kho', icon: 'warehouse', key: 'warehouse', href: '/admin-warehouse/warehouses' },
   { label: 'Yêu cầu thuê', icon: 'description', key: 'requests', href: '/admin-warehouse/requests' },
   { label: 'Quản lý Hợp đồng', icon: 'description', key: 'contracts', href: '/admin-warehouse/contracts' },
-  { label: 'Yêu cầu nhập kho', icon: 'input', key: 'stock-movements', href: '/admin-warehouse/stock-movements' },
-  { label: 'Yêu cầu xuất kho', icon: 'input', key: 'stock-movements', href: '/admin-warehouse/stock-movements' },
-  { label: 'Phân công nhiệm vụ', icon: 'input', key: 'stock-movements', href: '/admin-warehouse/stock-movements' },
+  { label: 'Yêu cầu nhập kho', icon: 'input', key: 'inbound', href: '/admin-warehouse/inbound' },
+  { label: 'Yêu cầu xuất kho', icon: 'output', key: 'outbound', href: '/admin-warehouse/outbound' },
+  { label: 'Quản lý nhân viên', icon: 'person', key: 'warehouse-staff', href: '/admin-warehouse/warehouse-staff' },
   { label: 'Quản lý Hàng', icon: 'inventory_2', key: 'inventory', href: '/admin-warehouse/inventory' },
 ]
 
@@ -68,8 +68,8 @@ export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg border border-slate-200 bg-slate-50">
-              <img src={logo} alt="Logo" className="h-6 w-6 object-contain" />
+            <div className="flex size-15 items-center justify-center flex size-10 items-center justify-center rounded-lg border border-cyan-500/30 bg-gradient-to-br from-cyan-900 to-slate-900">
+              <img src={logo} alt="Logo" className="h-10 w-10" />
             </div>
 
             {!collapsed && (
@@ -102,7 +102,7 @@ export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                 className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-all ${
                   active
                     ? 'bg-cyan-50 text-cyan-600 font-semibold shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    : 'text-slate-900 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <span className={`material-symbols-outlined ${active ? 'text-cyan-600' : 'text-slate-500'}`}>

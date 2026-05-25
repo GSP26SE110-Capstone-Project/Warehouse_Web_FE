@@ -65,7 +65,7 @@ export const Login: React.FC = () => {
           navigationService.goTo('/admin-warehouse/warehouses')
         }
         else {
-          navigationService.goTo('/admin-tenant/dashboard')
+          navigationService.goTo('/')
         }
       } else {
         setError({ general: apiResult.message || 'Đăng nhập thất bại.' })

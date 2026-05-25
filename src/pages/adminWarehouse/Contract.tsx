@@ -272,7 +272,7 @@ export const ManageContracts: React.FC = () => {
         </div>
 
         {/* Filters */}
-        <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm">
+        <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>

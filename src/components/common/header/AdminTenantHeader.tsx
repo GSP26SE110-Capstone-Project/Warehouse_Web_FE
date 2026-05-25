@@ -60,9 +60,9 @@ export const AdminTenantHeader: React.FC<AdminTenantHeaderProps> = ({
   }, [])
 
   return (
-    <header className="relative z-10 flex items-center justify-between border-b border-white/5 bg-[#0b101a]/40 px-8 py-5 backdrop-blur-md">
+    <header className="relative z-10 flex h-16 items-center justify-between bg-white px-8 transition-colors duration-300">
       <div className="flex flex-col">
-        <h1 className="text-3xl font-bold tracking-tight text-white">{title}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-800">{title}</h1>
       </div>
 
       <div className="flex items-center gap-6">
@@ -90,8 +90,8 @@ export const AdminTenantHeader: React.FC<AdminTenantHeaderProps> = ({
           className="flex items-center gap-3 border-l border-white/10 pl-6 cursor-pointer"
         >
           <div className="hidden text-right sm:block">
-            <p className="text-sm font-medium text-white">{username}</p>
-            <p className="text-xs text-slate-400">{role}</p>
+            <p className="text-sm font-medium text-slate-800">{username}</p>
+            <p className="text-xs text-slate-500">{role}</p>
           </div>
           <div className="size-10 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 p-[1px]">
             <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-slate-900">

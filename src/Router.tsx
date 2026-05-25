@@ -30,6 +30,10 @@ import { AdminWarehouseLayout } from './components/common/layout/AdminWarehouseL
 import { AdminWarehouseDashboard } from './pages/adminWarehouse/Dashboard'
 import { Warehouse } from './pages/adminWarehouse/Warehouse'
 import { ManageRequestRental } from './pages/adminWarehouse/ManageRequestRental'
+import { ManageInbound } from './pages/adminWarehouse/ManageInbound'
+import { ManageOutbound } from './pages/adminWarehouse/ManageOutBound'
+import { ManageWarehouseStaff } from './pages/adminWarehouse/ManageWarehouseStaff'
+import { AdminTenantLayout } from './components/common/layout/AdminTenantLayout'
 
 export const Router: React.FC = () => {
     return (
@@ -75,7 +79,9 @@ export const Router: React.FC = () => {
                         <Route path='/admin-warehouse/requests' element={<ManageRequestRental />} />
                         <Route path='/admin-warehouse/contracts' element={<ManageContracts />} />
                         <Route path='/admin-warehouse/import-export' element={<ImportExportManagement />} />
-                        <Route path='/admin-warehouse/reports' element={<ReportManagement />} />
+                        <Route path='/admin-warehouse/inbound' element={<ManageInbound />} />
+                        <Route path='/admin-warehouse/outbound' element={<ManageOutbound />} />
+                        <Route path='/admin-warehouse/warehouse-staff' element={<ManageWarehouseStaff />} />
                         <Route path='/admin-warehouse/inventory' element={<InventoryManagement />} />
                         <Route path='/admin-warehouse/warehouses' element={<Warehouse />} />
                     </Route>
@@ -83,12 +89,13 @@ export const Router: React.FC = () => {
                     {/* ==================Admin Tenant Routes with Layout=============== */}
                     <Route path='/admin-tenant' element={
                         <AuthorizationRoute requiredRoles={['TENANT_ADMIN']} requireAuth={true} redirectTo='/login'>
-                            <AdminWarehouseLayout />
+                            <AdminTenantLayout />
                         </AuthorizationRoute>
                     }>
                         <Route index element={<StaffDashboard />} />
                         <Route path='/admin-tenant/dashboard' element={<StaffDashboard />} />
-                        <Route path='/admin-tenant/requests' element={<StaffRequestManagement />} />
+                         <Route path='/admin-tenant/inbound' element={<ManageInbound />} />
+                        <Route path='/admin-tenant/outbound' element={<ManageOutbound />} />
                         <Route path='/admin-tenant/import-export' element={<ImportExportManagement />} />
                         <Route path='/admin-tenant/reports' element={<ReportManagement />} />
                         <Route path='/admin-tenant/inventory' element={<InventoryManagement />} />

@@ -13,13 +13,13 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/admin' },
-  { label: 'Quản lý Hợp đồng', icon: 'description', key: 'contracts', href: '/admin/contract' },
-  { label: 'Quản lý Hàng', icon: 'inventory_2', key: 'inventory', href: '/admin/inventory' },
-  { label: 'Xuất  Kho', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
-  { label: ' Nhập Kho', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
-  { label: 'Lịch sử giao dịch', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
-  { label: 'Báo cáo', icon: 'bar_chart', key: 'reports', href: '/admin/reports' },
-  { label: 'Quản lý nhân viên', icon: 'bar_chart', key: 'reports', href: '/admin/reports' },
+  { label: 'Quản lý Hợp đồng', icon: 'grid_view', key: 'contracts', href: '/admin/contract' },
+  { label: 'Quản lý Hàng', icon: 'grid_view', key: 'inventory', href: '/admin/inventory' },
+  { label: 'Xuất  Kho', icon: 'grid_view', key: 'stock-movements', href: '/admin/stock-movements' },
+  { label: ' Nhập Kho', icon: 'grid_view', key: 'stock-movements', href: '/admin/stock-movements' },
+  { label: 'Lịch sử giao dịch', icon: 'grid_view', key: 'stock-movements', href: '/admin/stock-movements' },
+  { label: 'Báo cáo', icon: 'grid_view', key: 'grid_view', href: '/admin/reports' },
+  { label: 'Quản lý nhân viên', icon: 'grid_view', key: 'reports', href: '/admin/reports' },
 ]
 
 type BottomAction = {
@@ -47,7 +47,7 @@ interface SidebarProps {
   onToggle: () => void
 }
 
-export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
+export const AdminTenantSideNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const location = useLocation()
   const [scanOpen, setScanOpen] = useState(false)
 
@@ -65,7 +65,7 @@ export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
 
   return (
     <aside
-      className={`glass-sidebar fixed z-50 flex h-full shrink-0 flex-col justify-between transition-all duration-300 
+      className={`fixed z-50 flex h-full shrink-0 flex-col justify-between transition-all duration-300 
       ${collapsed ? 'w-20' : 'w-64'} md:relative`}
     >
       <div className="flex flex-col gap-6 p-6">
@@ -73,14 +73,14 @@ export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex size-15 items-center justify-center flex size-10 items-center justify-center rounded-lg border border-cyan-500/30 bg-gradient-to-br from-cyan-900 to-slate-900">
+            <div className="flex size-12 items-center justify-center flex size-10 items-center justify-center rounded-lg border border-cyan-500/30 bg-gradient-to-br from-cyan-900 to-slate-900">
               <img src={logo} alt="Logo" className="h-10 w-10" />
             </div>
 
             {!collapsed && (
               <div className="flex flex-col">
-                <h1 className="text-lg font-bold text-white">NEXSPACE</h1>
-                <p className="font-mono text-xs text-cyan-400/60">Warehouse</p>
+                <h1 className="text-lg font-bold text-slate-800">NEXSPACE</h1>
+                <p className="font-mono text-[11px] font-semibold text-cyan-600">Warehouse</p>
               </div>
             )}
           </div>
@@ -88,7 +88,7 @@ export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
           {/* Toggle button */}
           <button
             onClick={onToggle}>
-            <span className="material-symbols-outlined text-slate-400 hover:text-white">
+            <span className="material-symbols-outlined text-slate-400 hover:text-slate-800">
               {collapsed ? 'chevron_right' : 'chevron_left'}
             </span>
           </button>
@@ -102,8 +102,8 @@ export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
               onClick={() => handleItemClick(item.href)}
               className={
                 isActive(item.href)
-                  ? 'active-nav-item flex items-center gap-3 rounded-lg px-4 py-3 text-white'
-                  : 'flex items-center gap-3 rounded-lg px-4 py-3 text-slate-400 hover:bg-white/5 hover:text-white'
+                  ? 'active-nav-item flex items-center gap-3 rounded-lg px-4 py-3 text-cyan-600 font-semibold shadow-sm'
+                  : 'flex items-center gap-3 rounded-lg px-4 py-3 text-slate-800 hover:bg-white/5 hover:text-slate-900'
               }
             >
               <span className="material-symbols-outlined">{item.icon}</span>
@@ -119,15 +119,6 @@ export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
       {/* Bottom */}
       <div className="flex flex-col gap-4 border-t border-white/5 p-6">
 
-        {!collapsed && (
-          <button
-            className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-cyan-500/30 bg-gradient-to-r from-cyan-500/20 to-blue-600/20 text-sm font-bold text-[#06edf9]"
-          >
-            <span className="material-symbols-outlined text-lg">qr_code_scanner</span>
-            <span>SCAN QR</span>
-          </button>
-        )}
-
         {bottomActions.map((item) => (
           <button
             key={item.label}
@@ -138,7 +129,7 @@ export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                 handleItemClick(item.href ?? '');
               }
             }}
-            className={`flex items-center gap-3 rounded-lg px-4 py-2 transition-all hover:text-white ${item.className ?? 'text-slate-500'}`}
+            className={`flex items-center gap-3 rounded-lg px-4 py-2 transition-all hover:text-cyan-600 ${item.className ?? 'text-slate-500'}`}
           >
             <span className="material-symbols-outlined text-xl">{item.icon}</span>
 

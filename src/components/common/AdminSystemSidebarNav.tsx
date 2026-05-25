@@ -43,7 +43,7 @@ interface SidebarProps {
   onToggle: () => void
 }
 
-export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
+export const AdminSystemSidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const location = useLocation()
 
   const isActive = (path: string) => {

@@ -1,5 +1,5 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import logo from '../../../assets/logo.png'
 
 type HeaderMode = 'home' | 'aboutus' | 'login'
@@ -11,12 +11,42 @@ type PublicHeaderProps = {
     showBackButton?: boolean
 }
 
+interface User {
+    userId: string
+    email: string
+    fullName: string
+    role: string
+}
+
 export const PublicHeader: React.FC<PublicHeaderProps> = ({
     mode = 'home',
     title,
     subtitle,
     showBackButton = false,
 }) => {
+    const navigate = useNavigate()
+    const [user, setUser] = useState<User | null>(null)
+    const [showProfileMenu, setShowProfileMenu] = useState(false)
+
+    useEffect(() => {
+        const userString = localStorage.getItem('user')
+        if (userString) {
+            try {
+                const userData = JSON.parse(userString)
+                setUser(userData)
+            } catch (err) {
+                console.error('Lỗi parse user:', err)
+            }
+        }
+    }, [])
+
+    const handleLogout = () => {
+        localStorage.removeItem('user')
+        localStorage.removeItem('token')
+        setUser(null)
+        navigate('/')
+    }
+
     return (
         <header className="w-full border-b border-slate-200 bg-white p-6 shadow-sm">
             <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -33,12 +63,10 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
                                 <img src={logo} alt="Logo" className="h-14 w-14" />
                             </div>
 
-
                             <div className="flex flex-col">
                                 <h1 className="text-3xl font-black text-blue-800">NEXSPACE</h1>
                                 <p className="font-medium text-lg text-cyan-800/60">Warehouse</p>
                             </div>
-
                         </div>
                     )}
 
@@ -64,9 +92,51 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
                             <Link to="/about-us" className="text-slate-600 hover:text-cyan-600 transition-colors">
                                 Về chúng tôi
                             </Link>
-                            <Link to="/login" className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-lg hover:opacity-95 transition-all">
-                                Đăng nhập
-                            </Link>
+
+                            {/* Nếu chưa đăng nhập: hiển thị nút Đăng nhập */}
+                            {!user ? (
+                                <Link to="/login" className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-lg hover:opacity-95 transition-all">
+                                    Đăng nhập
+                                </Link>
+                            ) : (
+                                /* Nếu đã đăng nhập: hiển thị Profile menu */
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowProfileMenu(!showProfileMenu)}
+                                        className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-slate-100 transition-all"
+                                    >
+                                        <span className="material-symbols-outlined text-base">account_circle</span>
+                                        <span className="text-xs font-bold">{user.fullName}</span>
+                                    </button>
+
+                                    {/* Dropdown menu */}
+                                    {showProfileMenu && (
+                                        <div className="absolute right-0 mt-2 w-60 bg-white border border-slate-200 rounded-lg shadow-lg z-50">
+                                            <div className="p-4 border-b border-slate-100">
+                                                <p className="text-sm font-bold text-slate-900">{user.fullName}</p>
+                                                <p className="text-xs text-slate-500">{user.email}</p>
+                                            </div>
+
+                                            <Link
+                                                to="/admin-tenant/dashboard"
+                                                className="flex items-center gap-2 px-5 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                                                onClick={() => setShowProfileMenu(false)}
+                                            >
+                                                <span className="material-symbols-outlined text-base">person</span>
+                                                Hồ sơ
+                                            </Link>
+
+                                            <button
+                                                onClick={handleLogout}
+                                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors border-t border-slate-100"
+                                            >
+                                                <span className="material-symbols-outlined text-base">logout</span>
+                                                Đăng xuất
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </nav>
                     )}
 
