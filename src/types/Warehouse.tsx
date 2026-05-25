@@ -34,14 +34,9 @@ export interface Zone {
 
 export interface Warehouse {
     warehouseId: string
-    warehouseCode?: string
     warehouseName: string
     address: string
-    city?: string
-    district?: string
-    totalAreaM2?: number | null
-    usableAreaM2?: number | null
-    status?: string
+    numberOfPallets: number
     lastUpdated: string
     zones: Zone[]
 }
@@ -78,7 +73,7 @@ export const warehouses: Warehouse[] = [
         warehouseId: 'W-1001',
         warehouseName: 'Kho A',
         address: 'TP.HCM',
-        usableAreaM2: 25,
+        numberOfPallets: 25,
         lastUpdated: '10m ago',
         zones: [
             {
@@ -269,7 +264,7 @@ export const warehouses: Warehouse[] = [
         warehouseId: 'W-1003',
         warehouseName: 'Kho A',
         address: 'TP.HCM',
-        usableAreaM2: 25,
+        numberOfPallets: 25,
         lastUpdated: '10m ago',
         zones: [
             {
@@ -460,7 +455,7 @@ export const warehouses: Warehouse[] = [
         warehouseId: 'W-1004',
         warehouseName: 'Kho A',
         address: 'TP.HCM',
-        usableAreaM2: 25,
+        numberOfPallets: 25,
         lastUpdated: '10m ago',
         zones: [
             {
@@ -651,7 +646,7 @@ export const warehouses: Warehouse[] = [
         warehouseId: 'W-1051',
         warehouseName: 'Kho A',
         address: 'TP.HCM',
-        usableAreaM2: 25,
+        numberOfPallets: 25,
         lastUpdated: '10m ago',
         zones: [
             {
@@ -842,7 +837,7 @@ export const warehouses: Warehouse[] = [
         warehouseId: 'W-1006',
         warehouseName: 'Kho A',
         address: 'TP.HCM',
-        usableAreaM2: 25,
+        numberOfPallets: 25,
         lastUpdated: '10m ago',
         zones: [
             {
@@ -1033,7 +1028,7 @@ export const warehouses: Warehouse[] = [
         warehouseId: 'W-1007',
         warehouseName: 'Kho A',
         address: 'TP.HCM',
-        usableAreaM2: 25,
+        numberOfPallets: 25,
         lastUpdated: '10m ago',
         zones: [
             {
@@ -1224,7 +1219,7 @@ export const warehouses: Warehouse[] = [
         warehouseId: 'W-1008',
         warehouseName: 'Kho A',
         address: 'TP.HCM',
-        usableAreaM2: 25,
+        numberOfPallets: 25,
         lastUpdated: '10m ago',
         zones: [
             {
@@ -1415,7 +1410,7 @@ export const warehouses: Warehouse[] = [
         warehouseId: 'W-1009',
         warehouseName: 'Kho A',
         address: 'TP.HCM',
-        usableAreaM2: 25,
+        numberOfPallets: 25,
         lastUpdated: '10m ago',
         zones: [
             {
@@ -1606,7 +1601,7 @@ export const warehouses: Warehouse[] = [
         warehouseId: 'W-1002',
         warehouseName: 'Kho B',
         address: 'TP.HCM',
-        usableAreaM2: 0,
+        numberOfPallets: 0,
         lastUpdated: '30m ago',
         zones: [],
     },

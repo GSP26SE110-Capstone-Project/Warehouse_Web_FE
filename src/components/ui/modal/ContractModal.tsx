@@ -1,328 +1,263 @@
-import { useEffect, useState } from 'react'
-import { ApiError } from '../../../api/client'
-import * as contractsApi from '../../../api/contracts'
-import * as tenantsApi from '../../../api/tenants'
-import * as warehousesApi from '../../../api/warehouses'
-import type { ContractStatus } from '../../../api/types'
-import {
-  BILLING_CYCLE_GUEST_LABELS,
-  CONTRACT_TYPE_LABELS,
-  type ContractTypeValue,
-} from '../../../data/contractTypes'
+import { useState, useEffect } from 'react'
 
 type Mode = 'create' | 'edit' | 'view'
 
-export type ContractFormPayload = {
-  contractName: string
-  startDate: string
-  endDate: string
-  estimatedTotalAmount: number | null
-  status: ContractStatus
-}
-
 type Props = {
   mode: Mode
-  contractId?: string
+  data?: any
   onClose: () => void
-  onSubmit?: (data: ContractFormPayload) => void | Promise<void>
+  onSubmit?: (data: any) => Promise<void>
 }
 
-const labelStyle =
-  'text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block'
-const inputStyle =
-  'w-full bg-[#1a2333] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 disabled:opacity-60'
-
-const STATUS_OPTIONS: { value: ContractStatus; label: string }[] = [
-  { value: 'DRAFT', label: 'Nháp (DRAFT)' },
-  { value: 'PENDING_APPROVAL', label: 'Chờ duyệt' },
-  { value: 'ACTIVE', label: 'Đang hiệu lực' },
-  { value: 'EXPIRED', label: 'Hết hạn' },
-  { value: 'TERMINATED', label: 'Chấm dứt' },
-  { value: 'CANCELLED', label: 'Hủy' },
-]
-
-function toDateInput(iso?: string | null) {
-  if (!iso) return ''
-  return iso.slice(0, 10)
-}
-
-export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSubmit }) => {
+export const ContractModal: React.FC<Props> = ({
+  mode,
+  data,
+  onClose,
+  onSubmit
+}) => {
   const isView = mode === 'view'
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [submitting, setSubmitting] = useState(false)
 
-  const [contractCode, setContractCode] = useState('')
-  const [apiStatus, setApiStatus] = useState<ContractStatus>('DRAFT')
-  const [contractType, setContractType] = useState('')
-  const [pricingModel, setPricingModel] = useState('')
-  const [billingCycle, setBillingCycle] = useState('')
-  const [rentalRequestId, setRentalRequestId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
-  const [warehouseLabel, setWarehouseLabel] = useState('')
-  const [tenantCompany, setTenantCompany] = useState('')
-  const [tenantEmail, setTenantEmail] = useState('')
-  const [tenantTaxCode, setTenantTaxCode] = useState('')
-  const [tenantAddress, setTenantAddress] = useState('')
+  const [form, setForm] = useState({
+    contractNumber: `WMS-${new Date().getFullYear()}-001`,
+    providerName: 'CÔNG TY CP LOGISTICS THÔNG MINH',
+    providerAddress: 'Lô 45, Khu Công Nghiệp Cao, TP. Thủ Đức',
+    customerName: '',
+    customerEmail: '',
+    customerTaxCode: '',
+    customerAddress: '',
+    warehouse: '',
+    palletQuantity: 0,
+    pricePerPallet: 0,
+    startDate: '',
+    endDate: '',
+    totalValue: 0,
+    notes: '',
+  })
 
-  const [contractName, setContractName] = useState('')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [amountInput, setAmountInput] = useState('')
-  const [status, setStatus] = useState<ContractStatus>('DRAFT')
-
+  /* ===== MAP DATA TỪ REQUEST ===== */
   useEffect(() => {
-    if (!contractId) {
-      setLoading(false)
-      setError('Thiếu mã hợp đồng')
-      return
+    if (data) {
+      setForm(prev => ({
+        ...prev,
+        customerName: data.customer || '',
+        customerEmail: data.customerEmail || '',
+        warehouse: data.warehouse || '',
+        startDate: data.startDate || '',
+        endDate: data.endDate || '',
+      }))
     }
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setError('')
-      try {
-        const contract = await contractsApi.getContract(contractId)
-        const [tenant, warehouse] = await Promise.all([
-          tenantsApi.getTenant(contract.tenantId),
-          warehousesApi.getWarehouse(contract.warehouseId),
-        ])
-        if (cancelled) return
+  }, [data])
 
-        setContractCode(contract.contractCode)
-        setApiStatus(contract.status)
-        setContractType(contract.contractType)
-        setPricingModel(contract.pricingModel)
-        setBillingCycle(contract.billingCycle ?? '')
-        setRentalRequestId(contract.rentalRequestId ?? null)
-
-        setWarehouseLabel(
-          `${warehouse.warehouseName} (${warehouse.warehouseCode}) — ${warehouse.district}, ${warehouse.city}`
-        )
-        setTenantCompany(tenant.companyName)
-        setTenantEmail(tenant.contactEmail ?? '')
-        setTenantTaxCode(tenant.taxCode ?? '')
-        setTenantAddress(tenant.address ?? '')
-
-        setContractName(contract.contractName ?? tenant.companyName)
-        setStartDate(toDateInput(contract.startDate))
-        setEndDate(toDateInput(contract.endDate))
-        setAmountInput(
-          contract.estimatedTotalAmount != null ? String(contract.estimatedTotalAmount) : ''
-        )
-        setStatus(contract.status)
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof ApiError ? err.message : 'Không tải được hợp đồng')
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [contractId])
+  /* ===== AUTO TÍNH TIỀN ===== */
+  useEffect(() => {
+    setForm(prev => ({
+      ...prev,
+      totalValue: prev.palletQuantity * prev.pricePerPallet,
+    }))
+  }, [form.palletQuantity, form.pricePerPallet])
 
   const handleSubmit = async () => {
     if (!onSubmit) return
-    setSubmitting(true)
+
+    setLoading(true)
     try {
-      const amount = amountInput.trim() ? Number(amountInput) : null
-      await onSubmit({
-        contractName: contractName.trim(),
-        startDate,
-        endDate,
-        estimatedTotalAmount: amount,
-        status,
-      })
+      await onSubmit(form)
       onClose()
     } finally {
-      setSubmitting(false)
+      setLoading(false)
     }
   }
 
-  const ct = contractType as ContractTypeValue
-  const typeLabel = CONTRACT_TYPE_LABELS[ct] ?? contractType
+  const labelStyle =
+    'text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block'
+
+  const inputStyle =
+    'w-full bg-[#1a2333] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 transition-all disabled:opacity-50'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative z-10 flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-white/5 bg-[#0b101a] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/5 bg-white/[0.02] px-6 py-5">
+      {/* Overlay */}
+      <div
+        className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="relative z-10 w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-xl border border-white/5 bg-[#0b101a] shadow-2xl flex flex-col">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.02]">
           <div>
-            <h2 className="flex items-center gap-2 text-lg font-bold text-white">
-              <span className="material-symbols-outlined text-cyan-400">description</span>
-              {mode === 'edit' ? 'Chỉnh sửa hợp đồng' : 'Chi tiết hợp đồng'}
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <span className="material-symbols-outlined text-cyan-400">
+                description
+              </span>
+              {mode === 'create'
+                ? 'Tạo hợp đồng'
+                : mode === 'edit'
+                ? 'Chỉnh sửa hợp đồng'
+                : 'Chi tiết hợp đồng'}
             </h2>
-            <p className="mt-1 text-xs text-slate-400">
-              Mã: <span className="font-mono text-cyan-400">{contractCode || '—'}</span>
-              {apiStatus && (
-                <span className="ml-2 rounded bg-white/5 px-2 py-0.5 text-slate-300">
-                  {apiStatus}
-                </span>
-              )}
+            <p className="text-xs text-slate-400 mt-1">
+              Mã: <span className="text-cyan-400">{form.contractNumber}</span>
             </p>
           </div>
-          <button type="button" onClick={onClose} className="rounded p-2 hover:bg-white/10">
-            <span className="material-symbols-outlined text-slate-400">close</span>
+
+          <button
+            onClick={onClose}
+            className="p-2 rounded hover:bg-white/10"
+          >
+            <span className="material-symbols-outlined text-slate-400">
+              close
+            </span>
           </button>
         </div>
 
-        <div className="flex-1 space-y-6 overflow-y-auto p-6">
-          {loading && (
-            <p className="text-center text-sm text-slate-400">Đang tải hợp đồng...</p>
-          )}
-          {error && (
-            <p className="rounded-lg border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-300">
-              {error}
-            </p>
-          )}
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
-          {!loading && !error && (
-            <>
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className="rounded-lg border border-white/5 bg-white/[0.02] p-4">
-                  <h3 className="mb-3 text-sm font-semibold text-cyan-400">BÊN CHO THUÊ / KHO</h3>
-                  <p className="text-sm text-white">{warehouseLabel || '—'}</p>
-                </div>
+          {/* BÊN A & B */}
+          <div className="grid grid-cols-2 gap-6">
 
-                <div className="space-y-3 rounded-lg border border-white/5 bg-white/[0.02] p-4">
-                  <h3 className="text-sm font-semibold text-emerald-400">KHÁCH HÀNG (TENANT)</h3>
-                  <div>
-                    <label className={labelStyle}>Tên công ty</label>
-                    <input disabled className={inputStyle} value={tenantCompany} />
-                  </div>
-                  <div>
-                    <label className={labelStyle}>Email</label>
-                    <input disabled className={inputStyle} value={tenantEmail} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className={labelStyle}>MST</label>
-                      <input disabled className={inputStyle} value={tenantTaxCode} />
-                    </div>
-                    <div>
-                      <label className={labelStyle}>Địa chỉ</label>
-                      <input disabled className={inputStyle} value={tenantAddress} />
-                    </div>
-                  </div>
-                </div>
+            {/* Bên A */}
+            <div className="p-4 rounded-lg bg-white/[0.02] border border-white/5">
+              <h3 className="text-sm font-semibold text-cyan-400 mb-3">
+                BÊN CHO THUÊ
+              </h3>
+
+              <p className="text-sm text-white">{form.providerName}</p>
+              <p className="text-xs text-slate-400">{form.providerAddress}</p>
+            </div>
+
+            {/* Bên B */}
+            <div className="p-4 rounded-lg bg-white/[0.02] border border-white/5 space-y-3">
+              <h3 className="text-sm font-semibold text-emerald-400">
+                KHÁCH HÀNG
+              </h3>
+
+              <div>
+                <label className={labelStyle}>Tên khách hàng</label>
+                <input
+                  disabled
+                  className={inputStyle}
+                  value={form.customerName}
+                />
               </div>
 
-              <div className="rounded-lg border border-white/5 bg-white/[0.02] p-4 space-y-4">
-                <h3 className="text-sm font-semibold text-cyan-400">ĐIỀU KHOẢN HỢP ĐỒNG</h3>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <div>
-                    <label className={labelStyle}>Loại hợp đồng</label>
-                    <input disabled className={inputStyle} value={typeLabel || '—'} />
-                  </div>
-                  <div>
-                    <label className={labelStyle}>Pricing model</label>
-                    <input disabled className={inputStyle} value={pricingModel || '—'} />
-                  </div>
-                  <div>
-                    <label className={labelStyle}>Chu kỳ thanh toán</label>
-                    <input
-                      disabled
-                      className={inputStyle}
-                      value={
-                        BILLING_CYCLE_GUEST_LABELS[billingCycle] ??
-                        billingCycle ??
-                        '—'
-                      }
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className={labelStyle}>Tên hợp đồng</label>
-                    <input
-                      disabled={isView}
-                      className={inputStyle}
-                      value={contractName}
-                      onChange={(e) => setContractName(e.target.value)}
-                    />
-                  </div>
-                  {rentalRequestId && (
-                    <div>
-                      <label className={labelStyle}>Yêu cầu thuê (RR)</label>
-                      <input
-                        disabled
-                        className={`${inputStyle} font-mono text-xs`}
-                        value={rentalRequestId}
-                      />
-                    </div>
-                  )}
-                  <div>
-                    <label className={labelStyle}>Ngày bắt đầu</label>
-                    <input
-                      type="date"
-                      disabled={isView}
-                      className={inputStyle}
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelStyle}>Ngày kết thúc</label>
-                    <input
-                      type="date"
-                      disabled={isView}
-                      className={inputStyle}
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelStyle}>Giá trị ước tính (VND)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      disabled={isView}
-                      className={inputStyle}
-                      value={amountInput}
-                      onChange={(e) => setAmountInput(e.target.value)}
-                    />
-                  </div>
-                  {mode !== 'view' && (
-                    <div>
-                      <label className={labelStyle}>Trạng thái</label>
-                      <select
-                        className={inputStyle}
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value as ContractStatus)}
-                      >
-                        {STATUS_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                </div>
-                <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-lg font-bold text-cyan-400">
-                  {new Intl.NumberFormat('vi-VN').format(Number(amountInput) || 0)} ₫
-                </div>
+              <div>
+                <label className={labelStyle}>Email</label>
+                <input
+                  disabled
+                  className={inputStyle}
+                  value={form.customerEmail}
+                />
               </div>
-            </>
-          )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  disabled={isView}
+                  className={inputStyle}
+                  placeholder="MST"
+                  value={form.customerTaxCode}
+                  onChange={(e) =>
+                    setForm({ ...form, customerTaxCode: e.target.value })
+                  }
+                />
+                <input
+                  disabled={isView}
+                  className={inputStyle}
+                  placeholder="Địa chỉ"
+                  value={form.customerAddress}
+                  onChange={(e) =>
+                    setForm({ ...form, customerAddress: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* CHI TIẾT */}
+          <div className="grid grid-cols-4 gap-4">
+            <div className="col-span-2">
+              <label className={labelStyle}>Kho</label>
+              <input disabled className={inputStyle} value={form.warehouse} />
+            </div>
+
+            <input
+              type="date"
+              disabled={isView}
+              className={inputStyle}
+              value={form.startDate}
+              onChange={(e) =>
+                setForm({ ...form, startDate: e.target.value })
+              }
+            />
+
+            <input
+              type="date"
+              disabled={isView}
+              className={inputStyle}
+              value={form.endDate}
+              onChange={(e) =>
+                setForm({ ...form, endDate: e.target.value })
+              }
+            />
+
+            <input
+              type="number"
+              disabled={isView}
+              className={inputStyle}
+              placeholder="Pallet"
+              value={form.palletQuantity}
+              onChange={(e) =>
+                setForm({ ...form, palletQuantity: +e.target.value })
+              }
+            />
+
+            <input
+              type="number"
+              disabled={isView}
+              className={inputStyle}
+              placeholder="Giá"
+              value={form.pricePerPallet}
+              onChange={(e) =>
+                setForm({ ...form, pricePerPallet: +e.target.value })
+              }
+            />
+
+            {/* TOTAL */}
+            <div className="col-span-2 flex items-end">
+              <div className="w-full bg-cyan-500/10 border border-cyan-500/20 rounded-lg px-4 py-2 text-cyan-400 font-bold">
+                {new Intl.NumberFormat('vi-VN').format(form.totalValue)} ₫
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center justify-between border-t border-white/5 bg-white/[0.02] px-6 py-4">
-          <span className="text-xs text-slate-500">Hợp đồng thuê kho · db4</span>
+        {/* Footer */}
+        <div className="flex justify-between items-center px-6 py-4 border-t border-white/5 bg-white/[0.02]">
+          <span className="text-xs text-slate-500">
+            Hệ thống quản lý kho
+          </span>
+
           <div className="flex gap-3">
-            <button type="button" onClick={onClose} className="text-sm text-slate-400 hover:text-white">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-slate-400 hover:text-white"
+            >
               Đóng
             </button>
-            {!isView && !loading && !error && (
+
+            {!isView && (
               <button
-                type="button"
-                disabled={submitting}
+                disabled={loading}
                 onClick={handleSubmit}
-                className="rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold text-black disabled:opacity-50"
+                className="btn-glow bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 rounded-lg text-sm font-bold text-black disabled:opacity-50"
               >
-                {submitting ? 'Đang lưu...' : 'Cập nhật'}
+                {loading ? 'Đang gửi...' : mode === 'create' ? 'Tạo & Gửi' : 'Cập nhật'}
               </button>
             )}
           </div>

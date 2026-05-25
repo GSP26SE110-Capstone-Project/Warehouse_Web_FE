@@ -1,6 +1,5 @@
 import type { ChangeEvent } from 'react'
 import { navigationService } from '../../../utils/NavigationService'
-import { useAuth } from '../../../auth/AuthContext'
 
 
 type AdminHeaderProps = {
@@ -12,15 +11,8 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   title = 'Admin Dashboard', 
   onSearchChange,
 }) => {
-  const { user, logout } = useAuth()
-
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     onSearchChange?.(event.target.value)
-  }
-
-  const handleLogout = () => {
-    logout()
-    navigationService.goTo('/login')
   }
 
   return (
@@ -53,20 +45,12 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-[#06edf9] shadow-[0_0_8px_rgba(6,237,249,0.8)]" />
         </button>
 
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="text-xs text-slate-400 hover:text-red-400 transition-colors px-2"
-        >
-          Đăng xuất
-        </button>
-
         <div
         onClick={() => navigationService.goTo('/profile')}
-        className="flex items-center gap-3 border-l border-white/10 pl-6 cursor-pointer">
+        className="flex items-center gap-3 border-l border-white/10 pl-6">
           <div className="hidden text-right sm:block">
-            <p className="text-sm font-medium text-white">{user?.fullName ?? 'User'}</p>
-            <p className="text-xs text-slate-400">{user?.role ?? ''}</p>
+            <p className="text-sm font-medium text-white">Cmdr. Shepard</p>
+            <p className="text-xs text-slate-400">Logistics Lead</p>
           </div>
           <div className="size-10 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 p-[1px]">
             <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-slate-900">

@@ -133,7 +133,7 @@ export const ResetPassword: React.FC = () => {
 
             {/* Back */}
             <button
-              onClick={() => navigationService.goTo('/login')}
+              onClick={() => navigationService.goTo('/')}
               className="text-sm text-[#06edf9] hover:underline"
             >
               ← Quay lại đăng nhập
