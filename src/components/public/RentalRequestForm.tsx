@@ -162,6 +162,7 @@ export function RentalRequestForm({
   const [requiresFastPicking, setRequiresFastPicking] = useState(false)
   const [requiresPremiumStorage, setRequiresPremiumStorage] = useState(false)
   const [expectedStartDate, setExpectedStartDate] = useState('')
+  const [expectedEndDate, setExpectedEndDate] = useState('')
   const [notes, setNotes] = useState('')
 
   const handleContractTypeChange = (value: ContractTypeValue) => {
@@ -254,6 +255,14 @@ export function RentalRequestForm({
       setError('Vui lòng chọn thành phố và quận/huyện')
       return
     }
+    if (!expectedStartDate || !expectedEndDate) {
+      setError('Vui lòng chọn ngày bắt đầu và ngày kết thúc thuê kho dự kiến')
+      return
+    }
+    if (expectedEndDate <= expectedStartDate) {
+      setError('Ngày kết thúc phải sau ngày bắt đầu')
+      return
+    }
     setLoading(true)
 
     try {
@@ -288,7 +297,8 @@ export function RentalRequestForm({
         suggestedRackType: suggestedRackType || undefined,
         requiresFastPicking,
         requiresPremiumStorage,
-        expectedStartDate: expectedStartDate ? new Date(expectedStartDate).toISOString() : undefined,
+        expectedStartDate: new Date(expectedStartDate).toISOString(),
+        expectedEndDate: new Date(expectedEndDate).toISOString(),
         notes: notes.trim() || undefined,
       })
 
@@ -545,13 +555,38 @@ export function RentalRequestForm({
               />
             </div>
             <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="expectedStartDate">Ngày bắt đầu dự kiến</FieldLabel>
+              <FieldLabel htmlFor="expectedStartDate">Ngày bắt đầu dự kiến *</FieldLabel>
               <div className="input-glow relative rounded-lg" style={inputWrapStyle}>
                 <input
                   id="expectedStartDate"
                   type="date"
+                  required
                   value={expectedStartDate}
-                  onChange={(e) => setExpectedStartDate(e.target.value)}
+                  onChange={(e) => {
+                    setExpectedStartDate(e.target.value)
+                    if (expectedEndDate && e.target.value >= expectedEndDate) {
+                      setExpectedEndDate('')
+                    }
+                  }}
+                  className="block w-full px-4 py-3 bg-transparent border-0 text-white focus:outline-none text-base [color-scheme:dark]"
+                />
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <FieldLabel
+                htmlFor="expectedEndDate"
+                hint="Thời hạn thuê kho bạn mong muốn — kho sẽ căn cứ khi lập hợp đồng"
+              >
+                Ngày kết thúc dự kiến *
+              </FieldLabel>
+              <div className="input-glow relative rounded-lg" style={inputWrapStyle}>
+                <input
+                  id="expectedEndDate"
+                  type="date"
+                  required
+                  min={expectedStartDate || undefined}
+                  value={expectedEndDate}
+                  onChange={(e) => setExpectedEndDate(e.target.value)}
                   className="block w-full px-4 py-3 bg-transparent border-0 text-white focus:outline-none text-base [color-scheme:dark]"
                 />
               </div>

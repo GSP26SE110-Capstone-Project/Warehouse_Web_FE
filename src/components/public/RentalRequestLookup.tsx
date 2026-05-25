@@ -266,6 +266,12 @@ function LookupResult({ result }: { result: RentalRequestPublicLookup }) {
             value={`${result.requestedAreaM2.toLocaleString('vi-VN')} m²`}
           />
         )}
+        {result.expectedStartDate && (
+          <DetailRow label="Ngày bắt đầu dự kiến" value={formatDate(result.expectedStartDate)} />
+        )}
+        {result.expectedEndDate && (
+          <DetailRow label="Ngày kết thúc dự kiến" value={formatDate(result.expectedEndDate)} />
+        )}
         <DetailRow label="Ngày gửi" value={formatDate(result.createdAt)} />
         {result.reviewedAt && <DetailRow label="Ngày xử lý" value={formatDate(result.reviewedAt)} />}
         {result.rejectionReason && (

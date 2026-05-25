@@ -81,8 +81,8 @@ export function RentalOnboardingWizard({
   const contractType = (row.contractType ?? 'SHARED_STORAGE') as ContractTypeValue
   const pricingModel = row.pricingModel ?? defaultPricingModel(contractType)
   const [contractId, setContractId] = useState<string | null>(null)
-  const [contractStart, setContractStart] = useState(toDateInput(row.expectedStartDate))
-  const [contractEnd, setContractEnd] = useState(toDateInput(row.expectedEndDate))
+  const contractStart = toDateInput(row.expectedStartDate)
+  const contractEnd = toDateInput(row.expectedEndDate)
   const [estimatedAmount, setEstimatedAmount] = useState('')
 
   const storagePlan = useMemo(() => getOnboardingStoragePlan(contractType), [contractType])
@@ -203,8 +203,6 @@ export function RentalOnboardingWizard({
     const active = items.find((c) => c.status === 'ACTIVE') ?? items[0]
     if (active) {
       setContractId(active.contractId)
-      setContractStart(toDateInput(active.startDate))
-      setContractEnd(toDateInput(active.endDate))
       if (active.estimatedTotalAmount != null) {
         setEstimatedAmount(String(active.estimatedTotalAmount))
       }
@@ -280,7 +278,9 @@ export function RentalOnboardingWizard({
   const handleCreateContract = () =>
     run(async () => {
       if (!contractStart || !contractEnd) {
-        setError('Chọn ngày bắt đầu và kết thúc hợp đồng')
+        setError(
+          'Yêu cầu thiếu ngày bắt đầu/kết thúc do khách chưa khai báo khi gửi form — liên hệ khách bổ sung'
+        )
         return
       }
       const wh = whId || resolveWarehouseId(row)
@@ -514,26 +514,18 @@ export function RentalOnboardingWizard({
                   />
                 </div>
                 <div>
-                  <label className={labelStyle}>Bắt đầu</label>
-                  <input
-                    type="date"
-                    className={inputStyle}
-                    value={contractStart}
-                    onChange={(e) => setContractStart(e.target.value)}
-                  />
+                  <label className={labelStyle}>Bắt đầu (khách chọn)</label>
+                  <input type="date" className={inputStyle} value={contractStart} disabled />
                 </div>
                 <div>
-                  <label className={labelStyle}>Kết thúc</label>
-                  <input
-                    type="date"
-                    className={inputStyle}
-                    value={contractEnd}
-                    onChange={(e) => setContractEnd(e.target.value)}
-                  />
+                  <label className={labelStyle}>Kết thúc (khách chọn)</label>
+                  <input type="date" className={inputStyle} value={contractEnd} disabled />
                 </div>
               </div>
               <p className="text-xs text-slate-500">
-                Hợp đồng tạo DRAFT rồi kích hoạt ACTIVE (chữ ký nội bộ WH). Sau đó cấp chỗ lưu trữ.
+                Thời hạn hợp đồng lấy từ yêu cầu thuê của khách ({row.startDate || '—'} →{' '}
+                {row.endDate || '—'}). HĐ tạo DRAFT rồi kích hoạt ACTIVE (chữ ký nội bộ WH). Sau đó
+                cấp chỗ lưu trữ.
               </p>
             </div>
           )}
@@ -748,6 +740,14 @@ function SummaryBlock({
             <span className={labelStyle}>Chu kỳ</span>
             <p className="text-white">
               {BILLING_CYCLE_GUEST_LABELS[row.billingCycle] ?? row.billingCycle}
+            </p>
+          </div>
+        )}
+        {(row.startDate || row.endDate) && (
+          <div className="col-span-2">
+            <span className={labelStyle}>Thời hạn thuê (khách)</span>
+            <p className="text-white">
+              {row.startDate || '—'} → {row.endDate || '—'}
             </p>
           </div>
         )}
