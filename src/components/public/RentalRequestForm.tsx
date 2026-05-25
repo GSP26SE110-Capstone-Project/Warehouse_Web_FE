@@ -25,14 +25,12 @@ const ZONE_TYPES = [
   { value: 'SHARED', label: 'Khu chia sẻ (Shared)' },
   { value: 'FAST_MOVING', label: 'Hàng xoay nhanh (Fast moving)' },
   { value: 'PREMIUM', label: 'Hàng cao cấp (Premium)' },
-  { value: 'BULK', label: 'Hàng khối lượng lớn (Bulk)' },
-  { value: 'QC', label: 'Khu kiểm định (QC)' },
+  { value: 'RETURN', label: 'Hàng trả (Return)' },
 ] as const
 
 const RACK_TYPES = [
   { value: '', label: '— Chưa rõ / để kho tư vấn —' },
   { value: 'STANDARD', label: 'Kệ tiêu chuẩn' },
-  { value: 'HIGH_CAPACITY', label: 'Kệ dung lượng cao' },
 ] as const
 
 const inputWrapStyle = { border: '1px solid #3a5455', background: 'rgba(11,22,23,0.8)' } as const

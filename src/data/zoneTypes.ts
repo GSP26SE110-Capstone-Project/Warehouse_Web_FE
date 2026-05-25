@@ -1,9 +1,7 @@
 export const ZONE_TYPE_OPTIONS = [
   { value: 'SHARED', label: 'Chia sẻ (SHARED)' },
   { value: 'FAST_MOVING', label: 'Hàng đi nhanh' },
-  { value: 'BULK', label: 'Hàng khối / bulk' },
   { value: 'PREMIUM', label: 'Premium' },
-  { value: 'QC', label: 'Kiểm tra chất lượng' },
   { value: 'RETURN', label: 'Hàng trả' },
 ] as const
 

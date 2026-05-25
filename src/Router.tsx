@@ -24,6 +24,7 @@ import { StaffDashboard } from './pages/staff/Dashboard'
 import { StaffLayout } from './components/common/layout/StaffLayout'
 import { StaffRequestManagement } from './pages/staff/TransportManagement'
 import { ImportExportManagement } from './pages/staff/ImportExportManagement'
+import { TenantProductManagement } from './pages/staff/TenantProductManagement'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { ADMIN_ROLES, getHomePathForRole, STAFF_ROLES, useAuth } from './auth/AuthContext'
 
@@ -68,6 +69,7 @@ export const Router: React.FC = () => {
               <Route path="/staff" element={<Navigate to="/staff/dashboard" replace />} />
               <Route path="/staff/dashboard" element={<StaffDashboard />} />
               <Route path="/staff/requests" element={<StaffRequestManagement />} />
+              <Route path="/staff/products" element={<TenantProductManagement />} />
               <Route path="/staff/import-export" element={<ImportExportManagement />} />
             </Route>
           </Route>

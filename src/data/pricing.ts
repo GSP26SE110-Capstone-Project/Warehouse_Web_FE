@@ -45,20 +45,12 @@ export const ZONE_PRICING: PricingTier[] = [
     icon: 'diamond',
   },
   {
-    name: 'QC',
-    label: 'QC Zone',
-    price: 180_000,
+    name: 'RETURN',
+    label: 'Return Zone',
+    price: 90_000,
     unit: 'm²/tháng',
-    description: 'Khu kiểm định chất lượng',
-    icon: 'fact_check',
-  },
-  {
-    name: 'BULK',
-    label: 'Bulk Zone',
-    price: 100_000,
-    unit: 'm²/tháng',
-    description: 'Khu lưu hàng số lượng lớn, ít luân chuyển',
-    icon: 'inventory_2',
+    description: 'Khu xử lý hàng trả, hoàn',
+    icon: 'undo',
   },
 ]
 
@@ -70,15 +62,6 @@ export const RACK_PRICING: PricingTier[] = [
     unit: 'rack/tháng (tham chiếu)',
     description: 'Đơn giá tham chiếu; tổng hợp vào hóa đơn tháng/năm theo mức sử dụng',
     icon: 'shelves',
-  },
-  {
-    name: 'HIGH_CAPACITY',
-    label: 'High Capacity Rack',
-    price: 200_000,
-    unit: 'rack/tháng (tham chiếu)',
-    description: 'Đơn giá tham chiếu; tổng hợp vào hóa đơn tháng/năm',
-    icon: 'stacked_bar_chart',
-    highlight: true,
   },
 ]
 
