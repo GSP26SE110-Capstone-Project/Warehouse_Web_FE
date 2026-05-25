@@ -41,4 +41,19 @@
   .btn-glow:hover {
     box-shadow: 0 0 20px rgba(6, 237, 249, 0.4);
   }
+
+  .cinema-floor {
+    perspective: 1100px;
+    perspective-origin: 50% 30%;
+  }
+
+  .cinema-grid {
+    transform: rotateX(14deg);
+    transform-style: preserve-3d;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+  }
+
+  .cinema-seat:hover:not(:disabled) {
+    transform: translateZ(6px) scale(1.08);
+  }
 }

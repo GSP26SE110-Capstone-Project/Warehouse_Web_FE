@@ -1,87 +1,23 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { AccountModal } from '../../components/ui/modal/AccountModal'
 import type { Account } from '../../types/Account'
 import { Pagination } from '../../components/ui/Pagination'
-
-/* ================= DATA ================= */
-const initialAccounts: Account[] = [
-  {
-    id: '#ACC-001',
-    name: 'Nguyễn Văn A',
-    email: 'admin@nexspace.com',
-    role: 'Admin',
-    roleClassName: 'bg-red-400/10 text-red-400 ring-red-400/20',
-    status: 'Active',
-    statusClassName: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20',
-    lastLogin: '5m ago',
-    createdAt: '2025-01-10',
-    striped: true,
-  },
-  {
-    id: '#ACC-002',
-    name: 'Trần Thị B',
-    email: 'manager@nexspace.com',
-    role: 'Manager',
-    roleClassName: 'bg-blue-400/10 text-blue-400 ring-blue-400/20',
-    status: 'Active',
-    statusClassName: 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20',
-    lastLogin: '20m ago',
-    createdAt: '2025-02-15',
-  },
-  {
-    id: '#ACC-003',
-    name: 'Lê Văn C',
-    email: 'staff@nexspace.com',
-    role: 'Staff',
-    roleClassName: 'bg-slate-400/10 text-slate-300 ring-slate-400/20',
-    status: 'Inactive',
-    statusClassName: 'bg-gray-400/10 text-gray-400 ring-gray-400/20',
-    lastLogin: '2 days ago',
-    createdAt: '2025-03-01',
-    striped: true,
-  },
-  {
-    id: '#ACC-004',
-    name: 'Phạm Văn D',
-    email: 'user@nexspace.com',
-    role: 'Staff',
-    roleClassName: 'bg-slate-400/10 text-slate-300 ring-slate-400/20',
-    status: 'Suspended',
-    statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
-    lastLogin: '1 week ago',
-    createdAt: '2025-01-20',
-  },
-  {
-    id: '#ACC-005',
-    name: 'Phạm Văn D',
-    email: 'user@nexspace.com',
-    role: 'Staff',
-    roleClassName: 'bg-slate-400/10 text-slate-300 ring-slate-400/20',
-    status: 'Suspended',
-    statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
-    lastLogin: '1 week ago',
-    createdAt: '2025-01-20',
-  },
-  {
-    id: '#ACC-006',
-    name: 'Phạm Văn D',
-    email: 'user@nexspace.com',
-    role: 'Staff',
-    roleClassName: 'bg-slate-400/10 text-slate-300 ring-slate-400/20',
-    status: 'Suspended',
-    statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
-    lastLogin: '1 week ago',
-    createdAt: '2025-01-20',
-  },
-]
-/* ================= DATA ================= */
-
+import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
+import { ApiError } from '../../api/client'
+import * as usersApi from '../../api/users'
+import { statusToApiStatus, userToAccount } from '../../mappers'
+import { useAuth } from '../../auth/AuthContext'
+import type { AccountFormValues } from '../../components/ui/modal/AccountModal'
+import type { UserRole } from '../../api/types'
 
 export const AccountManagement: React.FC = () => {
+  const { user: currentUser } = useAuth()
   const [search, setSearch] = useState('')
-  const [accounts, setAccounts] = useState<Account[]>(initialAccounts)
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'manager' | 'staff'>('all')
 
   const [modal, setModal] = useState<{
@@ -97,48 +33,65 @@ export const AccountManagement: React.FC = () => {
     onConfirm?: () => void
   }>({ open: false, type: 'success', message: '' })
 
-  const handleSubmit = (form: any) => {
-    if (modal.mode === 'create') {
-      const newAccount: Account = {
-        id: `#ACC-${Math.floor(Math.random() * 1000)}`,
-        createdAt: 'now',
-        status: 'Pending',
-        statusClassName: 'bg-orange-400/10 text-orange-400 ring-orange-400/20',
-        ...form,
+  const loadAccounts = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const { items } = await usersApi.listUsers({ limit: 100 })
+      setAccounts(items.map((u, i) => userToAccount(u, i)))
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Không tải được danh sách tài khoản')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadAccounts()
+  }, [loadAccounts])
+
+  const handleSubmit = async (form: AccountFormValues) => {
+    try {
+      if (modal.mode === 'create') {
+        const body: Parameters<typeof usersApi.createUser>[0] = {
+          fullName: form.fullName,
+          email: form.email.trim(),
+          password: form.password,
+          role: form.role as UserRole,
+          phone: form.phone || undefined,
+          status: statusToApiStatus(form.status),
+        }
+
+        if (currentUser?.role === 'SYSTEM_ADMIN') {
+          if (form.role === 'WH_ADMIN') body.warehouseId = form.warehouseId
+          if (form.role === 'TENANT_ADMIN') body.tenantId = form.tenantId
+        } else if (currentUser?.role === 'WH_ADMIN') {
+          body.warehouseId = currentUser.warehouseId ?? undefined
+        } else if (currentUser?.role === 'TENANT_ADMIN') {
+          body.tenantId = currentUser.tenantId ?? undefined
+        }
+
+        await usersApi.createUser(body)
+        setAlert({ open: true, type: 'success', message: 'Tạo tài khoản thành công' })
       }
 
-      setAccounts([newAccount, ...accounts])
+      if (modal.mode === 'edit' && modal.data) {
+        await usersApi.updateUser(modal.data.id, {
+          fullName: form.fullName,
+          phone: form.phone,
+          status: statusToApiStatus(form.status),
+        })
+        setAlert({ open: true, type: 'success', message: 'Cập nhật thành công' })
+      }
 
+      await loadAccounts()
+    } catch (err) {
       setAlert({
         open: true,
         type: 'success',
-        message: 'Tạo tài khoản thành công',
+        message: err instanceof ApiError ? err.message : 'Thao tác thất bại',
       })
     }
-
-    if (modal.mode === 'edit' && modal.data) {
-      const updated = accounts.map((c) =>
-        c.id === modal.data!.id ? { ...c, ...form } : c
-      )
-
-      setAccounts(updated)
-
-      setAlert({
-        open: true,
-        type: 'success',
-        message: 'Cập nhật thành công',
-      })
-    }
-  }
-
-  const handleDelete = (id: string) => {
-    setAccounts(accounts.filter((c) => c.id !== id))
-
-    setAlert({
-      open: true,
-      type: 'success',
-      message: 'Xóa thành công',
-    })
   }
 
   const filteredAccounts = useMemo(() => {
@@ -180,20 +133,30 @@ export const AccountManagement: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1)
   }, [search, roleFilter])
+  const activeCount = accounts.filter((a) => a.status === 'Active').length
+
   return (
     <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
-
+      <LoadingOverlay show={loading} text="Đang tải tài khoản..." />
       <main className="relative flex h-full flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop')] bg-cover bg-center">
         <div className="absolute inset-0 z-0 bg-[#0b101a]/90 backdrop-blur-sm" />
 
         <div className="relative z-10 flex-1 p-8">
           <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
-
-            {/* Stats */}
+            {error && (
+              <p className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg px-4 py-2">
+                {error}
+              </p>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <StatsCard title="Tổng tài khoản" value={124} icon="group" accentColor="emerald" />
-              <StatsCard title="Đang hoạt động" value={98} icon="verified_user" accentColor="primary" />
-              <StatsCard title="Bị khóa" value={6} icon="block" accentColor="orange" />
+              <StatsCard title="Tổng tài khoản" value={accounts.length} icon="group" accentColor="emerald" />
+              <StatsCard title="Đang hoạt động" value={activeCount} icon="verified_user" accentColor="primary" />
+              <StatsCard
+                title="Bị khóa / tạm ngưng"
+                value={accounts.length - activeCount}
+                icon="block"
+                accentColor="orange"
+              />
             </div>
 
             {/* Table */}
@@ -282,18 +245,6 @@ export const AccountManagement: React.FC = () => {
                                 className="p-1.5 hover:bg-white/10 rounded">
                                 <span className="material-symbols-outlined text-lg">edit</span>
                               </button>
-                              <button
-                                onClick={() =>
-                                  setAlert({
-                                    open: true,
-                                    type: 'confirm',
-                                    message: 'Bạn có chắc muốn xóa?',
-                                    onConfirm: () => handleDelete(acc.id),
-                                  })
-                                }
-                                className="p-1.5 hover:bg-white/10 rounded">
-                                <span className="material-symbols-outlined text-lg">delete</span>
-                              </button>
                             </div>
                           </td>
                         </tr>
@@ -330,7 +281,12 @@ export const AccountManagement: React.FC = () => {
       {modal.open && (
         <AccountModal
           mode={modal.mode}
-          data={modal.data}
+          creatorRole={currentUser?.role}
+          data={
+            modal.data
+              ? { ...modal.data, fullName: modal.data.name, name: modal.data.name }
+              : undefined
+          }
           onClose={() => setModal({ ...modal, open: false })}
           onSubmit={handleSubmit}
         />

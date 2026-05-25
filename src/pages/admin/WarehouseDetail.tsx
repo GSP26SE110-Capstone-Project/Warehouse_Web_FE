@@ -3,6 +3,8 @@ import { useParams, useLocation } from 'react-router-dom'
 import type { Warehouse as WarehouseType, Zone } from '../../types/Warehouse'
 import { warehouses } from '../../types/Warehouse'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
+import * as warehousesApi from '../../api/warehouses'
+import { warehouseToRow } from '../../mappers'
 
 export const WarehouseDetailView: React.FC = () => {
     const { id } = useParams()
@@ -23,13 +25,28 @@ export const WarehouseDetailView: React.FC = () => {
     const [isDragging, setIsDragging] = useState(false)
     const [start, setStart] = useState({ x: 0, y: 0 })
 
-    // fallback khi reload
     useEffect(() => {
-        if (!warehouse) {
-            const found = warehouses.find(w => w.warehouseId === id)
-            if (found) setWarehouse(found)
+        if (!id) return
+        if (warehouse) return
+
+        let cancelled = false
+        ;(async () => {
+            try {
+                const apiWh = await warehousesApi.getWarehouse(id)
+                if (!cancelled) {
+                    const row = warehouseToRow(apiWh)
+                    const mockZones = warehouses.find((w) => w.warehouseId === id)?.zones ?? warehouses[0]?.zones ?? []
+                    setWarehouse({ ...row, zones: mockZones })
+                }
+            } catch {
+                const found = warehouses.find((w) => w.warehouseId === id)
+                if (!cancelled && found) setWarehouse(found)
+            }
+        })()
+        return () => {
+            cancelled = true
         }
-    }, [id])
+    }, [id, warehouse])
 
     // load zone
     useEffect(() => {

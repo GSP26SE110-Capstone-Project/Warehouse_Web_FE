@@ -3,38 +3,77 @@ import type { ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { navigationService } from '../../utils/NavigationService'
 import logo from '../../assets/logo.png'
-
+import { useAuth } from '../../auth/AuthContext'
+import type { ApiUser } from '../../api/types'
 
 type NavItem = {
   label: string
   icon: string
   key: string
   href: string
+  roles?: ApiUser['role'][]
 }
 
 const navItems: NavItem[] = [
-  { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/admin' },
+  { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/admin/dashboard' },
   { label: 'Quản lý Yêu cầu', icon: 'description', key: 'requests', href: '/admin/requests' },
-  { label: 'Quản lý Tài khoản', icon: 'people', key: 'accounts', href: '/admin/accounts' },
-  { label: 'Quản lý Kho', icon: 'warehouse', key: 'warehouse', href: '/admin/warehouse' },
+  {
+    label: 'Quản lý Tài khoản',
+    icon: 'people',
+    key: 'accounts',
+    href: '/admin/accounts',
+    roles: ['SYSTEM_ADMIN'],
+  },
+  {
+    label: 'Quản lý Kho',
+    icon: 'warehouse',
+    key: 'warehouse',
+    href: '/admin/warehouse',
+    roles: ['SYSTEM_ADMIN', 'WH_ADMIN'],
+  },
+  {
+    label: 'Quản lý Zone',
+    icon: 'grid_view',
+    key: 'zones',
+    href: '/admin/zones',
+    roles: ['SYSTEM_ADMIN', 'WH_ADMIN'],
+  },
+  {
+    label: 'Sơ đồ Rack',
+    icon: 'view_module',
+    key: 'racks',
+    href: '/admin/racks',
+    roles: ['SYSTEM_ADMIN', 'WH_ADMIN'],
+  },
   { label: 'Quản lý Hàng', icon: 'inventory_2', key: 'inventory', href: '/admin/inventory' },
   { label: 'Quản lý Hợp đồng', icon: 'description', key: 'contracts', href: '/admin/contract' },
-  { label: 'Vận chuyển', icon: 'local_shipping', key: 'transportation', href: '/admin/transportation' },
+  {
+    label: 'Vận chuyển',
+    icon: 'local_shipping',
+    key: 'transportation',
+    href: '/admin/transportation',
+    roles: ['SYSTEM_ADMIN'],
+  },
   { label: 'Xuất nhập Kho', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
-  { label: 'Báo cáo', icon: 'bar_chart', key: 'reports', href: '/admin/reports' },
+  {
+    label: 'Báo cáo',
+    icon: 'bar_chart',
+    key: 'reports',
+    href: '/admin/reports',
+    roles: ['SYSTEM_ADMIN'],
+  },
 ]
 
-type BottomAction = {
-  label: string
-  icon: string
-  href: string
-  className?: string
+/** System Admin chỉ vận hành 3 module cốt lõi */
+const SYSTEM_ADMIN_NAV_KEYS = new Set(['requests', 'accounts', 'warehouse'])
+
+function navItemsForRole(role?: ApiUser['role']) {
+  if (!role) return navItems
+  if (role === 'SYSTEM_ADMIN') {
+    return navItems.filter((item) => SYSTEM_ADMIN_NAV_KEYS.has(item.key))
+  }
+  return navItems.filter((item) => !item.roles || item.roles.includes(role))
 }
-
-const bottomActions: BottomAction[] = [
-  { label: 'Settings', icon: 'settings', href: '/admin/settings' },
-  { label: 'Log Out', icon: 'logout', href: '/logout', className: 'text-slate-500 hover:text-red-400' },
-]
 
 interface SidebarProps {
   collapsed: boolean
@@ -44,16 +83,23 @@ interface SidebarProps {
 export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const location = useLocation()
   const [scanOpen, setScanOpen] = useState(false)
+  const { logout, user } = useAuth()
+  const visibleNav = navItemsForRole(user?.role)
 
   const isActive = (path: string) => {
-    if (path === '/admin') {
-      return location.pathname === '/admin'
+    if (path === '/admin/dashboard') {
+      return location.pathname === '/admin' || location.pathname === '/admin/dashboard'
     }
     return location.pathname.startsWith(path)
   }
 
   const handleItemClick = (path: string) => {
     navigationService.goTo(path)
+  }
+
+  const handleLogout = () => {
+    logout()
+    navigationService.goTo('/login')
   }
 
   return (
@@ -89,7 +135,7 @@ export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
 
         {/* Navigation */}
         <nav className="flex flex-col gap-1">
-          {navItems.map((item) => (
+          {visibleNav.map((item) => (
             <button
               key={item.key}
               onClick={() => handleItemClick(item.href)}
@@ -121,19 +167,21 @@ export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
           </button>
         )}
 
-        {bottomActions.map((item) => (
           <button
-            key={item.label}
-            onClick={() => handleItemClick(item.href)}
-            className={`flex items-center gap-3 rounded-lg px-4 py-2 transition-all hover:text-white ${item.className ?? 'text-slate-500'}`}
+            onClick={() => navigationService.goTo('/admin/settings')}
+            className="flex items-center gap-3 rounded-lg px-4 py-2 transition-all hover:text-white text-slate-500 hover:text-red-400"
           >
-            <span className="material-symbols-outlined text-xl">{item.icon}</span>
-
-            {!collapsed && (
-              <span className="text-sm font-medium">{item.label}</span>
-            )}
+            <span className="material-symbols-outlined text-xl">settings</span>
+            <span>Setting </span>
           </button>
-        ))}
+
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 rounded-lg px-4 py-2 transition-all hover:text-white text-slate-500 hover:text-red-400"
+          >
+            <span className="material-symbols-outlined text-xl">logout</span>
+            <span>Log Out</span>
+          </button>
       </div>
     </aside>
 
