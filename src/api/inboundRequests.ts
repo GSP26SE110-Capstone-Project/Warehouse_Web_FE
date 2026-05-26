@@ -57,6 +57,42 @@ export function listInboundRequests(params?: {
   return apiPaginated<ApiInboundRequest>(`/inbound-requests${buildQuery(params ?? {})}`)
 }
 
+export interface ApiInboundApprovalReadiness {
+  inboundRequestId: string
+  status: InboundStatus
+  warehouseId: string
+  totalExpectedPieces: number
+  inboundLineCount: number
+  assumptions: {
+    piecesPerLpn: number
+    volumeUnitsPerLpn: number
+    boxType: string
+  }
+  estimatedLpnNeeded: number
+  estimatedVolumeUnitsNeeded: number
+  warehouseStorage: {
+    totalBins: number
+    putawayEligibleBins: number
+    emptyBins: number
+    freeLpnSlots: number
+    freeVolumeUnits: number
+  }
+  sufficient: boolean
+  sufficientLpnSlots: boolean
+  sufficientVolume: boolean
+  warnings: string[]
+  batchCount: number
+  canRevokeApproval: boolean
+  canWarehouseCancel: boolean
+  canWarehouseReject: boolean
+}
+
+export function getApprovalReadiness(inboundRequestId: string) {
+  return apiRequest<ApiInboundApprovalReadiness>(
+    `/inbound-requests/${inboundRequestId}/approval-readiness`
+  )
+}
+
 export function getInboundRequest(inboundRequestId: string, includeItems = false) {
   return apiRequest<ApiInboundRequestWithItems>(
     `/inbound-requests/${inboundRequestId}${buildQuery({

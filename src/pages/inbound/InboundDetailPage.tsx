@@ -2,12 +2,18 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
+import { InboundApprovalPanel } from '../../components/inbound/InboundApprovalPanel'
 import { InboundStatusBadge } from '../../components/inbound/InboundStatusBadge'
 import { PutawayBinPicker } from '../../components/inbound/PutawayBinPicker'
 import { useAuth } from '../../auth/AuthContext'
 import { ApiError } from '../../api/client'
 import * as inboundApi from '../../api/inboundRequests'
-import type { ApiInboundRequestItem, ApiInboundRequestWithItems, InboundStatus } from '../../api/inboundRequests'
+import type {
+  ApiInboundApprovalReadiness,
+  ApiInboundRequestItem,
+  ApiInboundRequestWithItems,
+  InboundStatus,
+} from '../../api/inboundRequests'
 import * as batchesApi from '../../api/batches'
 import type { ApiBatch } from '../../api/batches'
 import * as lpnsApi from '../../api/lpns'
@@ -46,7 +52,15 @@ export function InboundDetailPage({ mode, basePath }: Props) {
 
   const [receivedDraft, setReceivedDraft] = useState<Record<string, number>>({})
 
-  const [alert, setAlert] = useState<{ open: boolean; message: string }>({
+  const [readiness, setReadiness] = useState<ApiInboundApprovalReadiness | null>(null)
+
+  const [alert, setAlert] = useState<{
+    open: boolean
+    message: string
+    title?: string
+    type?: 'success' | 'confirm'
+    onConfirm?: () => void
+  }>({
     open: false,
     message: '',
   })
@@ -79,12 +93,22 @@ export function InboundDetailPage({ mode, basePath }: Props) {
       } else {
         setLpns([])
       }
+
+      if (
+        isWarehouse &&
+        ['PENDING', 'APPROVED', 'ARRIVED'].includes(data.status)
+      ) {
+        const r = await inboundApi.getApprovalReadiness(inboundRequestId)
+        setReadiness(r)
+      } else {
+        setReadiness(null)
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không tải chi tiết')
     } finally {
       setLoading(false)
     }
-  }, [inboundRequestId])
+  }, [inboundRequestId, isWarehouse])
 
   useEffect(() => {
     load()
@@ -110,17 +134,50 @@ export function InboundDetailPage({ mode, basePath }: Props) {
     status: InboundStatus,
     extra?: {
       actualArrivalAt?: string
+      approvedBy?: string | null
     }
   ) =>
     runAction(async () => {
       await inboundApi.updateInboundRequest(inboundRequestId, {
         status,
         actualArrivalAt: extra?.actualArrivalAt,
-        approvedBy: status === 'APPROVED' ? user?.userId : undefined,
+        approvedBy:
+          extra?.approvedBy !== undefined
+            ? extra.approvedBy
+            : status === 'APPROVED'
+              ? user?.userId
+              : undefined,
         receivedBy:
           status === 'ARRIVED' || status === 'RECEIVING' ? user?.userId : undefined,
       })
     }, `Cập nhật trạng thái: ${status}`)
+
+  const confirmApprove = () => {
+    const warn = readiness && !readiness.sufficient
+    setAlert({
+      open: true,
+      type: 'confirm',
+      title: warn ? 'Duyệt dù thiếu chỗ?' : 'Duyệt inbound?',
+      message: warn
+        ? `Ước tính thiếu slot LPN hoặc volume. Bạn vẫn muốn duyệt yêu cầu ${inbound?.inboundCode}?`
+        : `Xác nhận duyệt ${inbound?.inboundCode}?`,
+      onConfirm: () => patchStatus('APPROVED'),
+    })
+  }
+
+  const confirmWarehouseCancel = () => {
+    setAlert({
+      open: true,
+      type: 'confirm',
+      title: 'Hủy yêu cầu inbound?',
+      message: readiness?.batchCount
+        ? 'Đã có batch nhận hàng — không thể hủy.'
+        : `Chuyển ${inbound?.inboundCode} sang CANCELLED.`,
+      onConfirm: readiness?.batchCount
+        ? undefined
+        : () => patchStatus('CANCELLED'),
+    })
+  }
 
   const items = inbound?.items ?? []
 
@@ -238,47 +295,108 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                 <InboundStatusBadge status={inbound.status} />
               </div>
 
+              {isWarehouse && readiness && ['PENDING', 'APPROVED', 'ARRIVED'].includes(inbound.status) && (
+                <InboundApprovalPanel readiness={readiness} />
+              )}
+
               {/* Warehouse workflow actions */}
               {isWarehouse && (
                 <div className="mb-6 flex flex-wrap gap-2">
                   {inbound.status === 'PENDING' && (
-                    <button
-                      type="button"
-                      onClick={() => patchStatus('APPROVED')}
-                      className="rounded bg-blue-600 px-3 py-1.5 text-sm hover:bg-blue-500"
-                    >
-                      Duyệt
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={confirmApprove}
+                        className="rounded bg-blue-600 px-3 py-1.5 text-sm hover:bg-blue-500"
+                      >
+                        Duyệt
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAlert({
+                            open: true,
+                            type: 'confirm',
+                            title: 'Từ chối yêu cầu?',
+                            message: `Từ chối (hủy) ${inbound.inboundCode}.`,
+                            onConfirm: () => patchStatus('CANCELLED'),
+                          })
+                        }
+                        className="rounded border border-red-500/40 px-3 py-1.5 text-sm text-red-400"
+                      >
+                        Từ chối
+                      </button>
+                    </>
                   )}
                   {inbound.status === 'APPROVED' && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        patchStatus('ARRIVED', {
-                          actualArrivalAt: new Date().toISOString(),
-                        })
-                      }
-                      className="rounded bg-violet-600 px-3 py-1.5 text-sm"
-                    >
-                      Xe đã đến
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchStatus('ARRIVED', {
+                            actualArrivalAt: new Date().toISOString(),
+                          })
+                        }
+                        className="rounded bg-violet-600 px-3 py-1.5 text-sm"
+                      >
+                        Xe đã đến
+                      </button>
+                      {readiness?.canRevokeApproval && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAlert({
+                              open: true,
+                              type: 'confirm',
+                              title: 'Thu hồi duyệt?',
+                              message: 'Trả về PENDING để xem xét lại (chưa có batch nhận hàng).',
+                              onConfirm: () =>
+                                patchStatus('PENDING', { approvedBy: null }),
+                            })
+                          }
+                          className="rounded border border-slate-500/50 px-3 py-1.5 text-sm text-slate-300"
+                        >
+                          Thu hồi duyệt
+                        </button>
+                      )}
+                      {readiness?.canWarehouseCancel && (
+                        <button
+                          type="button"
+                          onClick={confirmWarehouseCancel}
+                          className="rounded border border-red-500/40 px-3 py-1.5 text-sm text-red-400"
+                        >
+                          Hủy yêu cầu
+                        </button>
+                      )}
+                    </>
                   )}
                   {inbound.status === 'ARRIVED' && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        runAction(
-                          () =>
-                            inboundApi.startReceiving(inboundRequestId, {
-                              receivedBy: user?.userId,
-                            }),
-                          'Bắt đầu nhận hàng'
-                        )
-                      }
-                      className="rounded bg-cyan-600 px-3 py-1.5 text-sm"
-                    >
-                      Bắt đầu nhận hàng
-                    </button>
+                    <>
+                      {readiness?.canWarehouseCancel && (
+                        <button
+                          type="button"
+                          onClick={confirmWarehouseCancel}
+                          className="rounded border border-red-500/40 px-3 py-1.5 text-sm text-red-400"
+                        >
+                          Hủy yêu cầu
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          runAction(
+                            () =>
+                              inboundApi.startReceiving(inboundRequestId, {
+                                receivedBy: user?.userId,
+                              }),
+                            'Bắt đầu nhận hàng'
+                          )
+                        }
+                        className="rounded bg-cyan-600 px-3 py-1.5 text-sm"
+                      >
+                        Bắt đầu nhận hàng
+                      </button>
+                    </>
                   )}
                   {['ARRIVED', 'RECEIVING'].includes(inbound.status) && (
                     <button
@@ -543,8 +661,10 @@ export function InboundDetailPage({ mode, basePath }: Props) {
 
       {alert.open && (
         <AlertModal
-          title="Thông báo"
+          title={alert.title ?? 'Thông báo'}
+          type={alert.type}
           message={alert.message}
+          onConfirm={alert.onConfirm}
           onClose={() => setAlert({ open: false, message: '' })}
         />
       )}

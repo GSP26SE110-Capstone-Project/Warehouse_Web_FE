@@ -243,7 +243,10 @@ function LookupResult({ result }: { result: RentalRequestPublicLookup }) {
         )}
         {result.warehouseName && <DetailRow label="Kho tiếp nhận" value={result.warehouseName} />}
         {result.estimatedBoxCount != null && (
-          <DetailRow label="Số thùng hàng" value={result.estimatedBoxCount.toLocaleString('vi-VN')} />
+          <DetailRow
+            label="Số thùng hàng (ước tính)"
+            value={`${result.estimatedBoxCount.toLocaleString('vi-VN')} thùng / kiện`}
+          />
         )}
         {result.estimatedSkuCount != null && (
           <DetailRow label="Số mã SKU" value={result.estimatedSkuCount.toLocaleString('vi-VN')} />

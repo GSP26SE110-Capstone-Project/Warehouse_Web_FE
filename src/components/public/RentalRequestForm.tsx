@@ -1,4 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import {
+  computeEstimatedBoxCount,
+  formatBoxEstimateSummary,
+  suggestBoxTypeLabel,
+} from '../../utils/rentalBoxEstimate'
 import { ApiError } from '../../api/client'
 import {
   fetchLocationTree,
@@ -153,7 +158,10 @@ export function RentalRequestForm({
   const [regionWarehousesLoading, setRegionWarehousesLoading] = useState(false)
   const [billingCycle, setBillingCycle] = useState('MONTHLY')
   const [requestedAreaM2, setRequestedAreaM2] = useState('')
+  const [estimatedTotalPieces, setEstimatedTotalPieces] = useState('')
+  const [piecesPerBox, setPiecesPerBox] = useState('25')
   const [estimatedBoxCount, setEstimatedBoxCount] = useState('')
+  const [boxCountManual, setBoxCountManual] = useState(false)
   const [estimatedSkuCount, setEstimatedSkuCount] = useState('')
   const [estimatedInboundPerWeek, setEstimatedInboundPerWeek] = useState('')
   const [estimatedOutboundPerWeek, setEstimatedOutboundPerWeek] = useState('')
@@ -168,6 +176,30 @@ export function RentalRequestForm({
   const handleContractTypeChange = (value: ContractTypeValue) => {
     onContractTypeChange(value)
   }
+
+  const computedBoxCount = useMemo(() => {
+    const total = Number(estimatedTotalPieces)
+    const perBox = Number(piecesPerBox)
+    return computeEstimatedBoxCount(total, perBox)
+  }, [estimatedTotalPieces, piecesPerBox])
+
+  useEffect(() => {
+    if (boxCountManual || computedBoxCount == null) return
+    setEstimatedBoxCount(String(computedBoxCount))
+  }, [computedBoxCount, boxCountManual])
+
+  const boxEstimateSummary = useMemo(() => {
+    if (computedBoxCount == null) return null
+    const total = Number(estimatedTotalPieces)
+    const perBox = Number(piecesPerBox)
+    if (!Number.isFinite(total) || !Number.isFinite(perBox)) return null
+    return formatBoxEstimateSummary(total, perBox, computedBoxCount)
+  }, [computedBoxCount, estimatedTotalPieces, piecesPerBox])
+
+  const suggestedBoxType = useMemo(
+    () => suggestBoxTypeLabel(Number(piecesPerBox)),
+    [piecesPerBox]
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -593,23 +625,81 @@ export function RentalRequestForm({
             </div>
 
             <div className="sm:col-span-2">
-              <p className="text-sm font-medium text-gray-200 mb-3">Quy mô hàng hóa (ước tính)</p>
+              <p className="text-sm font-medium text-gray-200 mb-1">Quy mô hàng hóa (ước tính)</p>
+              <p className="text-xs text-[#9bb9bb] mb-3">
+                Số <strong className="text-gray-300">cái</strong> (chiếc sản phẩm) khác số{' '}
+                <strong className="text-gray-300">thùng</strong> (carton/LPN). Hệ thống gợi ý số thùng
+                từ tổng cái ÷ cái/thùng — kho sẽ xác nhận khi nhận hàng thật.
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
-                  <FieldLabel htmlFor="estimatedBoxCount" hint="Số thùng / pallet dự kiến lưu kho">
-                    Số thùng hàng
+                  <FieldLabel
+                    htmlFor="estimatedTotalPieces"
+                    hint="VD: 100 áo thun trong kho (không phải số thùng)"
+                  >
+                    Tổng số cái (ước tính)
+                  </FieldLabel>
+                  <TextInput
+                    id="estimatedTotalPieces"
+                    type="number"
+                    min={1}
+                    value={estimatedTotalPieces}
+                    onChange={(v) => {
+                      setEstimatedTotalPieces(v)
+                      setBoxCountManual(false)
+                    }}
+                    placeholder="100"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <FieldLabel
+                    htmlFor="piecesPerBox"
+                    hint="Trung bình mỗi thùng carton chứa bao nhiêu cái"
+                  >
+                    Cái / thùng (trung bình)
+                  </FieldLabel>
+                  <TextInput
+                    id="piecesPerBox"
+                    type="number"
+                    min={1}
+                    value={piecesPerBox}
+                    onChange={(v) => {
+                      setPiecesPerBox(v)
+                      setBoxCountManual(false)
+                    }}
+                    placeholder="25"
+                  />
+                </div>
+                <div className="flex flex-col gap-2 sm:col-span-2">
+                  <FieldLabel
+                    htmlFor="estimatedBoxCount"
+                    hint="Số thùng / pallet dự kiến lưu kho (≈ số LPN). Tự tính khi nhập tổng cái + cái/thùng; có thể sửa tay."
+                  >
+                    Số thùng hàng (ước tính)
                   </FieldLabel>
                   <TextInput
                     id="estimatedBoxCount"
                     type="number"
                     min={0}
                     value={estimatedBoxCount}
-                    onChange={setEstimatedBoxCount}
-                    placeholder="100"
+                    onChange={(v) => {
+                      setEstimatedBoxCount(v)
+                      setBoxCountManual(true)
+                    }}
+                    placeholder="4"
                   />
+                  {boxEstimateSummary && (
+                    <p className="text-xs text-[#06edf9]/90 pl-1">{boxEstimateSummary}</p>
+                  )}
+                  {Number(piecesPerBox) > 0 && (
+                    <p className="text-xs text-[#9bb9bb] pl-1">
+                      Gợi ý loại thùng khi nhập kho (kho chọn khi tạo LPN):{' '}
+                      <span className="text-gray-300">{suggestedBoxType}</span>
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col gap-2">
-                  <FieldLabel htmlFor="estimatedSkuCount" hint="Số mã sản phẩm khác nhau">
+                  <FieldLabel htmlFor="estimatedSkuCount" hint="Số mã sản phẩm khác nhau (VD: 1 loại áo = 1)">
                     Số mã SKU
                   </FieldLabel>
                   <TextInput
