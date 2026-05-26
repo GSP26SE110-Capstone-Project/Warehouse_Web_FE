@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { InboundStatusBadge } from '../../components/inbound/InboundStatusBadge'
+import { PutawayBinPicker } from '../../components/inbound/PutawayBinPicker'
 import { useAuth } from '../../auth/AuthContext'
 import { ApiError } from '../../api/client'
 import * as inboundApi from '../../api/inboundRequests'
@@ -318,6 +319,12 @@ export function InboundDetailPage({ mode, basePath }: Props) {
               {/* Items */}
               <section className="mb-8 rounded-xl border border-white/10 bg-white/5 p-4">
                 <h2 className="mb-3 font-semibold">Dòng hàng</h2>
+                {isWarehouse && ['ARRIVED', 'RECEIVING'].includes(inbound.status) && (
+                  <p className="mb-3 text-xs text-slate-500">
+                    Nhập số thực nhận, sau đó bấm <strong className="text-amber-400/90">Hoàn tất kiểm đếm</strong>{' '}
+                    để lưu (không cần nút Lưu từng dòng).
+                  </p>
+                )}
                 <table className="w-full text-sm">
                   <thead className="text-slate-400">
                     <tr>
@@ -328,7 +335,15 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {items.map((item: ApiInboundRequestItem) => (
+                    {items.map((item: ApiInboundRequestItem) => {
+                      const canEditReceived =
+                        isWarehouse && ['ARRIVED', 'RECEIVING'].includes(inbound.status)
+                      const received = canEditReceived
+                        ? (receivedDraft[item.inboundRequestItemId] ?? 0)
+                        : (item.receivedQuantity ?? 0)
+                      const discrepancy = item.expectedQuantity - received
+
+                      return (
                       <tr key={item.inboundRequestItemId} className="border-t border-white/5">
                         <td className="py-2">
                           {item.sku?.skuCode ?? item.skuId.slice(0, 8)}
@@ -338,7 +353,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                         </td>
                         <td className="py-2 text-right">{item.expectedQuantity}</td>
                         <td className="py-2 text-right">
-                          {isWarehouse && ['ARRIVED', 'RECEIVING'].includes(inbound.status) ? (
+                          {canEditReceived ? (
                             <input
                               type="number"
                               min={0}
@@ -352,14 +367,34 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                               }
                             />
                           ) : (
-                            (item.receivedQuantity ?? 0)
+                            received
                           )}
                         </td>
-                        <td className="py-2 text-right text-amber-300">
-                          {item.discrepancyQuantity ?? '—'}
+                        <td
+                          className={`py-2 text-right ${
+                            discrepancy === 0
+                              ? 'text-emerald-400'
+                              : discrepancy > 0
+                                ? 'text-amber-300'
+                                : 'text-violet-300'
+                          }`}
+                          title={
+                            discrepancy > 0
+                              ? 'Thiếu so với tenant khai báo'
+                              : discrepancy < 0
+                                ? 'Thừa so với tenant khai báo'
+                                : 'Khớp'
+                          }
+                        >
+                          {discrepancy}
+                          {canEditReceived && discrepancy !== 0 && (
+                            <span className="block text-[10px] font-normal text-slate-500">
+                              {discrepancy > 0 ? 'thiếu' : 'thừa'}
+                            </span>
+                          )}
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </section>
@@ -476,21 +511,19 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                     </div>
 
                     <h3 className="mb-2 mt-4 text-sm font-medium text-slate-300">Putaway</h3>
-                    <div className="flex gap-2">
-                      <input
-                        value={putawayBinId}
-                        onChange={(e) => setPutawayBinId(e.target.value)}
-                        placeholder="binId (UUID)"
-                        className="flex-1 rounded border border-white/10 bg-[#0f172a] px-3 py-2 text-xs font-mono"
-                      />
-                      <button
-                        type="button"
-                        onClick={handlePutaway}
-                        className="rounded bg-emerald-600 px-3 py-2 text-sm"
-                      >
-                        Putaway
-                      </button>
-                    </div>
+                    <PutawayBinPicker
+                      warehouseId={inbound.warehouseId}
+                      value={putawayBinId}
+                      onChange={setPutawayBinId}
+                    />
+                    <button
+                      type="button"
+                      onClick={handlePutaway}
+                      disabled={!putawayBinId || !selectedLpnId}
+                      className="mt-2 w-full rounded bg-emerald-600 px-3 py-2 text-sm disabled:opacity-40"
+                    >
+                      Putaway
+                    </button>
                     <p className="mt-2 text-xs text-slate-500">
                       LPN phải có SKU trong thùng. Sau putaway status → STORED.
                     </p>

@@ -47,6 +47,7 @@ export function updateBin(
     status?: string
     maxLpnCount?: number
     maxVolumeUnits?: number
+    maxOwnerCount?: number
   }
 ) {
   return apiRequest<ApiBin>(`/bins/${binId}`, { method: 'PATCH', body })

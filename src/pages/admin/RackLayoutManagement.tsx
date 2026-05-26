@@ -3,6 +3,9 @@ import { useSearchParams } from 'react-router-dom'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { RackModal, type RackFormPayload } from '../../components/ui/modal/RackModal'
+import { BinModal, type BinFormPayload } from '../../components/ui/modal/BinModal'
+import { getDefaultBinCapacity } from '../../data/binCapacityDefaults'
+import { formatBinOccupancy } from '../../utils/binOccupancy'
 import {
   CinemaSeatGrid,
   SeatLegendItem,
@@ -29,10 +32,7 @@ import * as binsApi from '../../api/bins'
 import type { ApiBin } from '../../api/bins'
 import { useAuth } from '../../auth/AuthContext'
 import { ZONE_TYPE_LABELS } from '../../data/zoneTypes'
-import {
-  BIN_STATUS_LABELS,
-  RESERVATION_TYPE_LABELS,
-} from '../../data/rackStructure'
+import { BIN_STATUS_LABELS } from '../../data/rackStructure'
 
 function binSeatStatus(bin: ApiBin | null): SeatVisualStatus {
   if (!bin) return 'empty-bin'
@@ -84,6 +84,15 @@ export const RackLayoutManagement = () => {
     suggestedCode?: string
     data?: ApiRack
   }>({ open: false, mode: 'create' })
+
+  const [binModal, setBinModal] = useState<{
+    open: boolean
+    mode: 'create' | 'edit'
+    rackLevelId: string
+    levelNumber: number
+    binCode: string
+    bin?: ApiBin
+  } | null>(null)
 
   const [alert, setAlert] = useState<{
     open: boolean
@@ -247,10 +256,12 @@ export const RackLayoutManagement = () => {
         const bin = bins[c] ?? null
         row.push({
           id: bin?.binId ?? null,
-          label: bin ? bin.binCode.slice(-3) : '+',
+          label: bin
+            ? `${bin.binCode.slice(-3)}\n${bin.currentLpnCount ?? 0}/${bin.maxLpnCount ?? '?'}`
+            : '+',
           hint: bin
-            ? `${bin.binCode} · ${BIN_STATUS_LABELS[bin.status ?? ''] ?? bin.status} · ${
-                RESERVATION_TYPE_LABELS[bin.reservationType ?? ''] ?? bin.reservationType
+            ? `${bin.binCode} · ${formatBinOccupancy(bin)} · ${
+                BIN_STATUS_LABELS[bin.status ?? ''] ?? bin.status
               }`
             : `Tầng ${lv.levelNumber} · ô ${c + 1}`,
           status: binSeatStatus(bin),
@@ -284,20 +295,21 @@ export const RackLayoutManagement = () => {
     })
   }
 
-  const handleBinSeatClick = async (seat: CinemaSeat, row: number, col: number) => {
-    if (!selectedRack || !levels[row]) return
+  const handleBinSeatClick = (seat: CinemaSeat, row: number, col: number) => {
+    if (!selectedRack || !levels[row] || !activeZone) return
     const level = levels[row]
 
     if (seat.id) {
       const bin = (binsByLevel[level.rackLevelId] ?? []).find((b) => b.binId === seat.id)
       if (!bin) return
-      const nextStatus = bin.status === 'BLOCKED' ? 'EMPTY' : 'BLOCKED'
-      try {
-        await binsApi.updateBin(bin.binId, { status: nextStatus })
-        await loadRackDetail(selectedRack.rackId)
-      } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Cập nhật bin thất bại')
-      }
+      setBinModal({
+        open: true,
+        mode: 'edit',
+        rackLevelId: level.rackLevelId,
+        levelNumber: level.levelNumber,
+        binCode: bin.binCode,
+        bin,
+      })
       return
     }
 
@@ -312,19 +324,41 @@ export const RackLayoutManagement = () => {
     }
 
     const code = `${selectedRack.rackCode}-L${level.levelNumber}-${col + 1}`
-    try {
+    setBinModal({
+      open: true,
+      mode: 'create',
+      rackLevelId: level.rackLevelId,
+      levelNumber: level.levelNumber,
+      binCode: code,
+    })
+  }
+
+  const submitBin = async (payload: BinFormPayload) => {
+    if (!binModal || !selectedRack) return
+    if (binModal.mode === 'create') {
       await binsApi.createBin({
-        rackLevelId: level.rackLevelId,
-        binCode: code,
-        maxLpnCount: 4,
-        maxVolumeUnits: 4,
-        reservationType: 'SHARED',
+        rackLevelId: binModal.rackLevelId,
+        binCode: binModal.binCode,
+        maxLpnCount: payload.maxLpnCount,
+        maxVolumeUnits: payload.maxVolumeUnits,
+        reservationType: payload.reservationType,
         status: 'EMPTY',
       })
-      await loadRackDetail(selectedRack.rackId)
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Tạo bin thất bại')
+    } else if (binModal.bin) {
+      const body: Parameters<typeof binsApi.updateBin>[1] = {
+        maxLpnCount: payload.maxLpnCount,
+        maxVolumeUnits: payload.maxVolumeUnits,
+        reservationType: payload.reservationType,
+      }
+      if (payload.status) body.status = payload.status
+      await binsApi.updateBin(binModal.bin.binId, body)
     }
+    await loadRackDetail(selectedRack.rackId)
+    setAlert({
+      open: true,
+      type: 'success',
+      message: binModal.mode === 'create' ? 'Đã tạo bin' : 'Đã lưu cấu hình bin',
+    })
   }
 
   const submitRack = async (payload: RackFormPayload) => {
@@ -520,15 +554,37 @@ export const RackLayoutManagement = () => {
                   <SeatLegendItem status="partial" label="Một phần" />
                   <SeatLegendItem status="full" label="Đầy" />
                   <SeatLegendItem status="reserved" label="Giữ chỗ" />
-                  <SeatLegendItem status="blocked" label="Khóa (nhấn để bật/tắt)" />
+                  <SeatLegendItem status="blocked" label="Khóa" />
                 </>
               }
             />
           )}
-          <p className="mt-3 text-center text-[10px] text-slate-500">
-            Nhấn ô &quot;+&quot; để tạo bin · Nhấn bin để khóa/mở khóa (EMPTY ↔ BLOCKED)
+          {activeZone && (
+            <p className="mt-2 text-center text-xs text-slate-400">
+              Mặc định zone {ZONE_TYPE_LABELS[activeZone.zoneType ?? ''] ?? activeZone.zoneType}:{' '}
+              {getDefaultBinCapacity(activeZone.zoneType).maxLpnCount} LPN /{' '}
+              {getDefaultBinCapacity(activeZone.zoneType).maxVolumeUnits} volume
+            </p>
+          )}
+          <p className="mt-1 text-center text-[10px] text-slate-500">
+            Nhấn ô &quot;+&quot; hoặc bin để cấu hình maxLpnCount · maxVolumeUnits · tooltip hiển thị
+            LPN/Vol đang dùng
           </p>
         </section>
+      )}
+
+      {binModal?.open && activeZone && selectedRack && (
+        <BinModal
+          mode={binModal.mode}
+          zoneType={activeZone.zoneType}
+          zoneLabel={`${activeZone.zoneCode}${activeZone.zoneName ? ` · ${activeZone.zoneName}` : ''}`}
+          rackCode={selectedRack.rackCode}
+          levelLabel={`Tầng ${binModal.levelNumber}`}
+          binCode={binModal.binCode}
+          data={binModal.bin}
+          onClose={() => setBinModal(null)}
+          onSubmit={submitBin}
+        />
       )}
 
       {rackModal.open && activeZone && (
