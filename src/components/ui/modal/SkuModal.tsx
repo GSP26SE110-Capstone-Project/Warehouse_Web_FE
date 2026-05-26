@@ -3,7 +3,7 @@ import type { ApiSku } from '../../../api/skus'
 import type { ApiCategory } from '../../../api/categories'
 import type { ApiCollection } from '../../../api/collections'
 import type { ApiSeason } from '../../../api/seasons'
-import { MOVEMENT_CATEGORY_OPTIONS, SKU_STATUS_OPTIONS } from '../../../data/skuOptions'
+import { MOVEMENT_CATEGORY_OPTIONS, SIZE_OPTIONS, SKU_STATUS_OPTIONS } from '../../../data/skuOptions'
 
 type Mode = 'create' | 'edit' | 'view'
 
@@ -226,13 +226,22 @@ export function SkuModal({
               />
             </div>
             <div>
-              <label className={labelStyle}>Size</label>
-              <input
+              <label className={labelStyle} htmlFor="sku-size">
+                Size
+              </label>
+              <select
+                id="sku-size"
                 className={inputStyle}
                 disabled={isView}
                 value={form.size}
                 onChange={(e) => setForm((f) => ({ ...f, size: e.target.value }))}
-              />
+              >
+                {SIZE_OPTIONS.map((o) => (
+                  <option key={o.value || 'empty'} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className={labelStyle}>Chất liệu</label>

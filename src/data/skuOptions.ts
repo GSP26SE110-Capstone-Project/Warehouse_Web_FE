@@ -12,3 +12,17 @@ export const SKU_STATUS_OPTIONS = [
 export const MOVEMENT_LABELS: Record<string, string> = Object.fromEntries(
   MOVEMENT_CATEGORY_OPTIONS.map((o) => [o.value, o.label])
 )
+
+/** Size cố định (hướng A) — lưu giá trị string trên cột `skus.size` */
+export const SIZE_OPTIONS = [
+  { value: '', label: '—' },
+  { value: 'XXS', label: 'XXS' },
+  { value: 'XS', label: 'XS' },
+  { value: 'S', label: 'S' },
+  { value: 'M', label: 'M' },
+  { value: 'L', label: 'L' },
+  { value: 'XL', label: 'XL' },
+  { value: 'XXL', label: 'XXL' },
+  { value: '3XL', label: '3XL' },
+  { value: 'FREE', label: 'Free size' },
+] as const

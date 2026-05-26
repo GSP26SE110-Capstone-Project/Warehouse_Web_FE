@@ -4,6 +4,7 @@ import { Pagination } from '../../components/ui/Pagination'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { SkuModal, type SkuFormPayload } from '../../components/ui/modal/SkuModal'
+import { ProductMasterDataPanel } from '../../components/product/ProductMasterDataPanel'
 import { useAuth } from '../../auth/AuthContext'
 import { ApiError } from '../../api/client'
 import * as skusApi from '../../api/skus'
@@ -47,6 +48,7 @@ export const TenantProductManagement = () => {
     onConfirm?: () => void
   }>({ open: false, type: 'success', message: '' })
 
+  const [pageTab, setPageTab] = useState<'skus' | 'master'>('skus')
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 8
 
@@ -175,11 +177,33 @@ export const TenantProductManagement = () => {
       <LoadingOverlay show={loading} text="Đang tải hàng hóa..." />
 
       <div className="flex flex-1 flex-col gap-6 p-6 lg:p-8">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Quản lý hàng hóa</h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Danh mục SKU (quần áo) của tenant — dùng cho yêu cầu nhập kho & xuất kho
-          </p>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Quản lý hàng hóa</h1>
+            <p className="mt-1 text-sm text-slate-400">
+              SKU và master data (danh mục, bộ sưu tập, mùa) — dùng cho nhập / xuất kho
+            </p>
+          </div>
+          <div className="flex gap-1 rounded-lg border border-white/10 p-1">
+            <button
+              type="button"
+              onClick={() => setPageTab('skus')}
+              className={`rounded-md px-4 py-2 text-sm font-medium ${
+                pageTab === 'skus' ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-400'
+              }`}
+            >
+              SKU
+            </button>
+            <button
+              type="button"
+              onClick={() => setPageTab('master')}
+              className={`rounded-md px-4 py-2 text-sm font-medium ${
+                pageTab === 'master' ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-400'
+              }`}
+            >
+              Danh mục & master
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -188,6 +212,17 @@ export const TenantProductManagement = () => {
           </p>
         )}
 
+        {pageTab === 'master' ? (
+          <ProductMasterDataPanel
+            tenantId={tenantId}
+            canEdit={canEdit}
+            categories={categories}
+            collections={collections}
+            seasons={seasons}
+            onRefresh={loadData}
+          />
+        ) : (
+          <>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <StatsCard title="Tổng SKU" value={skus.length} icon="inventory_2" accentColor="emerald" />
           <StatsCard title="Đang active" value={activeCount} icon="check_circle" accentColor="primary" />
@@ -337,6 +372,8 @@ export const TenantProductManagement = () => {
             </div>
           )}
         </section>
+          </>
+        )}
       </div>
 
       {modal.open && (
