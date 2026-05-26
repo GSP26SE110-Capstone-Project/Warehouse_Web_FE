@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { navigationService } from '../../utils/NavigationService'
 import logo from '../../assets/logo.png'
 import { useAuth } from '../../auth/AuthContext'
 import type { ApiUser } from '../../api/types'
+import { getTenant } from '../../api/tenants'
+import { getWarehouse } from '../../api/warehouses'
 
 type NavItem = {
   label: string
@@ -56,10 +58,56 @@ interface SidebarProps {
   onToggle: () => void
 }
 
+function roleSubtitle(role?: ApiUser['role']) {
+  if (role === 'TENANT_ADMIN') return 'Quản trị tenant'
+  if (role === 'TENANT_STAFF') return 'Nhân viên tenant'
+  if (role === 'WH_STAFF') return 'Nhân viên kho'
+  return 'Staff'
+}
+
 export const StaffSidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const location = useLocation()
   const { logout, user } = useAuth()
   const visibleNav = navItemsForRole(user?.role)
+  const [orgLabel, setOrgLabel] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadOrg() {
+      if (!user) {
+        setOrgLabel('')
+        return
+      }
+
+      try {
+        if (user.tenantId && (user.role === 'TENANT_ADMIN' || user.role === 'TENANT_STAFF')) {
+          const tenant = await getTenant(user.tenantId)
+          if (!cancelled) {
+            setOrgLabel(tenant.companyName || tenant.companyCode || 'Tenant')
+          }
+          return
+        }
+
+        if (user.warehouseId && user.role === 'WH_STAFF') {
+          const warehouse = await getWarehouse(user.warehouseId)
+          if (!cancelled) {
+            setOrgLabel(warehouse.warehouseName || warehouse.warehouseCode || 'Kho')
+          }
+          return
+        }
+
+        if (!cancelled) setOrgLabel(roleSubtitle(user.role))
+      } catch {
+        if (!cancelled) setOrgLabel(roleSubtitle(user.role))
+      }
+    }
+
+    loadOrg()
+    return () => {
+      cancelled = true
+    }
+  }, [user?.tenantId, user?.warehouseId, user?.role])
 
   const isActive = (path: string) => {
     if (path === '/staff/dashboard') {
@@ -91,8 +139,11 @@ export const StaffSidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle })
             {!collapsed && (
               <div className="flex flex-col">
                 <h1 className="text-lg font-bold text-white">NEXSPACE</h1>
-                <p className="font-mono text-xs text-cyan-400/60">
-                  {user?.role === 'TENANT_ADMIN' ? 'Tenant' : 'Staff'}
+                <p
+                  className="max-w-[140px] truncate font-mono text-xs text-cyan-400/80"
+                  title={orgLabel || roleSubtitle(user?.role)}
+                >
+                  {orgLabel || roleSubtitle(user?.role)}
                 </p>
               </div>
             )}

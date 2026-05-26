@@ -7,6 +7,7 @@ import { ApiError } from '../../api/client'
 import * as inboundApi from '../../api/inboundRequests'
 import * as contractsApi from '../../api/contracts'
 import * as skusApi from '../../api/skus'
+import * as warehousesApi from '../../api/warehouses'
 import type { ApiSku } from '../../api/skus'
 
 type LineDraft = { skuId: string; expectedQuantity: number }
@@ -19,6 +20,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
   const [contracts, setContracts] = useState<
     Awaited<ReturnType<typeof contractsApi.listContracts>>['items']
   >([])
+  const [warehouseCodes, setWarehouseCodes] = useState<Map<string, string>>(new Map())
   const [skus, setSkus] = useState<ApiSku[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -40,12 +42,16 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
     }
     setLoading(true)
     try {
-      const [cRes, sRes] = await Promise.all([
+      const [cRes, sRes, whRes] = await Promise.all([
         contractsApi.listContracts({ tenantId, status: 'ACTIVE', limit: 100 }),
         skusApi.listSkus({ tenantId, status: 'ACTIVE', limit: 200 }),
+        warehousesApi.listWarehouses({ limit: 200 }),
       ])
       setContracts(cRes.items)
       setSkus(sRes.items)
+      setWarehouseCodes(
+        new Map(whRes.items.map((w) => [w.warehouseId, w.warehouseCode]))
+      )
       if (cRes.items.length === 1) setContractId(cRes.items[0].contractId)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không tải dữ liệu')
@@ -134,11 +140,14 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                 className="rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2"
               >
                 <option value="">— Chọn hợp đồng —</option>
-                {contracts.map((c) => (
-                  <option key={c.contractId} value={c.contractId}>
-                    {c.contractCode ?? c.contractId} — {c.warehouseId.slice(0, 8)}…
-                  </option>
-                ))}
+                {contracts.map((c) => {
+                  const whCode = warehouseCodes.get(c.warehouseId) ?? '—'
+                  return (
+                    <option key={c.contractId} value={c.contractId}>
+                      {c.contractCode} — {whCode}
+                    </option>
+                  )
+                })}
               </select>
             </label>
 
