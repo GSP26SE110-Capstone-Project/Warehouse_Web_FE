@@ -25,6 +25,9 @@ import { StaffLayout } from './components/common/layout/StaffLayout'
 import { StaffRequestManagement } from './pages/staff/TransportManagement'
 import { ImportExportManagement } from './pages/staff/ImportExportManagement'
 import { TenantProductManagement } from './pages/staff/TenantProductManagement'
+import { InboundListPage } from './pages/inbound/InboundListPage'
+import { InboundCreatePage } from './pages/inbound/InboundCreatePage'
+import { InboundDetailPage } from './pages/inbound/InboundDetailPage'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { ADMIN_ROLES, getHomePathForRole, STAFF_ROLES, useAuth } from './auth/AuthContext'
 
@@ -61,6 +64,14 @@ export const Router: React.FC = () => {
               <Route path="/admin/settings" element={<AdminSettings />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/admin/requests" element={<RequestManagement />} />
+              <Route
+                path="/admin/inbound"
+                element={<InboundListPage mode="warehouse" basePath="/admin/inbound" />}
+              />
+              <Route
+                path="/admin/inbound/:inboundRequestId"
+                element={<InboundDetailPage mode="warehouse" basePath="/admin/inbound" />}
+              />
             </Route>
           </Route>
 
@@ -71,6 +82,26 @@ export const Router: React.FC = () => {
               <Route path="/staff/requests" element={<StaffRequestManagement />} />
               <Route path="/staff/products" element={<TenantProductManagement />} />
               <Route path="/staff/import-export" element={<ImportExportManagement />} />
+              <Route
+                path="/staff/inbound"
+                element={<InboundListPage mode="tenant" basePath="/staff/inbound" />}
+              />
+              <Route
+                path="/staff/inbound/new"
+                element={<InboundCreatePage basePath="/staff/inbound" />}
+              />
+              <Route
+                path="/staff/inbound/:inboundRequestId"
+                element={<InboundDetailPage mode="tenant" basePath="/staff/inbound" />}
+              />
+              <Route
+                path="/staff/inbound-ops"
+                element={<InboundListPage mode="warehouse" basePath="/staff/inbound-ops" />}
+              />
+              <Route
+                path="/staff/inbound-ops/:inboundRequestId"
+                element={<InboundDetailPage mode="warehouse" basePath="/staff/inbound-ops" />}
+              />
             </Route>
           </Route>
         </Routes>

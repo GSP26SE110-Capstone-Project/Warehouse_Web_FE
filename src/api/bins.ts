@@ -13,6 +13,10 @@ export interface ApiBin {
   usedVolumeUnits?: number
 }
 
+export function getBin(binId: string) {
+  return apiRequest<ApiBin>(`/bins/${binId}`)
+}
+
 export function listBins(params: {
   rackLevelId: string
   status?: string

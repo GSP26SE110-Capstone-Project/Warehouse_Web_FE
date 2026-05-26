@@ -1,0 +1,166 @@
+import { apiRequest, apiPaginated, buildQuery } from './client'
+
+export type InboundStatus =
+  | 'DRAFT'
+  | 'PENDING'
+  | 'APPROVED'
+  | 'ARRIVED'
+  | 'RECEIVING'
+  | 'COMPLETED'
+  | 'CANCELLED'
+
+export interface ApiInboundRequest {
+  inboundRequestId: string
+  tenantId: string
+  contractId: string
+  warehouseId: string
+  inboundCode: string
+  expectedArrivalDate?: string | null
+  actualArrivalAt?: string | null
+  status: InboundStatus
+  createdBy?: string | null
+  approvedBy?: string | null
+  receivedBy?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface ApiInboundRequestItem {
+  inboundRequestItemId: string
+  inboundRequestId: string
+  skuId: string
+  expectedQuantity: number
+  receivedQuantity?: number
+  discrepancyQuantity?: number
+  createdAt?: string
+  sku?: {
+    skuId: string
+    skuCode: string
+    productName: string
+    color?: string | null
+    size?: string | null
+  }
+}
+
+export interface ApiInboundRequestWithItems extends ApiInboundRequest {
+  items?: ApiInboundRequestItem[]
+}
+
+export function listInboundRequests(params?: {
+  tenantId?: string
+  warehouseId?: string
+  contractId?: string
+  status?: string
+  page?: number
+  limit?: number
+}) {
+  return apiPaginated<ApiInboundRequest>(`/inbound-requests${buildQuery(params ?? {})}`)
+}
+
+export function getInboundRequest(inboundRequestId: string, includeItems = false) {
+  return apiRequest<ApiInboundRequestWithItems>(
+    `/inbound-requests/${inboundRequestId}${buildQuery({
+      includeItems: includeItems ? 'true' : undefined,
+    })}`
+  )
+}
+
+export function createInboundRequest(body: {
+  tenantId: string
+  contractId: string
+  warehouseId: string
+  expectedArrivalDate?: string
+  status?: InboundStatus
+  createdBy?: string
+}) {
+  return apiRequest<ApiInboundRequest>('/inbound-requests', { method: 'POST', body })
+}
+
+export function updateInboundRequest(
+  inboundRequestId: string,
+  body: {
+    expectedArrivalDate?: string | null
+    actualArrivalAt?: string | null
+    status?: InboundStatus
+    approvedBy?: string | null
+    receivedBy?: string | null
+  }
+) {
+  return apiRequest<ApiInboundRequest>(`/inbound-requests/${inboundRequestId}`, {
+    method: 'PATCH',
+    body,
+  })
+}
+
+export function deleteInboundRequest(inboundRequestId: string) {
+  return apiRequest<ApiInboundRequest>(`/inbound-requests/${inboundRequestId}`, {
+    method: 'DELETE',
+  })
+}
+
+export function listInboundItems(inboundRequestId: string, params?: { page?: number; limit?: number }) {
+  return apiPaginated<ApiInboundRequestItem>(
+    `/inbound-requests/${inboundRequestId}/items${buildQuery(params ?? {})}`
+  )
+}
+
+export function createInboundItem(
+  inboundRequestId: string,
+  body: { skuId: string; expectedQuantity: number }
+) {
+  return apiRequest<ApiInboundRequestItem>(`/inbound-requests/${inboundRequestId}/items`, {
+    method: 'POST',
+    body,
+  })
+}
+
+export function updateInboundItem(
+  inboundRequestItemId: string,
+  body: {
+    expectedQuantity?: number
+    receivedQuantity?: number
+    discrepancyQuantity?: number
+  }
+) {
+  return apiRequest<ApiInboundRequestItem>(`/inbound-request-items/${inboundRequestItemId}`, {
+    method: 'PATCH',
+    body,
+  })
+}
+
+export function deleteInboundItem(inboundRequestItemId: string) {
+  return apiRequest<ApiInboundRequestItem>(`/inbound-request-items/${inboundRequestItemId}`, {
+    method: 'DELETE',
+  })
+}
+
+export function startReceiving(inboundRequestId: string, body?: { receivedBy?: string }) {
+  return apiRequest<ApiInboundRequest>(`/inbound-requests/${inboundRequestId}/start-receiving`, {
+    method: 'POST',
+    body: body ?? {},
+  })
+}
+
+export function completeReceiving(
+  inboundRequestId: string,
+  body?: {
+    items?: { inboundRequestItemId: string; receivedQuantity: number }[]
+  }
+) {
+  return apiRequest<{
+    inboundRequestId: string
+    status: string
+    items: ApiInboundRequestItem[]
+    message: string
+  }>(`/inbound-requests/${inboundRequestId}/complete-receiving`, {
+    method: 'POST',
+    body: body ?? {},
+  })
+}
+
+export function completeInbound(inboundRequestId: string, body?: { receivedBy?: string }) {
+  return apiRequest<ApiInboundRequest>(`/inbound-requests/${inboundRequestId}/complete`, {
+    method: 'POST',
+    body: body ?? {},
+  })
+}

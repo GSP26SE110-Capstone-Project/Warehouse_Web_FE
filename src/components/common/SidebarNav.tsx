@@ -54,7 +54,14 @@ const navItems: NavItem[] = [
     href: '/admin/transportation',
     roles: ['SYSTEM_ADMIN'],
   },
-  { label: 'Xuất nhập Kho', icon: 'input', key: 'stock-movements', href: '/admin/stock-movements' },
+  {
+    label: 'Nhập kho',
+    icon: 'input',
+    key: 'inbound',
+    href: '/admin/inbound',
+    roles: ['WH_ADMIN'],
+  },
+  { label: 'Xuất nhập Kho', icon: 'swap_horiz', key: 'stock-movements', href: '/admin/stock-movements' },
   {
     label: 'Báo cáo',
     icon: 'bar_chart',

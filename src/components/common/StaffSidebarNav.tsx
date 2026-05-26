@@ -21,15 +21,16 @@ const TENANT_NAV: NavItem[] = [
     href: '/staff/products',
   },
   {
-    label: 'Yêu cầu xuất nhập',
-    icon: 'swap_horiz',
-    key: 'import-export',
-    href: '/staff/import-export',
+    label: 'Yêu cầu nhập kho',
+    icon: 'input',
+    key: 'inbound',
+    href: '/staff/inbound',
   },
 ]
 
 const WH_STAFF_NAV: NavItem[] = [
   { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/staff/dashboard' },
+  { label: 'Nhập kho', icon: 'input', key: 'inbound-ops', href: '/staff/inbound-ops' },
   { label: 'Quản lý vận chuyển', icon: 'local_shipping', key: 'requests', href: '/staff/requests' },
 ]
 
