@@ -211,20 +211,15 @@ export const InboundModal: React.FC<Props> = ({
     const isEditMode = !isCreate && !isView
     const getUserName = (userId: string) => userMap[userId] || userId
 
-    // Đổi màu label sang xám đậm hơn trên nền trắng
     const labelStyle = 'text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5 block'
-    // Đổi màu input sang trắng, viền xám, chữ đen
     const inputStyle = 'w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20 transition-all disabled:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed'
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Overlay tối vừa phải */}
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
-            {/* Container chính: nền trắng, viền nhẹ, đổ bóng đậm hơn */}
             <div className="relative z-10 w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-xl border border-slate-100 bg-white shadow-xl flex flex-col">
 
-                {/* Header: nền xám rất nhẹ */}
                 <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-slate-50/50">
                     <div>
                         <h2 className="text-lg font-bold text-slate-950 flex items-center gap-2">
@@ -423,7 +418,7 @@ export const InboundModal: React.FC<Props> = ({
                     )}
                 </div>
 
-                {/* Footer: Nền xám nhẹ */}
+                {/* Footer */}
                 <div className="flex justify-end items-center gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
                     <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors">
                         Hủy bỏ

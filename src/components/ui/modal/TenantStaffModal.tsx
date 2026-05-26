@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { UserRequest, UserResponse, Status, Role } from '../../../types/Account'
-import { warehouseApi } from '../../../service/warehouseApi'
+import { tenantCompanyApi } from '../../../service/tenantCompany'
+import { accountApi } from '../../../service/accountApi'
 
 type Mode = 'view' | 'edit' | 'create'
 
@@ -11,7 +12,7 @@ type Props = {
     onSubmit?: (data: UserRequest) => void
 }
 
-export const StaffModal: React.FC<Props> = ({
+export const TenantStaffModal: React.FC<Props> = ({
     mode,
     data,
     onClose,
@@ -20,53 +21,53 @@ export const StaffModal: React.FC<Props> = ({
     const isView = mode === 'view'
     const isCreate = mode === 'create'
 
-    const [warehouseName, setWarehouseName] = useState('')
-    const [loadingWarehouse, setLoadingWarehouse] = useState(false)
+    const [tenantName, setTenantName] = useState('')
+    const [loadingTenant, setLoadingTenant] = useState(false)
     const [passwordError, setPasswordError] = useState('')
 
     const [form, setForm] = useState({
         fullName: '',
         email: '',
         phone: '',
-        role: 'WH_STAFF' as Role,
+        role: 'TENANT_STAFF' as Role,
         status: 'ACTIVE' as Status,
-        warehouseId: '',
+        tenantId: '',
         password: '',
         createdAt: '',
         updatedAt: '',
     })
 
-    // Lấy warehouseId từ localStorage và fetch warehouse name
+    // Lấy tenantId từ localStorage và fetch tenant name
     useEffect(() => {
         const userString = localStorage.getItem('user')
         if (userString) {
             try {
                 const user = JSON.parse(userString)
-                if (user.warehouseId) {
+                if (user.tenantId) {
                     setForm(prev => ({
                         ...prev,
-                        warehouseId: user.warehouseId,
+                        tenantId: user.tenantId,
                     }))
 
-                    // Fetch warehouse name
-                    const fetchWarehouse = async () => {
+                    // Fetch tenant name
+                    const fetchTenant = async () => {
                         try {
-                            setLoadingWarehouse(true)
-                            const response = await warehouseApi.getById(user.warehouseId)
-                            if (response.data.data?.warehouseName) {
-                                setWarehouseName(response.data.data.warehouseName)
+                            setLoadingTenant(true)
+                            const response = await tenantCompanyApi.getById(user.tenantId)
+                            if (response.data.data?.companyName) {
+                                setTenantName(response.data.data.companyName)
                             }
                         } catch (err) {
-                            console.error('Lỗi tải thông tin kho hàng:', err)
+                            console.error('Lỗi tải thông tin công ty:', err)
                         } finally {
-                            setLoadingWarehouse(false)
+                            setLoadingTenant(false)
                         }
                     }
-                    fetchWarehouse()
+                    fetchTenant()
                 }
             }
             catch (err) {
-                console.error('Lỗi lấy warehouseId:', err)
+                console.error('Lỗi lấy tenantId:', err)
             }
         }
     }, [])
@@ -80,7 +81,7 @@ export const StaffModal: React.FC<Props> = ({
                 phone: data.phone || '',
                 role: data.role,
                 status: data.status,
-                warehouseId: data.warehouseId || '',
+                tenantId: data.tenantId || '',
                 password: '',
                 createdAt: data.createdAt,
                 updatedAt: data.updatedAt,
@@ -116,7 +117,7 @@ export const StaffModal: React.FC<Props> = ({
                 phone: form.phone || '',
                 role: form.role,
                 status: form.status,
-                warehouseId: form.warehouseId,
+                tenantId: form.tenantId,
             }
         } else {
             submitData = {
@@ -166,11 +167,11 @@ export const StaffModal: React.FC<Props> = ({
                         <h3 className="text-[10px] font-black text-cyan-700 tracking-[2px]">THÔNG TIN CƠ BẢN</h3>
 
                         <div>
-                            <label className={labelStyle}>Kho hàng</label>
+                            <label className={labelStyle}>Công ty</label>
                             <input
                                 disabled
                                 className={inputStyle}
-                                value={warehouseName || 'Đang tải...'}
+                                value={tenantName || 'Đang tải...'}
                                 placeholder="Sẽ tự động điền"
                             />
                         </div>
@@ -238,7 +239,7 @@ export const StaffModal: React.FC<Props> = ({
                                 <input
                                     disabled
                                     className={inputStyle}
-                                    value="Nhân viên kho (WH_STAFF)"
+                                    value="Nhân viên công ty (TENANT_STAFF)"
                                 />
                             </div>
                         </div>

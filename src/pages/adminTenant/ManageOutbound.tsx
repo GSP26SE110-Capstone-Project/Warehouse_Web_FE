@@ -2,14 +2,18 @@ import { useState, useEffect, useMemo } from 'react'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { WPagination } from '../../components/ui/WhitePagination'
-import type { UserRequest, UserResponse, Status} from '../../types/Account'
-import { accountApi } from '../../service/accountApi'
-import { TenantStaffModal } from '../../components/ui/modal/TenantStaffModal'
+
+import type { TenantCompanyResponse } from '../../types/TenantCompany'
+import { tenantCompanyApi } from '../../service/tenantCompany'
+import type { OutboundRequestRequest, OutboundRequestResponse, Status } from '../../types/Outbound'
+import { outboundApi } from '../../service/outboundApi'
+import { OutboundModal } from '../../components/ui/modal/OutboundModal'
 
 interface User {
     id: string
     email: string
-    role: 'SYSTEM_ADMIN' | 'WH_ADMIN' | 'TENANT_ADMIN' | 'WH_STAFF' | 'TENANT_STAFF'
+    role: 'SYSTEM_ADMIN' | 'WH_ADMIN' | 'TENANT_ADMIN' | 'TENANT_STAFF'
+    warehouseId?: string
     tenantId?: string
 }
 
@@ -18,12 +22,13 @@ interface TableFilters {
     status: Status | 'all'
 }
 
-export const ManageStaffTenant: React.FC = () => {
-    // Get tenantId from localStorage (only for TENANT_ADMIN)
+export const TenantManageOutbound: React.FC = () => {
+    // Get tenantId from localStorage (only for TENANT_ADMIN and TENANT_STAFF)
     const [tenantId, setTenantId] = useState<string | null>(null)
-    const [staffList, setStaffList] = useState<UserResponse[]>([])
+    const [outboundRequests, setOutboundRequests] = useState<OutboundRequestResponse[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [tenants, setTenants] = useState<TenantCompanyResponse[]>([])
 
     const [filters, setFilters] = useState<TableFilters>({
         search: '',
@@ -32,6 +37,7 @@ export const ManageStaffTenant: React.FC = () => {
 
     const [currentPage, setCurrentPage] = useState(1)
     const pageSize = 5
+
 
     const [alert, setAlert] = useState<{
         open: boolean
@@ -42,15 +48,14 @@ export const ManageStaffTenant: React.FC = () => {
 
     const [showModal, setShowModal] = useState(false)
     const [modalMode, setModalMode] = useState<'view' | 'edit' | 'create'>('create')
-    const [selectedStaff, setSelectedStaff] = useState<UserResponse | undefined>()
+    const [selectedRequest, setSelectedRequest] = useState<OutboundRequestResponse | undefined>()
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    const handleOpenModal = (mode: 'view' | 'edit' | 'create', staff?: UserResponse) => {
+    const handleOpenModal = (mode: 'view' | 'edit' | 'create', request?: OutboundRequestResponse) => {
         setModalMode(mode)
-        setSelectedStaff(staff)
+        setSelectedRequest(request)
         setShowModal(true)
     }
-
     // Get tenantId from localStorage
     useEffect(() => {
         const userString = localStorage.getItem('user')
@@ -60,7 +65,7 @@ export const ManageStaffTenant: React.FC = () => {
                 if (user.role === 'TENANT_ADMIN' && user.tenantId) {
                     setTenantId(user.tenantId)
                 } else {
-                    setError('Bạn không có quyền quản lý nhân viên')
+                    setError('Bạn không có quyền quản lý các yêu cầu nhập kho này')
                     setLoading(false)
                 }
             } catch (e) {
@@ -74,73 +79,64 @@ export const ManageStaffTenant: React.FC = () => {
         }
     }, [])
 
-    // Fetch staff for this tenant
+    // Fetch outbound requests for this tenant
     useEffect(() => {
-        const fetchStaff = async () => {
+        const fetchOutboundRequests = async () => {
             if (!tenantId) return
 
             try {
                 setLoading(true)
                 setError(null)
-                const response = await accountApi.getAll()
+                const response = await outboundApi.getAllOutboundRequestsByTenant(tenantId)
                 if (response.data.success && response.data.data) {
-                    const filtered = response.data.data.filter(
-                        (u) => u.role === 'TENANT_STAFF' && u.tenantId === tenantId
-                    )
-                    setStaffList(filtered)
+                    setOutboundRequests(response.data.data)
                 } else {
-                    setError(response.data.message || 'Không thể tải dữ liệu nhân viên')
+                    setError(response.data.message || 'Không thể tải dữ liệu yêu cầu')
                 }
             } catch (err) {
-                console.error('Lỗi tải nhân viên:', err)
+                console.error('Lỗi tải yêu cầu xuất kho:', err)
                 setError('Lỗi kết nối khi tải dữ liệu')
             } finally {
                 setLoading(false)
             }
         }
 
-        fetchStaff()
+        fetchOutboundRequests()
     }, [tenantId])
 
-    const handleSubmitStaff = async (data: UserRequest) => {
+    const handleSubmitOutboundRequest = async (data: OutboundRequestRequest) => {
         try {
             setIsSubmitting(true)
 
             if (modalMode === 'create') {
-                const response = await accountApi.create(data)
+                const response = await outboundApi.create(data)
                 if (response.data.success) {
                     setAlert({
                         open: true,
                         type: 'success',
-                        message: 'Tạo nhân viên thành công'
+                        message: 'Tạo yêu cầu xuất kho thành công'
                     })
-                    // Reload staff
+                    // Reload outbound requests
                     if (tenantId) {
-                        const refreshResponse = await accountApi.getAll()
+                        const refreshResponse = await outboundApi.getAllOutboundRequestsByTenant(tenantId)
                         if (refreshResponse.data.success && refreshResponse.data.data) {
-                            const filtered = refreshResponse.data.data.filter(
-                                (u) => u.role === 'TENANT_STAFF' && u.tenantId === tenantId
-                            )
-                            setStaffList(filtered)
+                            setOutboundRequests(refreshResponse.data.data)
                         }
                     }
                 }
-            } else if (modalMode === 'edit' && selectedStaff) {
-                const response = await accountApi.update(selectedStaff.userId, data)
+            } else if (modalMode === 'edit' && selectedRequest) {
+                const response = await outboundApi.update(selectedRequest.outboundRequestId, data)
                 if (response.data.success) {
                     setAlert({
                         open: true,
                         type: 'success',
-                        message: 'Cập nhật nhân viên thành công'
+                        message: 'Cập nhật yêu cầu xuất kho thành công'
                     })
-                    // Reload staff
+                    // Reload outbound requests
                     if (tenantId) {
-                        const refreshResponse = await accountApi.getAll()
+                        const refreshResponse = await outboundApi.getAllOutboundRequestsByTenant(tenantId)
                         if (refreshResponse.data.success && refreshResponse.data.data) {
-                            const filtered = refreshResponse.data.data.filter(
-                                (u) => u.role === 'TENANT_STAFF' && u.tenantId === tenantId
-                            )
-                            setStaffList(filtered)
+                            setOutboundRequests(refreshResponse.data.data)
                         }
                     }
                 }
@@ -157,23 +153,21 @@ export const ManageStaffTenant: React.FC = () => {
         }
     }
 
-    const handleDeleteStaff = async (userId: string) => {
+
+    const handleDeleteOutboundRequest = async (outboundRequestId: string) => {
         setAlert({
             open: true,
             type: 'confirm',
-            message: 'Bạn có chắc muốn xóa nhân viên này?',
+            message: 'Bạn có chắc muốn xóa yêu cầu xuất kho này?',
             onConfirm: async () => {
                 try {
-                    const response = await accountApi.delete(userId)
+                    const response = await outboundApi.delete(outboundRequestId)
                     if (response.data.success) {
-                        // Reload staff
+                        // Reload outbound requests
                         if (tenantId) {
-                            const refreshResponse = await accountApi.getAll()
+                            const refreshResponse = await outboundApi.getAllOutboundRequestsByTenant(tenantId)
                             if (refreshResponse.data.success && refreshResponse.data.data) {
-                                const filtered = refreshResponse.data.data.filter(
-                                    (u) => u.role === 'TENANT_STAFF' && u.tenantId === tenantId
-                                )
-                                setStaffList(filtered)
+                                setOutboundRequests(refreshResponse.data.data)
                             }
                         }
                     }
@@ -184,26 +178,42 @@ export const ManageStaffTenant: React.FC = () => {
         })
     }
 
+    useEffect(() => {
+        const fetchTenants = async () => {
+            try {
+                const response = await tenantCompanyApi.getAll()
+                if (response.data.success && response.data.data) {
+                    setTenants(response.data.data)
+                }
+            } catch (err) {
+                console.error('Lỗi tải danh sách thương nhân:', err)
+            }
+        }
 
+        fetchTenants()
+    }, [])
 
-    // Filter staff
-    const filteredStaff = useMemo(() => {
-        return staffList.filter((staff) => {
+    const getTenantName = (tenantId: string) => {
+        return tenants.find(t => t.tenantId === tenantId)?.companyName || tenantId
+    }
+
+    // Filter requests
+    const filteredOutboundRequests = useMemo(() => {
+        return outboundRequests.filter((outboundRequest) => {
             const matchSearch =
-                staff.fullName.toLowerCase().includes(filters.search.toLowerCase()) ||
-                staff.email.toLowerCase().includes(filters.search.toLowerCase())
+                outboundRequest.outboundCode.toLowerCase().includes(filters.search.toLowerCase())
 
-            const matchStatus = filters.status === 'all' || staff.status === filters.status
+            const matchStatus = filters.status === 'all' || outboundRequest.status === filters.status
 
             return matchSearch && matchStatus
         })
-    }, [staffList, filters])
+    }, [outboundRequests, filters])
 
     // Pagination
-    const totalItems = filteredStaff.length
+    const totalItems = filteredOutboundRequests.length
     const totalPages = Math.ceil(totalItems / pageSize)
 
-    const paginatedStaff = filteredStaff.slice(
+    const paginatedOutboundRequests = filteredOutboundRequests.slice(
         (currentPage - 1) * pageSize,
         currentPage * pageSize
     )
@@ -211,14 +221,18 @@ export const ManageStaffTenant: React.FC = () => {
     const start = (currentPage - 1) * pageSize + 1
     const end = Math.min(currentPage * pageSize, totalItems)
 
+
     const getStatusBadge = (status: Status) => {
         const statusMap = {
-            ACTIVE: { label: 'Hoạt động', className: 'bg-emerald-50 text-emerald-600 ring-emerald-500/20' },
-            INACTIVE: { label: 'Không hoạt động', className: 'bg-slate-50 text-slate-600 ring-slate-500/20' },
-            SUSPENDED: { label: 'Tạm khóa', className: 'bg-amber-50 text-amber-600 ring-amber-500/20' },
-            BLOCKED: { label: 'Bị chặn', className: 'bg-red-50 text-red-600 ring-red-500/20' },
+            DRAFT: { label: 'Chờ xử lý', className: 'bg-amber-50 text-amber-600 ring-amber-500/20' },
+            PENDING: { label: 'Đang xem xét', className: 'bg-blue-50 text-blue-600 ring-blue-500/20' },
+            APPROVED: { label: 'Đã phê duyệt', className: 'bg-emerald-50 text-emerald-600 ring-emerald-500/20' },
+            ARRIVED: { label: 'Đã từ chối', className: 'bg-red-50 text-red-600 ring-red-500/20' },
+            RECEIVED: { label: 'Đã chuyển đổi', className: 'bg-purple-50 text-purple-600 ring-purple-500/20' },
+            COMPLETED: { label: 'Đã hoàn thành', className: 'bg-green-50 text-green-600 ring-green-500/20' },
+            CANCELED: { label: 'Đã hủy', className: 'bg-slate-50 text-slate-600 ring-slate-500/20' },
         }
-        return statusMap[status] || statusMap.INACTIVE
+        return statusMap[status] || statusMap.DRAFT
     }
 
     if (loading && !tenantId) {
@@ -243,15 +257,15 @@ export const ManageStaffTenant: React.FC = () => {
                 {/* Header */}
                 <div className="flex justify-between items-center">
                     <div>
-                        <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-1">Quản lý nhân viên kho</h1>
-                        <p className="text-slate-500 text-sm">Xem xét và quản lý nhân viên của kho hàng</p>
+                        <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-1">Quản lý đơn nhập kho</h1>
+                        <p className="text-slate-500 text-sm">Xem xét và phê duyệt các đơn nhập kho</p>
                     </div>
                     <button
                         onClick={() => handleOpenModal('create')}
                         className="px-4 py-2 bg-cyan-500 text-white rounded-lg font-bold hover:bg-cyan-600 transition-all flex items-center gap-2"
                     >
                         <span className="material-symbols-outlined">add</span>
-                        Thêm nhân viên
+                        Tạo đơn nhập kho
                     </button>
                 </div>
 
@@ -262,7 +276,7 @@ export const ManageStaffTenant: React.FC = () => {
                             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
                             <input
                                 type="text"
-                                placeholder="Tìm kiếm theo tên hoặc email..."
+                                placeholder="Tìm kiếm theo tên công ty, mã, hoặc liên hệ..."
                                 value={filters.search}
                                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                                 className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-cyan-500 transition-all text-sm"
@@ -275,21 +289,35 @@ export const ManageStaffTenant: React.FC = () => {
                             className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:bg-white focus:border-cyan-500 transition-all text-sm"
                         >
                             <option value="all">Tất cả trạng thái</option>
-                            <option value="ACTIVE">Hoạt động</option>
-                            <option value="INACTIVE">Không hoạt động</option>
-                            <option value="SUSPENDED">Tạm khóa</option>
-                            <option value="BLOCKED">Bị chặn</option>
+                            <option value="DRAFT">Chờ xử lý</option>
+                            <option value="PENDING">Đang xem xét</option>
+                            <option value="APPROVED">Đã phê duyệt</option>
+                            <option value="ARRIVED">Đã từ chối</option>
+                            <option value="RECEIVED">Đã chuyển đổi</option>
+                            <option value="COMPLETED">Đã hủy</option>
+                            <option value="CANCELED">Đã hoàn thành</option>
                         </select>
+
+                        {/* <select
+                            value={filters.pricingModel}
+                            onChange={(e) => setFilters({ ...filters, pricingModel: e.target.value as pricingModel | 'all' })}
+                            className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:bg-white focus:border-cyan-500 transition-all text-sm"
+                        >
+                            <option value="all">Tất cả mô hình định giá</option>
+                            <option value="USAGE_BASED">Dựa trên sử dụng</option>
+                            <option value="HYBRID">Kết hợp</option>
+                            <option value="FIXED">Cố định</option>
+                        </select> */}
                     </div>
                 </div>
 
                 {/* Table */}
                 {loading ? (
                     <LoadingOverlay show={loading} />
-                ) : filteredStaff.length === 0 ? (
+                ) : filteredOutboundRequests.length === 0 ? (
                     <div className="p-12 rounded-xl bg-white border border-slate-200 text-center shadow-sm">
-                        <span className="material-symbols-outlined text-5xl text-slate-300 mb-3 block">people</span>
-                        <p className="text-slate-500 text-base font-medium">Không có nhân viên nào</p>
+                        <span className="material-symbols-outlined text-5xl text-slate-300 mb-3 block">inbox</span>
+                        <p className="text-slate-500 text-base font-medium">Không có đơn xuất kho nào</p>
                     </div>
                 ) : (
                     <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden">
@@ -297,47 +325,50 @@ export const ManageStaffTenant: React.FC = () => {
                             <table className="w-full border-collapse">
                                 <thead>
                                     <tr className="border-b border-slate-200 bg-slate-50">
-                                        <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Tên nhân viên</th>
-                                        <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Email</th>
-                                        <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Điện thoại</th>
+                                       <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Mã xuất kho</th>
+                                        <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Khách hàng</th>
+                                        <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Ngày dự kiến ​​đến</th>
+                                        <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">thời gian đến thực tế</th>
                                         <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Trạng thái</th>
                                         <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Hành động</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {paginatedStaff.map((staff) => (
-                                        <tr key={staff.userId} className="hover:bg-slate-50/80 transition-colors">
-                                            <td className="px-6 py-4 text-sm text-slate-900 font-medium">{staff.fullName}</td>
+                                    {paginatedOutboundRequests.map((request) => (
+                                        <tr key={request.outboundRequestId} className="hover:bg-slate-50/80 transition-colors">
+                                            <td className="px-6 py-4 text-sm text-slate-900 font-mono font-medium">{request.outboundCode}</td>
                                             <td className="px-6 py-4 text-sm text-slate-600 font-medium">
-                                                {staff.email}
+                                                {getTenantName(request.tenantId)}                                            </td>
+                                            <td className="px-6 py-4 text-sm text-slate-600 font-medium">
+                                                {request.requestedShipDate ? new Date(request.requestedShipDate).toLocaleDateString('vi-VN') : '---'}
                                             </td>
                                             <td className="px-6 py-4 text-sm text-slate-600 font-medium">
-                                                {staff.phone || '---'}
+                                                {request.actualShippedAt ? new Date(request.actualShippedAt).toLocaleDateString('vi-VN') : '---'}
                                             </td>
                                             <td className="px-6 py-4 text-sm">
-                                                <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ring-inset ${getStatusBadge(staff.status).className}`}>
-                                                    {getStatusBadge(staff.status).label}
+                                                <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ring-inset ${getStatusBadge(request.status).className}`}>
+                                                    {getStatusBadge(request.status).label}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-sm">
                                                 <div className="flex gap-2">
                                                     <button
-                                                        onClick={() => handleOpenModal('view', staff)}
+                                                        onClick={() => handleOpenModal('view', request)}
                                                         className="px-3 py-1.5 bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold hover:bg-blue-200 transition-all"
                                                     >
-                                                        <span className="material-symbols-outlined">visibility</span>
+                                                        <span className="material-symbols-outlined ">visibility</span>
                                                     </button>
                                                     <button
-                                                        onClick={() => handleOpenModal('edit', staff)}
+                                                        onClick={() => handleOpenModal('edit', request)}
                                                         className="px-3 py-1.5 bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold hover:bg-amber-200 transition-all"
                                                     >
-                                                        <span className="material-symbols-outlined">edit</span>
+                                                        <span className="material-symbols-outlined ">edit</span>
                                                     </button>
                                                     <button
-                                                        onClick={() => handleDeleteStaff(staff.userId)}
+                                                        onClick={() => handleDeleteOutboundRequest(request.outboundRequestId)}
                                                         className="px-3 py-1.5 bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-200 transition-all"
                                                     >
-                                                        <span className="material-symbols-outlined">delete</span>
+                                                        <span className="material-symbols-outlined ">delete</span>
                                                     </button>
                                                 </div>
                                             </td>
@@ -349,7 +380,7 @@ export const ManageStaffTenant: React.FC = () => {
                         <div className="flex items-center justify-between border-t border-white/5 bg-white px-6 py-2">
                             <p className="font-medium text-sm text-slate-500">
                                 Hiển thị <span className="text-slate-500">{start}-{end}</span> trong{' '}
-                                <span className="text-slate-500">{totalItems}</span> nhân viên
+                                <span className="text-slate-500">{totalItems}</span> yêu cầu
                             </p>
 
                             <WPagination
@@ -360,19 +391,20 @@ export const ManageStaffTenant: React.FC = () => {
                         </div>
                     </div>
                 )}
+
             </div>
+
             {showModal && (
-                <TenantStaffModal
+                <OutboundModal
                     mode={modalMode}
-                    data={selectedStaff}
+                    data={selectedRequest}
                     onClose={() => {
                         setShowModal(false)
-                        setSelectedStaff(undefined)
+                        setSelectedRequest(undefined)
                     }}
-                    onSubmit={handleSubmitStaff}
+                    onSubmit={handleSubmitOutboundRequest}
                 />
             )}
-
             {alert.open && (
                 <AlertModal
                     title="Thông báo"

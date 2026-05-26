@@ -34,6 +34,10 @@ import { ManageInbound } from './pages/adminWarehouse/ManageInbound'
 import { ManageOutbound } from './pages/adminWarehouse/ManageOutBound'
 import { ManageWarehouseStaff } from './pages/adminWarehouse/ManageWarehouseStaff'
 import { AdminTenantLayout } from './components/common/layout/AdminTenantLayout'
+import { ProductManagement } from './pages/adminTenant/ProductManagement'
+import { ManageStaffTenant } from './pages/adminTenant/ManageStaffTenant'
+import { TenantManageInbound } from './pages/adminTenant/ManageInbound'
+import { TenantManageOutbound } from './pages/adminTenant/ManageOutbound'
 
 export const Router: React.FC = () => {
     return (
@@ -94,11 +98,12 @@ export const Router: React.FC = () => {
                     }>
                         <Route index element={<StaffDashboard />} />
                         <Route path='/admin-tenant/dashboard' element={<StaffDashboard />} />
-                         <Route path='/admin-tenant/inbound' element={<ManageInbound />} />
-                        <Route path='/admin-tenant/outbound' element={<ManageOutbound />} />
+                        <Route path='/admin-tenant/products' element={<ProductManagement />} />
+                        <Route path='/admin-tenant/inbound' element={<TenantManageInbound />} />
+                        <Route path='/admin-tenant/outbound' element={<TenantManageOutbound />} />
                         <Route path='/admin-tenant/import-export' element={<ImportExportManagement />} />
                         <Route path='/admin-tenant/reports' element={<ReportManagement />} />
-                        <Route path='/admin-tenant/inventory' element={<InventoryManagement />} />
+                        <Route path='/admin-tenant/tenant-staff' element={<ManageStaffTenant />} />
                     </Route>
 
 

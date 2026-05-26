@@ -14,5 +14,8 @@ export const inboundApi = {
     },
     getAllInboundRequestsByWarehouse: (warehouseId: string) => {
         return api.get<GetAllInboundRequestsResponse>(`/inbound-requests?warehouseId=${warehouseId}`);
-    }
+    },
+    getAllInboundRequestsByTenant: (tenantId: string) => {
+        return api.get<GetAllInboundRequestsResponse>(`/inbound-requests?tenantId=${tenantId}`);
+    },
 }

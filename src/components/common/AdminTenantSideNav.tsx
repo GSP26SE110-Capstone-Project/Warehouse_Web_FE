@@ -14,12 +14,12 @@ type NavItem = {
 const navItems: NavItem[] = [
   { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/admin' },
   { label: 'Quản lý Hợp đồng', icon: 'grid_view', key: 'contracts', href: '/admin/contract' },
-  { label: 'Quản lý Hàng', icon: 'grid_view', key: 'inventory', href: '/admin/inventory' },
-  { label: 'Xuất  Kho', icon: 'grid_view', key: 'stock-movements', href: '/admin/stock-movements' },
-  { label: ' Nhập Kho', icon: 'grid_view', key: 'stock-movements', href: '/admin/stock-movements' },
-  { label: 'Lịch sử giao dịch', icon: 'grid_view', key: 'stock-movements', href: '/admin/stock-movements' },
+  { label: 'Quản lý Hàng', icon: 'grid_view', key: 'inventory', href: '/admin-tenant/products' },
+  { label: 'Xuất  Kho', icon: 'grid_view', key: 'stock-movements', href: '/admin-tenant/outbound' },
+  { label: ' Nhập Kho', icon: 'grid_view', key: 'stock-movements', href: '/admin-tenant/inbound' },
+  { label: 'Lịch sử giao dịch', icon: 'grid_view', key: 'stock-movements', href: '/admin-tenant/transaction-history' },
   { label: 'Báo cáo', icon: 'grid_view', key: 'grid_view', href: '/admin/reports' },
-  { label: 'Quản lý nhân viên', icon: 'grid_view', key: 'reports', href: '/admin/reports' },
+  { label: 'Quản lý nhân viên', icon: 'grid_view', key: 'reports', href: '/admin-tenant/tenant-staff' },
 ]
 
 type BottomAction = {
@@ -65,15 +65,18 @@ export const AdminTenantSideNav: React.FC<SidebarProps> = ({ collapsed, onToggle
 
   return (
     <aside
-      className={`fixed z-50 flex h-full shrink-0 flex-col justify-between transition-all duration-300 
+      className={`fixed z-50 flex h-full shrink-0 flex-col justify-between bg-white  transition-all duration-300 
       ${collapsed ? 'w-20' : 'w-64'} md:relative`}
     >
       <div className="flex flex-col gap-6 p-6">
 
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex size-12 items-center justify-center flex size-10 items-center justify-center rounded-lg border border-cyan-500/30 bg-gradient-to-br from-cyan-900 to-slate-900">
+          <button
+            onClick={() => navigationService.goTo('/')}
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+          >
+            <div className="flex size-10 items-center justify-center rounded-lg border border-cyan-500/30 bg-gradient-to-br from-cyan-900 to-slate-900">
               <img src={logo} alt="Logo" className="h-10 w-10" />
             </div>
 
@@ -83,7 +86,7 @@ export const AdminTenantSideNav: React.FC<SidebarProps> = ({ collapsed, onToggle
                 <p className="font-mono text-[11px] font-semibold text-cyan-600">Warehouse</p>
               </div>
             )}
-          </div>
+          </button>
 
           {/* Toggle button */}
           <button

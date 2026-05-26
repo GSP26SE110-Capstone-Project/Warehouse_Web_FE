@@ -14,5 +14,8 @@ export const outboundApi = {
     },
     getAllOutboundRequestsByWarehouse: (warehouseId: string) => {
         return api.get<GetAllOutboundRequestsResponse>(`/outbound-requests?warehouseId=${warehouseId}`);
+    },
+    getAllOutboundRequestsByTenant: (tenantId: string) => {
+        return api.get<GetAllOutboundRequestsResponse>(`/outbound-requests?tenantId=${tenantId}`);
     }
 }
