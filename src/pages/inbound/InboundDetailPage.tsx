@@ -5,6 +5,13 @@ import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { InboundApprovalPanel } from '../../components/inbound/InboundApprovalPanel'
 import { InboundStatusBadge } from '../../components/inbound/InboundStatusBadge'
 import { PutawayBinPicker } from '../../components/inbound/PutawayBinPicker'
+import {
+  InboundDeliveryForm,
+  emptyDeliveryForm,
+  type DeliveryFormState,
+} from '../../components/inbound/InboundDeliveryForm'
+import * as deliveryApi from '../../api/inboundDeliveries'
+import { DELIVERY_MODE_OPTIONS, type DeliveryMode } from '../../data/deliveryMode'
 import { useAuth } from '../../auth/AuthContext'
 import { ApiError } from '../../api/client'
 import * as inboundApi from '../../api/inboundRequests'
@@ -53,6 +60,8 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   const [receivedDraft, setReceivedDraft] = useState<Record<string, number>>({})
 
   const [readiness, setReadiness] = useState<ApiInboundApprovalReadiness | null>(null)
+  const [deliveryForm, setDeliveryForm] = useState<DeliveryFormState>(emptyDeliveryForm())
+  const [deliveryDirty, setDeliveryDirty] = useState(false)
 
   const [alert, setAlert] = useState<{
     open: boolean
@@ -70,8 +79,22 @@ export function InboundDetailPage({ mode, basePath }: Props) {
     setLoading(true)
     setError('')
     try {
-      const data = await inboundApi.getInboundRequest(inboundRequestId, true)
+      const data = await inboundApi.getInboundRequest(inboundRequestId, {
+        includeItems: true,
+        includeDelivery: true,
+      })
       setInbound(data)
+
+      const d = data.delivery
+      setDeliveryForm({
+        vehiclePlate: d?.vehiclePlate ?? '',
+        driverName: d?.driverName ?? '',
+        driverPhone: d?.driverPhone ?? '',
+        driverIdNumber: d?.driverIdNumber ?? '',
+        carrierName: d?.carrierName ?? '',
+        notes: d?.notes ?? '',
+      })
+      setDeliveryDirty(false)
 
       const draft: Record<string, number> = {}
       for (const item of data.items ?? []) {
@@ -164,6 +187,27 @@ export function InboundDetailPage({ mode, basePath }: Props) {
       onConfirm: () => patchStatus('APPROVED'),
     })
   }
+
+  const canEditDelivery =
+    isWarehouse
+      ? inbound && ['PENDING', 'APPROVED', 'ARRIVED'].includes(inbound.status)
+      : inbound && ['DRAFT', 'PENDING', 'APPROVED'].includes(inbound.status)
+
+  const saveDelivery = () =>
+    runAction(async () => {
+      if (!deliveryForm.vehiclePlate.trim()) {
+        throw new ApiError('Nhập biển số xe', 400)
+      }
+      await deliveryApi.upsertInboundDelivery(inboundRequestId, {
+        vehiclePlate: deliveryForm.vehiclePlate.trim(),
+        driverName: deliveryForm.driverName?.trim() || undefined,
+        driverPhone: deliveryForm.driverPhone?.trim() || undefined,
+        driverIdNumber: deliveryForm.driverIdNumber?.trim() || undefined,
+        carrierName: deliveryForm.carrierName?.trim() || undefined,
+        notes: deliveryForm.notes?.trim() || undefined,
+      })
+      setDeliveryDirty(false)
+    }, 'Đã lưu thông tin xe')
 
   const confirmWarehouseCancel = () => {
     setAlert({
@@ -298,6 +342,62 @@ export function InboundDetailPage({ mode, basePath }: Props) {
               {isWarehouse && readiness && ['PENDING', 'APPROVED', 'ARRIVED'].includes(inbound.status) && (
                 <InboundApprovalPanel readiness={readiness} />
               )}
+
+              <section className="mb-6 rounded-xl border border-white/10 bg-white/5 p-4">
+                <h2 className="mb-2 font-semibold">Vận chuyển đến kho</h2>
+                <p className="mb-3 text-xs text-slate-500">
+                  {DELIVERY_MODE_OPTIONS.find((o) => o.value === inbound.deliveryMode)?.label ??
+                    inbound.deliveryMode ??
+                    '—'}
+                  {inbound.status === 'APPROVED' && !inbound.delivery && isWarehouse && (
+                    <span className="ml-2 text-amber-300">
+                      · Cần lưu biển số trước khi &quot;Xe đã đến&quot;
+                    </span>
+                  )}
+                </p>
+                {canEditDelivery ? (
+                  <>
+                    <InboundDeliveryForm
+                      deliveryMode={(inbound.deliveryMode as DeliveryMode) ?? 'TENANT_SELF'}
+                      value={deliveryForm}
+                      onChange={(next) => {
+                        setDeliveryForm(next)
+                        setDeliveryDirty(true)
+                      }}
+                      compact
+                    />
+                    <button
+                      type="button"
+                      disabled={!deliveryDirty}
+                      onClick={saveDelivery}
+                      className="mt-3 rounded bg-cyan-600 px-3 py-1.5 text-sm disabled:opacity-40"
+                    >
+                      Lưu thông tin xe
+                    </button>
+                  </>
+                ) : inbound.delivery ? (
+                  <dl className="grid gap-2 text-sm sm:grid-cols-2">
+                    <div>
+                      <dt className="text-slate-500">Biển số</dt>
+                      <dd className="font-mono text-cyan-300">{inbound.delivery.vehiclePlate}</dd>
+                    </div>
+                    {inbound.delivery.driverName && (
+                      <div>
+                        <dt className="text-slate-500">Tài xế</dt>
+                        <dd>{inbound.delivery.driverName}</dd>
+                      </div>
+                    )}
+                    {inbound.delivery.driverPhone && (
+                      <div>
+                        <dt className="text-slate-500">SĐT</dt>
+                        <dd>{inbound.delivery.driverPhone}</dd>
+                      </div>
+                    )}
+                  </dl>
+                ) : (
+                  <p className="text-sm text-slate-500">Chưa có thông tin xe.</p>
+                )}
+              </section>
 
               {/* Warehouse workflow actions */}
               {isWarehouse && (

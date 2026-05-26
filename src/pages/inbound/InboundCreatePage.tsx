@@ -9,6 +9,13 @@ import * as contractsApi from '../../api/contracts'
 import * as skusApi from '../../api/skus'
 import * as warehousesApi from '../../api/warehouses'
 import type { ApiSku } from '../../api/skus'
+import * as deliveryApi from '../../api/inboundDeliveries'
+import {
+  InboundDeliveryForm,
+  emptyDeliveryForm,
+  type DeliveryFormState,
+} from '../../components/inbound/InboundDeliveryForm'
+import { DELIVERY_MODE_OPTIONS, type DeliveryMode } from '../../data/deliveryMode'
 
 type LineDraft = { skuId: string; expectedQuantity: number }
 
@@ -28,6 +35,8 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
 
   const [contractId, setContractId] = useState('')
   const [expectedArrivalDate, setExpectedArrivalDate] = useState('')
+  const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('TENANT_SELF')
+  const [deliveryForm, setDeliveryForm] = useState<DeliveryFormState>(emptyDeliveryForm())
   const [lines, setLines] = useState<LineDraft[]>([{ skuId: '', expectedQuantity: 1 }])
 
   const [alert, setAlert] = useState<{ open: boolean; message: string }>({
@@ -84,12 +93,24 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
         tenantId,
         contractId,
         warehouseId: selectedContract.warehouseId,
+        deliveryMode,
         expectedArrivalDate: expectedArrivalDate
           ? new Date(expectedArrivalDate).toISOString()
           : undefined,
         status: 'PENDING',
         createdBy: user?.userId,
       })
+
+      if (deliveryMode === 'TENANT_SELF' && deliveryForm.vehiclePlate.trim()) {
+        await deliveryApi.upsertInboundDelivery(inbound.inboundRequestId, {
+          vehiclePlate: deliveryForm.vehiclePlate.trim(),
+          driverName: deliveryForm.driverName?.trim() || undefined,
+          driverPhone: deliveryForm.driverPhone?.trim() || undefined,
+          driverIdNumber: deliveryForm.driverIdNumber?.trim() || undefined,
+          carrierName: deliveryForm.carrierName?.trim() || undefined,
+          notes: deliveryForm.notes?.trim() || undefined,
+        })
+      }
 
       for (const line of validLines) {
         await inboundApi.createInboundItem(inbound.inboundRequestId, {
@@ -160,6 +181,38 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                 className="rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2"
               />
             </label>
+
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-slate-400">Hình thức vận chuyển</span>
+              <select
+                value={deliveryMode}
+                onChange={(e) => setDeliveryMode(e.target.value as DeliveryMode)}
+                className="rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2"
+              >
+                {DELIVERY_MODE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-slate-500">
+                {DELIVERY_MODE_OPTIONS.find((o) => o.value === deliveryMode)?.hint}
+              </span>
+            </label>
+
+            {deliveryMode === 'TENANT_SELF' && (
+              <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+                <p className="mb-3 text-sm font-medium text-slate-300">
+                  Thông tin xe (khuyến nghị trước khi xe vào cổng)
+                </p>
+                <InboundDeliveryForm
+                  deliveryMode={deliveryMode}
+                  value={deliveryForm}
+                  onChange={setDeliveryForm}
+                  compact
+                />
+              </div>
+            )}
 
             <div>
               <div className="mb-2 flex items-center justify-between">

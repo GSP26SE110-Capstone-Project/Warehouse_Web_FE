@@ -1,4 +1,6 @@
 import { apiRequest, apiPaginated, buildQuery } from './client'
+import type { ApiInboundDelivery } from './inboundDeliveries'
+import type { DeliveryMode } from '../data/deliveryMode'
 
 export type InboundStatus =
   | 'DRAFT'
@@ -15,6 +17,7 @@ export interface ApiInboundRequest {
   contractId: string
   warehouseId: string
   inboundCode: string
+  deliveryMode?: DeliveryMode | null
   expectedArrivalDate?: string | null
   actualArrivalAt?: string | null
   status: InboundStatus
@@ -44,6 +47,7 @@ export interface ApiInboundRequestItem {
 
 export interface ApiInboundRequestWithItems extends ApiInboundRequest {
   items?: ApiInboundRequestItem[]
+  delivery?: ApiInboundDelivery | null
 }
 
 export function listInboundRequests(params?: {
@@ -93,10 +97,14 @@ export function getApprovalReadiness(inboundRequestId: string) {
   )
 }
 
-export function getInboundRequest(inboundRequestId: string, includeItems = false) {
+export function getInboundRequest(
+  inboundRequestId: string,
+  options?: { includeItems?: boolean; includeDelivery?: boolean }
+) {
   return apiRequest<ApiInboundRequestWithItems>(
     `/inbound-requests/${inboundRequestId}${buildQuery({
-      includeItems: includeItems ? 'true' : undefined,
+      includeItems: options?.includeItems ? 'true' : undefined,
+      includeDelivery: options?.includeDelivery ? 'true' : undefined,
     })}`
   )
 }
@@ -105,6 +113,7 @@ export function createInboundRequest(body: {
   tenantId: string
   contractId: string
   warehouseId: string
+  deliveryMode?: DeliveryMode
   expectedArrivalDate?: string
   status?: InboundStatus
   createdBy?: string
@@ -115,6 +124,7 @@ export function createInboundRequest(body: {
 export function updateInboundRequest(
   inboundRequestId: string,
   body: {
+    deliveryMode?: DeliveryMode
     expectedArrivalDate?: string | null
     actualArrivalAt?: string | null
     status?: InboundStatus
