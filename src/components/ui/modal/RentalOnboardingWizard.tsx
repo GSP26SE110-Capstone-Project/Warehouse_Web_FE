@@ -25,6 +25,13 @@ import type { UserRole } from '../../../api/types'
 import type { RentalRequestRow } from '../../../mappers'
 import { getOnboardingStoragePlan } from '../../../utils/onboardingStorage'
 import {
+  computeZoneStorageCapacity,
+  estimateZoneLpnCapacity,
+  formatZoneCapacitySummary,
+  formatZoneRackSummary,
+  splitReservedCapacityAcrossZones,
+} from '../../../utils/warehouseCapacity'
+import {
   filterWarehousesForRentalClaim,
   type WarehouseWithRegion,
 } from '../../../utils/warehouseRegion'
@@ -114,7 +121,8 @@ export function RentalOnboardingWizard({
   const [racks, setRacks] = useState<racksApi.ApiRack[]>([])
   const [rackLevels, setRackLevels] = useState<rackLevelsApi.ApiRackLevel[]>([])
   const [bins, setBins] = useState<binsApi.ApiBin[]>([])
-  const [zoneId, setZoneId] = useState('')
+  const [selectedZoneIds, setSelectedZoneIds] = useState<string[]>([])
+  const zoneId = selectedZoneIds[0] ?? ''
   const [rackId, setRackId] = useState('')
   const [rackLevelId, setRackLevelId] = useState('')
   const [binId, setBinId] = useState('')
@@ -130,26 +138,67 @@ export function RentalOnboardingWizard({
   >(null)
 
   const storagePlan = useMemo(() => getOnboardingStoragePlan(contractType), [contractType])
+  const allowsMultiZone = storagePlan.needsZone && !storagePlan.needsBin
 
   const tenantRequiredAreaNum = useMemo(() => {
     const n = Number(tenantRequiredAreaM2)
     return Number.isFinite(n) && n > 0 ? n : null
   }, [tenantRequiredAreaM2])
 
-  const selectedZone = useMemo(
-    () => zones.find((z) => z.zoneId === zoneId) ?? null,
-    [zones, zoneId]
+  const selectedZones = useMemo(
+    () => zones.filter((z) => selectedZoneIds.includes(z.zoneId)),
+    [zones, selectedZoneIds]
+  )
+
+  const selectedZone = selectedZones[0] ?? null
+
+  const reservedCapacityNum = useMemo(() => {
+    const n = Number(reservedCapacity)
+    return Number.isFinite(n) && n > 0 ? n : null
+  }, [reservedCapacity])
+
+  const selectedZonesLpnCapacity = useMemo(
+    () => selectedZones.reduce((sum, z) => sum + estimateZoneLpnCapacity(z), 0),
+    [selectedZones]
+  )
+
+  const selectedZonesAreaM2 = useMemo(
+    () => selectedZones.reduce((sum, z) => sum + (Number(z.areaM2) || 0), 0),
+    [selectedZones]
   )
 
   const zoneAreaFit = useMemo(() => {
-    if (!selectedZone || tenantRequiredAreaNum == null) return null
+    if (!tenantRequiredAreaNum) return null
+
+    if (allowsMultiZone && selectedZones.length > 0) {
+      const zoneArea = selectedZonesAreaM2
+      if (zoneArea <= 0) return { zoneArea: 0, sufficient: true, deficit: 0, minZones: null }
+      const sufficient = zoneArea >= tenantRequiredAreaNum
+      const deficit = Math.max(0, tenantRequiredAreaNum - zoneArea)
+      return { zoneArea, sufficient, deficit, minZones: null, multi: true as const }
+    }
+
+    if (!selectedZone) return null
     const zoneArea = Number(selectedZone.areaM2) || 0
     if (zoneArea <= 0) return { zoneArea: 0, sufficient: true, deficit: 0, minZones: null }
     const sufficient = zoneArea >= tenantRequiredAreaNum
     const deficit = Math.max(0, tenantRequiredAreaNum - zoneArea)
     const minZones = Math.ceil(tenantRequiredAreaNum / zoneArea)
-    return { zoneArea, sufficient, deficit, minZones }
-  }, [selectedZone, tenantRequiredAreaNum])
+    return { zoneArea, sufficient, deficit, minZones, multi: false as const }
+  }, [
+    allowsMultiZone,
+    selectedZone,
+    selectedZones.length,
+    selectedZonesAreaM2,
+    tenantRequiredAreaNum,
+  ])
+
+  const capacityFit = useMemo(() => {
+    if (!reservedCapacityNum || selectedZones.length === 0) return null
+    const sufficient = selectedZonesLpnCapacity >= reservedCapacityNum
+    const deficit = Math.max(0, reservedCapacityNum - selectedZonesLpnCapacity)
+    return { required: reservedCapacityNum, available: selectedZonesLpnCapacity, sufficient, deficit }
+  }, [reservedCapacityNum, selectedZones.length, selectedZonesLpnCapacity])
 
   const claimableWarehouses = useMemo(() => {
     if (isWhOperator) return []
@@ -437,42 +486,88 @@ export function RentalOnboardingWizard({
       if (
         storagePlan.needsZone &&
         tenantRequiredAreaNum != null &&
-        selectedZone &&
         zoneAreaFit &&
         !zoneAreaFit.sufficient &&
         !allowUndersizedZone
       ) {
+        const zoneLabel = allowsMultiZone
+          ? `${selectedZones.length} zone đã chọn (tổng ${zoneAreaFit.zoneArea} m²)`
+          : `Zone ${selectedZone?.zoneCode}`
         setError(
-          `Zone ${selectedZone.zoneCode} chỉ có ${zoneAreaFit.zoneArea} m² trong khi tenant cần ${tenantRequiredAreaNum} m². Chọn zone đủ lớn, tạo thêm zone, hoặc tick xác nhận cấp tạm zone nhỏ hơn.`
+          `${zoneLabel} chưa đủ diện tích — tenant cần ${tenantRequiredAreaNum} m². Chọn thêm zone, zone lớn hơn, hoặc tick xác nhận cấp tạm.`
         )
         return
       }
-      const wh = whId || resolveWarehouseId(row)
-      const body: Parameters<typeof storageReservationsApi.createStorageReservation>[0] = {
-        contractId,
-        reservationType: storagePlan.reservationType,
-        storageLevel: storagePlan.storageLevel,
-        warehouseId: wh,
-        startDate: contractStart,
-        endDate: contractEnd,
-        status: 'ACTIVE',
-      }
-
-      if (storagePlan.storageLevel === 'ZONE' && !zoneId) {
-        setError('Chọn zone')
+      if (
+        capacityFit &&
+        !capacityFit.sufficient &&
+        !allowUndersizedZone
+      ) {
+        setError(
+          `Dung lượng giữ ${capacityFit.required} thùng/LPN nhưng ${selectedZones.length} zone chỉ ước tính ~${capacityFit.available} thùng. Chọn thêm zone hoặc tick xác nhận cấp tạm.`
+        )
         return
+      }
+      if (storagePlan.storageLevel === 'ZONE') {
+        if (selectedZoneIds.length === 0) {
+          setError('Chọn ít nhất một zone')
+          return
+        }
       }
       if (storagePlan.storageLevel === 'BIN' && !binId) {
         setError('Chọn bin')
         return
       }
-      if (zoneId) body.zoneId = zoneId
-      if (rackId) body.rackId = rackId
-      if (rackLevelId) body.rackLevelId = rackLevelId
-      if (binId) body.binId = binId
-      if (reservedCapacity) body.reservedCapacity = Number(reservedCapacity)
 
-      await storageReservationsApi.createStorageReservation(body)
+      const wh = whId || resolveWarehouseId(row)
+
+      if (storagePlan.storageLevel === 'WAREHOUSE') {
+        await storageReservationsApi.createStorageReservation({
+          contractId,
+          reservationType: storagePlan.reservationType,
+          storageLevel: storagePlan.storageLevel,
+          warehouseId: wh,
+          startDate: contractStart,
+          endDate: contractEnd,
+          status: 'ACTIVE',
+          ...(reservedCapacityNum ? { reservedCapacity: reservedCapacityNum } : {}),
+        })
+      } else if (storagePlan.storageLevel === 'ZONE') {
+        const capacitySplit =
+          reservedCapacityNum != null
+            ? splitReservedCapacityAcrossZones(reservedCapacityNum, selectedZones)
+            : new Map<string, number>()
+
+        for (const zId of selectedZoneIds) {
+          const share = capacitySplit.get(zId)
+          await storageReservationsApi.createStorageReservation({
+            contractId,
+            reservationType: storagePlan.reservationType,
+            storageLevel: storagePlan.storageLevel,
+            warehouseId: wh,
+            zoneId: zId,
+            startDate: contractStart,
+            endDate: contractEnd,
+            status: 'ACTIVE',
+            ...(share != null && share > 0 ? { reservedCapacity: share } : {}),
+          })
+        }
+      } else {
+        await storageReservationsApi.createStorageReservation({
+          contractId,
+          reservationType: storagePlan.reservationType,
+          storageLevel: storagePlan.storageLevel,
+          warehouseId: wh,
+          ...(zoneId ? { zoneId } : {}),
+          ...(rackId ? { rackId } : {}),
+          ...(rackLevelId ? { rackLevelId } : {}),
+          ...(binId ? { binId } : {}),
+          startDate: contractStart,
+          endDate: contractEnd,
+          status: 'ACTIVE',
+          ...(reservedCapacityNum ? { reservedCapacity: reservedCapacityNum } : {}),
+        })
+      }
       await rentalRequestsApi.updateRentalRequest(row.rentalRequestId, { status: 'CONVERTED' })
       onComplete()
       onClose()
@@ -766,48 +861,70 @@ export function RentalOnboardingWizard({
 
                   {storagePlan.needsZone && (
                     <div>
-                      <label className={labelStyle}>Zone cấp cho tenant</label>
+                      <label className={labelStyle}>
+                        {allowsMultiZone ? 'Zone cấp cho tenant (chọn một hoặc nhiều)' : 'Zone'}
+                      </label>
                       <p className="mb-2 text-[11px] text-slate-500">
-                        So sánh diện tích zone với nhu cầu tenant. Một zone 50 m² không đủ cho yêu cầu
-                        200 m² — cần zone lớn hơn, nhiều zone (luồng mở rộng), hoặc tạo zone mới.
+                        {allowsMultiZone
+                          ? 'Mỗi zone hiển thị số rack đã tạo và sức chứa thùng/LPN ước tính. VD: giữ 80 thùng — chọn nhiều zone nếu một zone không đủ.'
+                          : 'Chọn zone trước khi chọn rack/bin.'}
                       </p>
-                      <select
-                        className={selectStyle}
-                        value={zoneId}
-                        onChange={(e) => {
-                          setZoneId(e.target.value)
-                          setAllowUndersizedZone(false)
-                        }}
-                        aria-label="Chọn zone cấp cho tenant"
-                      >
-                        <option value="">— Chọn zone —</option>
-                        {zones.map((z) => {
-                          const za = Number(z.areaM2) || 0
-                          const ok =
-                            tenantRequiredAreaNum == null ||
-                            za <= 0 ||
-                            za >= tenantRequiredAreaNum
-                          return (
+                      {allowsMultiZone ? (
+                        <ZoneMultiSelectList
+                          zones={zones}
+                          selectedIds={selectedZoneIds}
+                          tenantRequiredAreaM2={tenantRequiredAreaNum}
+                          reservedCapacity={reservedCapacityNum}
+                          onChange={(ids) => {
+                            setSelectedZoneIds(ids)
+                            setAllowUndersizedZone(false)
+                          }}
+                        />
+                      ) : (
+                        <select
+                          className={selectStyle}
+                          value={zoneId}
+                          onChange={(e) => {
+                            setSelectedZoneIds(e.target.value ? [e.target.value] : [])
+                            setAllowUndersizedZone(false)
+                          }}
+                          aria-label="Chọn zone cấp cho tenant"
+                        >
+                          <option value="">— Chọn zone —</option>
+                          {zones.map((z) => (
                             <option key={z.zoneId} value={z.zoneId}>
-                              {z.zoneCode}
-                              {z.zoneName ? ` — ${z.zoneName}` : ''} ({z.zoneType}
-                              {za > 0 ? ` · ${za} m²` : ''}
-                              {tenantRequiredAreaNum != null && za > 0 && !ok
-                                ? ' · THIẾU'
-                                : ''}
-                              )
+                              {formatZoneOptionLabel(z)}
                             </option>
-                          )
-                        })}
-                      </select>
-                      {zoneAreaFit && tenantRequiredAreaNum != null && selectedZone && (
+                          ))}
+                        </select>
+                      )}
+                      {selectedZones.length > 0 && allowsMultiZone && (
+                        <MultiZoneSelectionSummary
+                          zones={selectedZones}
+                          reservedCapacity={reservedCapacityNum}
+                          totalLpnCapacity={selectedZonesLpnCapacity}
+                          totalAreaM2={selectedZonesAreaM2}
+                        />
+                      )}
+                      {zoneAreaFit && tenantRequiredAreaNum != null && selectedZones.length > 0 && (
                         <ZoneAreaFitAlert
                           fit={zoneAreaFit}
                           required={tenantRequiredAreaNum}
-                          zoneCode={selectedZone.zoneCode}
+                          zoneCode={
+                            allowsMultiZone
+                              ? `${selectedZones.length} zone`
+                              : (selectedZone?.zoneCode ?? '')
+                          }
                           allowUndersized={allowUndersizedZone}
                           onAllowUndersizedChange={setAllowUndersizedZone}
                         />
+                      )}
+                      {capacityFit && !capacityFit.sufficient && (
+                        <p className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                          Cần giữ ~{capacityFit.required} thùng/LPN — {selectedZones.length} zone đã chọn
+                          ước tính ~{capacityFit.available} thùng (thiếu {capacityFit.deficit}). Chọn thêm
+                          zone hoặc tick xác nhận cấp tạm.
+                        </p>
                       )}
                     </div>
                   )}
@@ -869,15 +986,18 @@ export function RentalOnboardingWizard({
                   )}
 
                   <div>
-                    <label className={labelStyle}>Dung lượng giữ (tùy chọn)</label>
+                    <label className={labelStyle}>Dung lượng giữ (thùng / LPN)</label>
                     <input
                       className={inputStyle}
                       type="number"
                       min={0}
                       value={reservedCapacity}
                       onChange={(e) => setReservedCapacity(e.target.value)}
-                      placeholder="box / SKU"
+                      placeholder="VD: 80"
                     />
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      Tổng số thùng/LPN cần giữ cho tenant — chia theo tỷ lệ sức chứa khi chọn nhiều zone.
+                    </p>
                   </div>
                 </>
               )}
@@ -1078,6 +1198,134 @@ function TenantAreaRequirementCard({
   )
 }
 
+function formatZoneOptionLabel(z: zonesApi.ApiZone) {
+  const za = Number(z.areaM2) || 0
+  const lpn = estimateZoneLpnCapacity(z)
+  return `${z.zoneCode}${z.zoneName ? ` — ${z.zoneName}` : ''} (${z.zoneType}${za > 0 ? ` · ${za} m²` : ''} · ${formatZoneRackSummary(z)}${lpn > 0 ? ` · ~${lpn} thùng` : ''})`
+}
+
+function ZoneMultiSelectList({
+  zones,
+  selectedIds,
+  tenantRequiredAreaM2,
+  reservedCapacity,
+  onChange,
+}: {
+  zones: zonesApi.ApiZone[]
+  selectedIds: string[]
+  tenantRequiredAreaM2: number | null
+  reservedCapacity: number | null
+  onChange: (ids: string[]) => void
+}) {
+  const toggle = (zoneId: string) => {
+    if (selectedIds.includes(zoneId)) {
+      onChange(selectedIds.filter((id) => id !== zoneId))
+    } else {
+      onChange([...selectedIds, zoneId])
+    }
+  }
+
+  if (zones.length === 0) {
+    return (
+      <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+        Chưa có zone ACTIVE — tạo zone trong quản lý kho trước.
+      </p>
+    )
+  }
+
+  return (
+    <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-white/10 p-2">
+      {zones.map((z) => {
+        const checked = selectedIds.includes(z.zoneId)
+        const area = Number(z.areaM2) || 0
+        const lpnCap = estimateZoneLpnCapacity(z)
+        const cap = computeZoneStorageCapacity(z.areaM2)
+        const areaOk =
+          tenantRequiredAreaM2 == null || area <= 0 || area >= tenantRequiredAreaM2
+        const lpnOk = reservedCapacity == null || lpnCap >= reservedCapacity
+
+        return (
+          <label
+            key={z.zoneId}
+            className={`flex cursor-pointer gap-3 rounded-lg border p-3 transition-colors ${
+              checked
+                ? 'border-cyan-400/50 bg-cyan-400/10'
+                : 'border-white/5 bg-white/[0.02] hover:border-white/15'
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={() => toggle(z.zoneId)}
+              className="mt-1 rounded border-white/20"
+            />
+            <div className="min-w-0 flex-1 text-xs">
+              <p className="font-semibold text-white">
+                {z.zoneCode}
+                {z.zoneName ? ` — ${z.zoneName}` : ''}
+                <span className="ml-2 font-normal text-slate-400">({z.zoneType})</span>
+              </p>
+              <p className="mt-1 text-slate-400">{formatZoneRackSummary(z)}</p>
+              {cap.hasArea && (
+                <p className="mt-0.5 text-slate-500">{formatZoneCapacitySummary(cap)}</p>
+              )}
+              {lpnCap > 0 && (
+                <p className="mt-1 text-cyan-300/90">≈ {lpnCap.toLocaleString('vi-VN')} thùng/LPN</p>
+              )}
+              {tenantRequiredAreaM2 != null && area > 0 && !areaOk && (
+                <p className="mt-1 text-amber-300">Diện tích &lt; nhu cầu {fmtM2(tenantRequiredAreaM2)} — chọn thêm zone</p>
+              )}
+              {reservedCapacity != null && lpnCap > 0 && !lpnOk && (
+                <p className="mt-1 text-amber-300">
+                  Một zone chưa đủ {reservedCapacity} thùng — chọn thêm zone
+                </p>
+              )}
+            </div>
+          </label>
+        )
+      })}
+    </div>
+  )
+}
+
+function MultiZoneSelectionSummary({
+  zones,
+  reservedCapacity,
+  totalLpnCapacity,
+  totalAreaM2,
+}: {
+  zones: zonesApi.ApiZone[]
+  reservedCapacity: number | null
+  totalLpnCapacity: number
+  totalAreaM2: number
+}) {
+  return (
+    <div className="mt-3 rounded-lg border border-cyan-500/30 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-100">
+      <p className="font-medium text-white">
+        Đã chọn {zones.length} zone: {zones.map((z) => z.zoneCode).join(', ')}
+      </p>
+      <p className="mt-1">
+        Tổng ~{totalLpnCapacity.toLocaleString('vi-VN')} thùng/LPN
+        {totalAreaM2 > 0 ? ` · ${fmtM2(totalAreaM2)}` : ''}
+        {reservedCapacity != null && (
+          <>
+            {' '}
+            — yêu cầu giữ {reservedCapacity.toLocaleString('vi-VN')} thùng
+            {totalLpnCapacity >= reservedCapacity ? (
+              <span className="text-emerald-300"> (đủ)</span>
+            ) : (
+              <span className="text-amber-300">
+                {' '}
+                (thiếu ~{reservedCapacity - totalLpnCapacity})
+              </span>
+            )}
+          </>
+        )}
+      </p>
+    </div>
+  )
+}
+
 function ZoneAreaFitAlert({
   fit,
   required,
@@ -1085,7 +1333,7 @@ function ZoneAreaFitAlert({
   allowUndersized,
   onAllowUndersizedChange,
 }: {
-  fit: { zoneArea: number; sufficient: boolean; deficit: number; minZones: number | null }
+  fit: { zoneArea: number; sufficient: boolean; deficit: number; minZones: number | null; multi?: boolean }
   required: number
   zoneCode: string
   allowUndersized: boolean
@@ -1094,8 +1342,17 @@ function ZoneAreaFitAlert({
   if (fit.sufficient) {
     return (
       <p className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
-        Zone <strong>{zoneCode}</strong> có {fmtM2(fit.zoneArea)} m² — đủ so với tenant cần{' '}
-        {fmtM2(required)} m².
+        {fit.multi ? (
+          <>
+            <strong>{zoneCode}</strong> tổng {fmtM2(fit.zoneArea)} — đủ so với tenant cần{' '}
+            {fmtM2(required)} m².
+          </>
+        ) : (
+          <>
+            Zone <strong>{zoneCode}</strong> có {fmtM2(fit.zoneArea)} m² — đủ so với tenant cần{' '}
+            {fmtM2(required)} m².
+          </>
+        )}
       </p>
     )
   }
@@ -1103,8 +1360,17 @@ function ZoneAreaFitAlert({
   return (
     <div className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
       <p className="font-medium text-amber-200">
-        Zone <strong>{zoneCode}</strong> chỉ {fmtM2(fit.zoneArea)} m² — tenant cần {fmtM2(required)}{' '}
-        m² (thiếu {fmtM2(fit.deficit)} m²).
+        {fit.multi ? (
+          <>
+            <strong>{zoneCode}</strong> tổng {fmtM2(fit.zoneArea)} — tenant cần {fmtM2(required)} m²
+            (thiếu {fmtM2(fit.deficit)} m²).
+          </>
+        ) : (
+          <>
+            Zone <strong>{zoneCode}</strong> chỉ {fmtM2(fit.zoneArea)} m² — tenant cần {fmtM2(required)}{' '}
+            m² (thiếu {fmtM2(fit.deficit)} m²).
+          </>
+        )}
       </p>
       {fit.minZones != null && fit.minZones > 1 && (
         <p className="mt-1 text-amber-200/80">

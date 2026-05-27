@@ -51,14 +51,27 @@ export function InboundListPage({ mode, basePath }: Props) {
         params.warehouseId = warehouseId
       }
 
-      const [inboundRes, whRes, tenantRes] = await Promise.all([
-        inboundApi.listInboundRequests(params),
-        warehousesApi.listWarehouses({ limit: 100 }),
-        tenantsApi.listTenants({ limit: 100 }),
-      ])
-      setRows(inboundRes.items)
-      setWhNames(new Map(whRes.items.map((w) => [w.warehouseId, w.warehouseName])))
-      setTenantNames(new Map(tenantRes.items.map((t) => [t.tenantId, t.companyName])))
+      const inboundRes = await inboundApi.listInboundRequests(params)
+
+      if (mode === 'tenant') {
+        const [whRes, tenant] = await Promise.all([
+          warehousesApi.listWarehouses({ limit: 100 }),
+          tenantId ? tenantsApi.getTenant(tenantId).catch(() => null) : Promise.resolve(null),
+        ])
+        setRows(inboundRes.items)
+        setWhNames(new Map(whRes.items.map((w) => [w.warehouseId, w.warehouseName])))
+        setTenantNames(
+          tenant ? new Map([[tenant.tenantId, tenant.companyName]]) : new Map()
+        )
+      } else {
+        const [whRes, tenantRes] = await Promise.all([
+          warehousesApi.listWarehouses({ limit: 100 }),
+          tenantsApi.listTenants({ limit: 100 }),
+        ])
+        setRows(inboundRes.items)
+        setWhNames(new Map(whRes.items.map((w) => [w.warehouseId, w.warehouseName])))
+        setTenantNames(new Map(tenantRes.items.map((t) => [t.tenantId, t.companyName])))
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không tải được danh sách nhập kho')
     } finally {

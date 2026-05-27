@@ -9,6 +9,13 @@ export interface ApiZone {
   areaM2?: number | null
   isDedicated?: boolean
   status?: string
+  /** Rack ACTIVE đã tạo trong zone */
+  rackCount?: number
+  /** Gợi ý tối đa rack theo diện tích (sau trừ lối đi) */
+  maxRacks?: number
+  totalBinSlots?: number
+  /** ≈ totalBinSlots × 4 LPN/thùng */
+  estimatedLpnCapacity?: number
 }
 
 export function listZones(params: {

@@ -10,6 +10,9 @@ export const ZONE_AISLE_RATIO = 0.3
 /** Đồng bộ BE — gợi ý số zone tối thiểu */
 export const REFERENCE_ZONE_AREA_M2 = 50
 
+/** Đồng bộ BE `pricingDefaults.js` */
+export const DEFAULT_BIN_MAX_LPN_COUNT = 4
+
 export type ZoneStorageCapacity = {
   hasArea: boolean
   areaM2: number | null
@@ -66,4 +69,58 @@ export function formatZoneCapacitySummary(c: ZoneStorageCapacity): string {
   if (!c.hasArea) return ''
   const pct = Math.round(c.aisleRatio * 100)
   return `${c.maxRacks} rack · ${c.binsPerLevel} bin/tầng · ${c.totalBinSlots} ô (sau trừ ${pct}% lối đi ≈ ${fmtM2(c.storageAreaM2)} m² đặt rack)`
+}
+
+export function estimateZoneLpnCapacity(zone: {
+  areaM2?: number | null
+  estimatedLpnCapacity?: number | null
+  totalBinSlots?: number | null
+}): number {
+  if (zone.estimatedLpnCapacity != null && zone.estimatedLpnCapacity > 0) {
+    return zone.estimatedLpnCapacity
+  }
+  if (zone.totalBinSlots != null && zone.totalBinSlots > 0) {
+    return zone.totalBinSlots * DEFAULT_BIN_MAX_LPN_COUNT
+  }
+  const cap = computeZoneStorageCapacity(zone.areaM2)
+  return cap.totalBinSlots * DEFAULT_BIN_MAX_LPN_COUNT
+}
+
+export function formatZoneRackSummary(zone: {
+  rackCount?: number | null
+  maxRacks?: number | null
+  areaM2?: number | null
+}): string {
+  const actual = zone.rackCount ?? 0
+  const cap = computeZoneStorageCapacity(zone.areaM2)
+  const maxR = zone.maxRacks ?? cap.maxRacks
+  if (maxR > 0) {
+    return `${actual} rack đã tạo / tối đa ~${maxR} rack (theo ${fmtM2(Number(zone.areaM2) || 0)} m²)`
+  }
+  return `${actual} rack đã tạo`
+}
+
+/** Chia dung lượng giữ (thùng/LPN) theo tỷ lệ sức chứa từng zone. */
+export function splitReservedCapacityAcrossZones(
+  total: number,
+  zones: Array<{ zoneId: string; estimatedLpnCapacity?: number | null; areaM2?: number | null }>
+): Map<string, number> {
+  const result = new Map<string, number>()
+  if (!zones.length || total <= 0) return result
+
+  const weights = zones.map((z) => Math.max(1, estimateZoneLpnCapacity(z)))
+  const weightSum = weights.reduce((a, b) => a + b, 0)
+  let assigned = 0
+
+  zones.forEach((z, i) => {
+    if (i === zones.length - 1) {
+      result.set(z.zoneId, Math.max(0, total - assigned))
+      return
+    }
+    const share = Math.floor((total * weights[i]) / weightSum)
+    result.set(z.zoneId, share)
+    assigned += share
+  })
+
+  return result
 }
