@@ -13,6 +13,26 @@ export function getWarehouse(warehouseId: string) {
   return apiRequest<ApiWarehouse>(`/warehouses/${warehouseId}`)
 }
 
+export interface ApiWarehouseZonePlanning {
+  warehouseId: string
+  totalAreaM2: number | null
+  usableAreaM2: number | null
+  usedZoneAreaM2: number
+  remainingZoneAreaM2: number | null
+  zoneCount: number
+  suggestedReferenceZoneAreaM2: number
+  suggestedMinZoneCount: number | null
+  missingZoneCount: number | null
+  suggestedAreaPerZoneForEvenSplit: number | null
+  areaValid: boolean
+}
+
+export function getWarehouseZonePlanning(warehouseId: string) {
+  return apiRequest<ApiWarehouseZonePlanning>(
+    `/warehouses/${warehouseId}/zone-planning`
+  )
+}
+
 export function createWarehouse(body: {
   warehouseCode: string
   warehouseName: string

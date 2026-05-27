@@ -28,6 +28,7 @@ import { TenantProductManagement } from './pages/staff/TenantProductManagement'
 import { InboundListPage } from './pages/inbound/InboundListPage'
 import { InboundCreatePage } from './pages/inbound/InboundCreatePage'
 import { InboundDetailPage } from './pages/inbound/InboundDetailPage'
+import { InventoryListPage } from './pages/inventory/InventoryListPage'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { ADMIN_ROLES, getHomePathForRole, STAFF_ROLES, useAuth } from './auth/AuthContext'
 
@@ -101,6 +102,11 @@ export const Router: React.FC = () => {
               <Route
                 path="/staff/inbound-ops/:inboundRequestId"
                 element={<InboundDetailPage mode="warehouse" basePath="/staff/inbound-ops" />}
+              />
+              <Route path="/staff/inventory" element={<InventoryListPage scope="tenant" />} />
+              <Route
+                path="/staff/inventory-ops"
+                element={<InventoryListPage scope="warehouse" />}
               />
             </Route>
           </Route>

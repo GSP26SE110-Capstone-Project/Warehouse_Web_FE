@@ -42,6 +42,15 @@ export function getOnboardingStoragePlan(contractType: string): OnboardingStorag
         needsBin: true,
         hint: 'Chọn bin RESERVED/EMPTY — slot cố định cho tenant.',
       }
+    case 'NEEDS_CONSULTATION':
+      return {
+        reservationType: 'SHARED',
+        storageLevel: 'ZONE',
+        needsZone: true,
+        needsRack: false,
+        needsBin: false,
+        hint: 'Chọn loại thuê cụ thể ở bước duyệt trước khi cấp zone/bin.',
+      }
     case 'SHARED_STORAGE':
     default:
       return {

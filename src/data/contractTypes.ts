@@ -4,6 +4,10 @@ export type ContractTypeValue =
   | 'RESERVED_STORAGE'
   | 'DEDICATED_ZONE'
   | 'DEDICATED_WAREHOUSE'
+  | 'NEEDS_CONSULTATION'
+
+/** Loại thuê ghi trên hợp đồng — WH chọn khi duyệt / onboarding */
+export type BillableContractTypeValue = Exclude<ContractTypeValue, 'NEEDS_CONSULTATION'>
 
 export interface ContractTypeInfo {
   value: ContractTypeValue
@@ -15,6 +19,15 @@ export interface ContractTypeInfo {
 }
 
 export const CONTRACT_TYPE_OPTIONS: ContractTypeInfo[] = [
+  {
+    value: 'NEEDS_CONSULTATION',
+    title: 'Chưa rõ / để kho tư vấn',
+    tagline: 'Kho đề xuất hình thức phù hợp',
+    description:
+      'Bạn chưa chắc nên thuê zone, giữ chỗ hay kho chia sẻ. Gửi nhu cầu và diện tích ước tính — warehouse admin sẽ chọn loại thuê khi duyệt.',
+    icon: 'support_agent',
+    highlight: true,
+  },
   {
     value: 'SHARED_STORAGE',
     title: 'Kho chia sẻ',
@@ -38,7 +51,6 @@ export const CONTRACT_TYPE_OPTIONS: ContractTypeInfo[] = [
     description:
       'Thuê trọn một zone — không chỉ vài bin lẻ tẻ. Phù hợp khi cần tách luồng hàng, quy trình riêng trong cùng tòa kho.',
     icon: 'grid_view',
-    highlight: true,
   },
   {
     value: 'DEDICATED_WAREHOUSE',
@@ -49,6 +61,11 @@ export const CONTRACT_TYPE_OPTIONS: ContractTypeInfo[] = [
     icon: 'warehouse',
   },
 ]
+
+export const WH_ASSIGNABLE_CONTRACT_OPTIONS = CONTRACT_TYPE_OPTIONS.filter(
+  (c): c is ContractTypeInfo & { value: BillableContractTypeValue } =>
+    c.value !== 'NEEDS_CONSULTATION'
+)
 
 export const CONTRACT_TYPE_LABELS: Record<ContractTypeValue, string> = Object.fromEntries(
   CONTRACT_TYPE_OPTIONS.map((c) => [c.value, c.title])
@@ -66,16 +83,24 @@ export const BILLING_CYCLE_GUEST_LABELS: Record<string, string> = {
 
 export function defaultPricingModel(contractType: ContractTypeValue): string {
   if (contractType === 'SHARED_STORAGE') return 'USAGE_BASED'
+  if (contractType === 'NEEDS_CONSULTATION') return 'HYBRID'
   return 'FIXED'
 }
 
 export function showsRequestedAreaField(contractType: ContractTypeValue): boolean {
-  return contractType === 'DEDICATED_WAREHOUSE' || contractType === 'DEDICATED_ZONE'
+  return (
+    contractType === 'DEDICATED_WAREHOUSE' ||
+    contractType === 'DEDICATED_ZONE' ||
+    contractType === 'NEEDS_CONSULTATION'
+  )
 }
 
 export function requestedAreaFieldLabel(contractType: ContractTypeValue): string {
   if (contractType === 'DEDICATED_WAREHOUSE') {
     return 'Diện tích kho tối thiểu bạn cần (m²)'
+  }
+  if (contractType === 'NEEDS_CONSULTATION') {
+    return 'Diện tích mong muốn (m²) — nếu chưa rõ'
   }
   return 'Diện tích zone mong muốn (m²)'
 }
@@ -84,5 +109,23 @@ export function requestedAreaFieldHint(contractType: ContractTypeValue): string 
   if (contractType === 'DEDICATED_WAREHOUSE') {
     return 'Tham khảo diện tích các kho trong khu vực phía trên. Không bắt buộc chọn đúng một kho.'
   }
+  if (contractType === 'NEEDS_CONSULTATION') {
+    return 'Có thể bỏ trống nếu bạn đã nhập tổng số cái/tháng bên dưới. Kho sẽ đề xuất loại thuê sau khi xem xét.'
+  }
   return 'Ước tính diện tích zone riêng bạn muốn thuê (tính phí theo m²/tháng).'
+}
+
+export function suggestBillableContractType(
+  row: { contractType?: string | null; requestedAreaM2?: number | null }
+): BillableContractTypeValue {
+  if (
+    row.contractType &&
+    row.contractType !== 'NEEDS_CONSULTATION'
+  ) {
+    return row.contractType as BillableContractTypeValue
+  }
+  if (row.requestedAreaM2 != null && row.requestedAreaM2 > 0) {
+    return 'DEDICATED_ZONE'
+  }
+  return 'SHARED_STORAGE'
 }

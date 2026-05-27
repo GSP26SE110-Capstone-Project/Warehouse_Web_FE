@@ -71,9 +71,12 @@ export interface ApiInboundApprovalReadiness {
     piecesPerLpn: number
     volumeUnitsPerLpn: number
     boxType: string
+    binMaxLpnCount?: number
+    binMaxVolumeUnits?: number
   }
   estimatedLpnNeeded: number
   estimatedVolumeUnitsNeeded: number
+  estimatedBinsNeeded?: number
   warehouseStorage: {
     totalBins: number
     putawayEligibleBins: number
@@ -84,6 +87,35 @@ export interface ApiInboundApprovalReadiness {
   sufficient: boolean
   sufficientLpnSlots: boolean
   sufficientVolume: boolean
+  boxTypeCapacity: Record<
+    string,
+    {
+      candidateBins: number
+      totalFreeLpnSlots: number
+      totalFreeVolumeUnits: number
+      volumeUnits: number
+    }
+  >
+  boxTypeSuggestion: {
+    recommendedBoxType: string
+    reason: string
+  }
+  pricingEstimate: {
+    hasPricing: boolean
+    inboundLpnUnitPrice: number | null
+    handlingUnitPrice: number | null
+    storageBoxDayUnitPrice?: number | null
+    billingDaysPerMonth?: number
+    estimatedAvgBoxesForMonth?: number
+    estimatedInboundLpnCost: number | null
+    estimatedHandlingCost: number | null
+    estimatedOneTimeOpsCost?: number | null
+    estimatedMonthlyStorageCost?: number | null
+    estimatedFirstMonthTotal?: number | null
+    estimatedTotalCost: number | null
+    currency: string
+    usedFallback?: boolean
+  }
   warnings: string[]
   batchCount: number
   canRevokeApproval: boolean

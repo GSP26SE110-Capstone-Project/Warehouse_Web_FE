@@ -18,8 +18,8 @@ export function ContractTypeGuide({
           Chọn loại hình thuê phù hợp
         </h3>
         <p className="text-sm text-[#9bb9bb] mt-1 max-w-3xl">
-          Bốn hình thức dưới đây mô tả mức độ “riêng tư” không gian kho. Chọn một loại rồi điền form bên dưới — bạn
-          có thể đổi lại trước khi gửi.
+          Các hình thức dưới đây mô tả mức độ “riêng tư” không gian kho. Không chắc? Chọn{' '}
+          <strong className="text-[#06edf9]">Chưa rõ / để kho tư vấn</strong> — kho sẽ chốt loại thuê khi duyệt.
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

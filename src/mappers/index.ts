@@ -105,6 +105,7 @@ export type RentalRequestRow = {
   estimatedInboundPerWeek?: number | null
   estimatedOutboundPerWeek?: number | null
   requestedAreaM2?: number | null
+  suggestedZoneType?: string | null
   requiresFastPicking?: boolean
   requiresPremiumStorage?: boolean
   notes?: string | null
@@ -152,6 +153,7 @@ export function rentalRequestToRow(
     estimatedInboundPerWeek: r.estimatedInboundPerWeek,
     estimatedOutboundPerWeek: r.estimatedOutboundPerWeek,
     requestedAreaM2: r.requestedAreaM2,
+    suggestedZoneType: r.suggestedZoneType,
     requiresFastPicking: r.requiresFastPicking,
     requiresPremiumStorage: r.requiresPremiumStorage,
     notes: r.notes,

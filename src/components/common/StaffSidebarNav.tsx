@@ -28,11 +28,13 @@ const TENANT_NAV: NavItem[] = [
     key: 'inbound',
     href: '/staff/inbound',
   },
+  { label: 'Tồn kho', icon: 'warehouse', key: 'inventory', href: '/staff/inventory' },
 ]
 
 const WH_STAFF_NAV: NavItem[] = [
   { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/staff/dashboard' },
   { label: 'Nhập kho', icon: 'input', key: 'inbound-ops', href: '/staff/inbound-ops' },
+  { label: 'Tồn kho', icon: 'inventory_2', key: 'inventory-ops', href: '/staff/inventory-ops' },
   { label: 'Quản lý vận chuyển', icon: 'local_shipping', key: 'requests', href: '/staff/requests' },
 ]
 

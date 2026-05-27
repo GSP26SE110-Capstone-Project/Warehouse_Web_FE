@@ -124,9 +124,7 @@ export const RackLayoutManagement = () => {
         }
       })
     } else if (fixedWarehouseId) {
-      warehousesApi
-        .listWarehouses({ limit: 100 })
-        .then(({ items }) => setWarehouses(items.filter((w) => w.warehouseId === fixedWarehouseId)))
+      warehousesApi.getWarehouse(fixedWarehouseId).then((w) => setWarehouses([w]))
     }
   }, [isWhAdmin, fixedWarehouseId, selectedWarehouseId])
 

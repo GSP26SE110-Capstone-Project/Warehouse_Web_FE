@@ -98,6 +98,7 @@ export interface ApiRentalRequest {
   estimatedOutboundPerWeek?: number | null
   requiresFastPicking?: boolean
   requiresPremiumStorage?: boolean
+  suggestedZoneType?: string | null
   notes?: string | null
   expectedStartDate?: string | null
   expectedEndDate?: string | null

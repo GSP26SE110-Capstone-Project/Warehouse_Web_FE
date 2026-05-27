@@ -1,28 +1,46 @@
-/** Tính số thùng (≈ LPN) từ tổng cái và cái/thùng. */
-export function computeEstimatedBoxCount(
-  totalPieces: number,
-  piecesPerBox: number
-): number | null {
-  if (!Number.isFinite(totalPieces) || totalPieces <= 0) return null
-  if (!Number.isFinite(piecesPerBox) || piecesPerBox <= 0) return null
-  return Math.ceil(totalPieces / piecesPerBox)
+/** Tham chiếu nội bộ khi guest chỉ nhập cái/tháng (kho quyết định cái/thùng thực tế). */
+export const PLANNING_PIECES_PER_MEDIUM_BOX = 25
+
+/** EXTRA = 4× volume MEDIUM → ~100 cái/thùng (tham khảo). */
+export const PLANNING_PIECES_PER_EXTRA_BOX =
+  PLANNING_PIECES_PER_MEDIUM_BOX * (8 / 2)
+
+export const GUEST_BOX_TYPE_HINTS = [
+  {
+    type: 'MEDIUM' as const,
+    title: 'MEDIUM',
+    description: 'Thùng carton tiêu chuẩn — quần áo, phụ kiện, hàng nhỏ vừa.',
+    icon: 'inventory_2',
+    piecesPerBox: PLANNING_PIECES_PER_MEDIUM_BOX,
+  },
+  {
+    type: 'EXTRA' as const,
+    title: 'EXTRA',
+    description: 'Kiện lớn / gần pallet — hàng cồng kềnh hoặc rất nhiều cái trong một đơn vị.',
+    icon: 'pallet',
+    piecesPerBox: PLANNING_PIECES_PER_EXTRA_BOX,
+  },
+] as const
+
+export function estimateBoxesPerMonthFromPieces(totalPiecesPerMonth: number): number | null {
+  if (!Number.isFinite(totalPiecesPerMonth) || totalPiecesPerMonth <= 0) return null
+  return Math.ceil(totalPiecesPerMonth / PLANNING_PIECES_PER_MEDIUM_BOX)
 }
 
-export function formatBoxEstimateSummary(
-  totalPieces: number,
-  piecesPerBox: number,
-  boxCount: number
-): string {
-  return `${totalPieces.toLocaleString('vi-VN')} cái ÷ ${piecesPerBox.toLocaleString('vi-VN')} cái/thùng ≈ ${boxCount.toLocaleString('vi-VN')} thùng`
+export interface GuestBoxTypeSuggestion {
+  piecesPerMonth: number
+  mediumPerMonth: number
+  extraPerMonth: number
 }
 
-/** Gợi ý boxType khi kho tạo LPN (chỉ hiển thị cho guest). */
-export function suggestBoxTypeLabel(piecesPerBox: number): string {
-  if (!Number.isFinite(piecesPerBox) || piecesPerBox <= 0) {
-    return 'MEDIUM — thùng carton tiêu chuẩn'
+/** Gợi ý số thùng MEDIUM / EXTRA từ tổng cái/tháng (hai kịch bản xếp hàng). */
+export function suggestGuestBoxTypesFromPieces(
+  totalPiecesPerMonth: number
+): GuestBoxTypeSuggestion | null {
+  if (!Number.isFinite(totalPiecesPerMonth) || totalPiecesPerMonth <= 0) return null
+  return {
+    piecesPerMonth: totalPiecesPerMonth,
+    mediumPerMonth: Math.ceil(totalPiecesPerMonth / PLANNING_PIECES_PER_MEDIUM_BOX),
+    extraPerMonth: Math.ceil(totalPiecesPerMonth / PLANNING_PIECES_PER_EXTRA_BOX),
   }
-  if (piecesPerBox <= 12) return 'SMALL — thùng nhỏ / ít cái'
-  if (piecesPerBox <= 45) return 'MEDIUM — thùng carton quần áo thường gặp'
-  if (piecesPerBox <= 90) return 'LARGE — thùng lớn'
-  return 'EXTRA — kiện rất lớn / gần pallet'
 }

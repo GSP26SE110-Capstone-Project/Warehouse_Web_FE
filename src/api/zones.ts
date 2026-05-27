@@ -21,6 +21,29 @@ export function listZones(params: {
   return apiPaginated<ApiZone>(`/zones${buildQuery(params)}`)
 }
 
+export function createZonesBulk(body: {
+  warehouseId: string
+  count?: number
+  areaM2PerZone?: number
+  zoneCodePrefix?: string
+  zoneNamePrefix?: string
+  zoneType?: string
+  isDedicated?: boolean
+  status?: string
+  zones?: Array<{ zoneCode: string; zoneName?: string; areaM2?: number }>
+}) {
+  return apiRequest<{ items: ApiZone[]; count: number }>('/zones/bulk', {
+    method: 'POST',
+    body,
+  })
+}
+
+export function getZonePlanning(warehouseId: string) {
+  return apiRequest<import('./warehouses').ApiWarehouseZonePlanning>(
+    `/zones/planning${buildQuery({ warehouseId })}`
+  )
+}
+
 export function createZone(body: {
   warehouseId: string
   zoneCode: string

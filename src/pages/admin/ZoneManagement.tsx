@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { StatsCard } from '../../components/ui/StatCard'
 import { Pagination } from '../../components/ui/Pagination'
 import { ZoneModal, type ZoneFormPayload } from '../../components/ui/modal/ZoneModal'
+import { BulkZoneModal } from '../../components/ui/modal/BulkZoneModal'
+import type { ApiWarehouseZonePlanning } from '../../api/warehouses'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { ApiError } from '../../api/client'
@@ -45,6 +47,9 @@ export const ZoneManagement = () => {
     onConfirm?: () => void
   }>({ open: false, type: 'success', message: '' })
 
+  const [zonePlanning, setZonePlanning] = useState<ApiWarehouseZonePlanning | null>(null)
+  const [bulkOpen, setBulkOpen] = useState(false)
+
   const activeWarehouseId = isWhAdmin ? fixedWarehouseId : selectedWarehouseId
   const activeWarehouse = warehouses.find((w) => w.warehouseId === activeWarehouseId)
 
@@ -57,11 +62,22 @@ export const ZoneManagement = () => {
         }
       })
     } else if (fixedWarehouseId) {
-      warehousesApi
-        .listWarehouses({ limit: 100 })
-        .then(({ items }) => setWarehouses(items.filter((w) => w.warehouseId === fixedWarehouseId)))
+      warehousesApi.getWarehouse(fixedWarehouseId).then((w) => setWarehouses([w]))
     }
   }, [isWhAdmin, fixedWarehouseId, selectedWarehouseId])
+
+  const loadPlanning = useCallback(async () => {
+    if (!activeWarehouseId) {
+      setZonePlanning(null)
+      return
+    }
+    try {
+      const p = await warehousesApi.getWarehouseZonePlanning(activeWarehouseId)
+      setZonePlanning(p)
+    } catch {
+      setZonePlanning(null)
+    }
+  }, [activeWarehouseId])
 
   const loadZones = useCallback(async () => {
     if (!activeWarehouseId) {
@@ -83,7 +99,8 @@ export const ZoneManagement = () => {
 
   useEffect(() => {
     loadZones()
-  }, [loadZones])
+    loadPlanning()
+  }, [loadZones, loadPlanning])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
@@ -142,6 +159,7 @@ export const ZoneManagement = () => {
         setAlert({ open: true, type: 'success', message: 'Cập nhật zone thành công' })
       }
       await loadZones()
+      await loadPlanning()
     } catch (err) {
       setAlert({
         open: true,
@@ -157,6 +175,7 @@ export const ZoneManagement = () => {
       await zonesApi.deleteZone(zone.zoneId)
       setAlert({ open: true, type: 'success', message: 'Đã xóa zone' })
       await loadZones()
+      await loadPlanning()
     } catch (err) {
       setAlert({
         open: true,
@@ -164,6 +183,29 @@ export const ZoneManagement = () => {
         message: err instanceof ApiError ? err.message : 'Xóa thất bại',
       })
     }
+  }
+
+  const handleBulkCreate = async (payload: {
+    count: number
+    areaM2PerZone: number
+    zoneCodePrefix: string
+    zoneType: string
+  }) => {
+    if (!activeWarehouseId) return
+    await zonesApi.createZonesBulk({
+      warehouseId: activeWarehouseId,
+      count: payload.count,
+      areaM2PerZone: payload.areaM2PerZone,
+      zoneCodePrefix: payload.zoneCodePrefix,
+      zoneType: payload.zoneType,
+    })
+    setAlert({
+      open: true,
+      type: 'success',
+      message: `Đã tạo ${payload.count} zone`,
+    })
+    await loadZones()
+    await loadPlanning()
   }
 
   if (isWhAdmin && !fixedWarehouseId) {
@@ -214,6 +256,43 @@ export const ZoneManagement = () => {
               )}
             </div>
 
+            {zonePlanning && (
+              <div
+                className={`rounded-xl border px-4 py-3 text-sm ${
+                  zonePlanning.areaValid
+                    ? 'border-cyan-500/30 bg-cyan-500/5 text-slate-300'
+                    : 'border-amber-500/40 bg-amber-500/10 text-amber-100'
+                }`}
+              >
+                <p>
+                  Diện tích sử dụng:{' '}
+                  <strong>{formatArea(zonePlanning.usableAreaM2)} m²</strong>
+                  {zonePlanning.totalAreaM2 != null && (
+                    <span className="text-slate-500">
+                      {' '}
+                      (tổng {formatArea(zonePlanning.totalAreaM2)} m²)
+                    </span>
+                  )}
+                  {' · '}
+                  Zone đã phân bổ: <strong>{formatArea(zonePlanning.usedZoneAreaM2)} m²</strong>
+                  {' · '}
+                  Còn lại: <strong className="text-cyan-300">
+                    {formatArea(zonePlanning.remainingZoneAreaM2)}
+                  </strong>
+                </p>
+                {zonePlanning.suggestedMinZoneCount != null && (
+                  <p className="mt-1 text-xs text-amber-200/90">
+                    Gợi ý tối thiểu ~{zonePlanning.suggestedMinZoneCount} zone (≈{' '}
+                    {zonePlanning.suggestedReferenceZoneAreaM2} m²/zone). Hiện có{' '}
+                    {zonePlanning.zoneCount} zone
+                    {(zonePlanning.missingZoneCount ?? 0) > 0 && (
+                      <> — có thể thêm ~{zonePlanning.missingZoneCount} zone</>
+                    )}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               <StatsCard title="Tổng zone" value={zones.length} icon="grid_view" accentColor="emerald" />
               <StatsCard title="Đang hoạt động" value={activeCount} icon="check" accentColor="primary" />
@@ -239,15 +318,25 @@ export const ZoneManagement = () => {
                     className="rounded-lg border border-white/10 bg-[#1a2333] py-2 pl-10 pr-4 text-sm text-white focus:border-cyan-400 focus:outline-none"
                   />
                 </div>
-                <button
-                  type="button"
-                  disabled={!activeWarehouseId}
-                  onClick={() => setModal({ open: true, mode: 'create' })}
-                  className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold text-black disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined text-lg">add</span>
-                  TẠO ZONE
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={!activeWarehouseId}
+                    onClick={() => setModal({ open: true, mode: 'create' })}
+                    className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold text-black disabled:opacity-50"
+                  >
+                    <span className="material-symbols-outlined text-lg">add</span>
+                    TẠO ZONE
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!activeWarehouseId}
+                    onClick={() => setBulkOpen(true)}
+                    className="flex items-center gap-2 rounded-lg border border-cyan-500/40 px-4 py-2 text-sm font-medium text-cyan-300 disabled:opacity-50"
+                  >
+                    Tạo nhiều zone
+                  </button>
+                </div>
               </div>
 
               <div className="overflow-x-auto">
@@ -375,8 +464,22 @@ export const ZoneManagement = () => {
           }
           warehouses={warehouseOptions}
           allowWarehousePick={!isWhAdmin}
+          zonePlanning={zonePlanning}
+          editingZoneAreaM2={
+            modal.mode === 'edit' && modal.data?.areaM2 != null ? Number(modal.data.areaM2) : 0
+          }
           onClose={() => setModal({ open: false })}
           onSubmit={handleSubmit}
+        />
+      )}
+
+      {bulkOpen && activeWarehouseId && (
+        <BulkZoneModal
+          warehouseId={activeWarehouseId}
+          warehouseLabel={warehouseLabelForModal}
+          planning={zonePlanning}
+          onClose={() => setBulkOpen(false)}
+          onSubmit={handleBulkCreate}
         />
       )}
 

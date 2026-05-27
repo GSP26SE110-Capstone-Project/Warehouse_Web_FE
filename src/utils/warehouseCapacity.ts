@@ -7,6 +7,9 @@ export const BIN_SLOT_FOOTPRINT_M2 = 0.25
 /** 30% diện tích zone = lối đi xe; 70% còn lại đặt rack */
 export const ZONE_AISLE_RATIO = 0.3
 
+/** Đồng bộ BE — gợi ý số zone tối thiểu */
+export const REFERENCE_ZONE_AREA_M2 = 50
+
 export type ZoneStorageCapacity = {
   hasArea: boolean
   areaM2: number | null

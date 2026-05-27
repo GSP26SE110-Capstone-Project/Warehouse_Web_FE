@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
-  computeEstimatedBoxCount,
-  formatBoxEstimateSummary,
-  suggestBoxTypeLabel,
+  estimateBoxesPerMonthFromPieces,
+  GUEST_BOX_TYPE_HINTS,
+  suggestGuestBoxTypesFromPieces,
 } from '../../utils/rentalBoxEstimate'
+import {
+  estimateMonthCount,
+  meetsMinimumRentalMonths,
+  minRentalEndDate,
+} from '../../utils/rentalPeriod'
 import { ApiError } from '../../api/client'
 import {
   fetchLocationTree,
@@ -159,9 +164,7 @@ export function RentalRequestForm({
   const [billingCycle, setBillingCycle] = useState('MONTHLY')
   const [requestedAreaM2, setRequestedAreaM2] = useState('')
   const [estimatedTotalPieces, setEstimatedTotalPieces] = useState('')
-  const [piecesPerBox, setPiecesPerBox] = useState('25')
   const [estimatedBoxCount, setEstimatedBoxCount] = useState('')
-  const [boxCountManual, setBoxCountManual] = useState(false)
   const [estimatedSkuCount, setEstimatedSkuCount] = useState('')
   const [estimatedInboundPerWeek, setEstimatedInboundPerWeek] = useState('')
   const [estimatedOutboundPerWeek, setEstimatedOutboundPerWeek] = useState('')
@@ -177,29 +180,31 @@ export function RentalRequestForm({
     onContractTypeChange(value)
   }
 
-  const computedBoxCount = useMemo(() => {
-    const total = Number(estimatedTotalPieces)
-    const perBox = Number(piecesPerBox)
-    return computeEstimatedBoxCount(total, perBox)
-  }, [estimatedTotalPieces, piecesPerBox])
-
-  useEffect(() => {
-    if (boxCountManual || computedBoxCount == null) return
-    setEstimatedBoxCount(String(computedBoxCount))
-  }, [computedBoxCount, boxCountManual])
-
-  const boxEstimateSummary = useMemo(() => {
-    if (computedBoxCount == null) return null
-    const total = Number(estimatedTotalPieces)
-    const perBox = Number(piecesPerBox)
-    if (!Number.isFinite(total) || !Number.isFinite(perBox)) return null
-    return formatBoxEstimateSummary(total, perBox, computedBoxCount)
-  }, [computedBoxCount, estimatedTotalPieces, piecesPerBox])
-
-  const suggestedBoxType = useMemo(
-    () => suggestBoxTypeLabel(Number(piecesPerBox)),
-    [piecesPerBox]
+  const estimatedMonthCount = useMemo(
+    () => estimateMonthCount(expectedStartDate, expectedEndDate),
+    [expectedStartDate, expectedEndDate]
   )
+  const boxesPerMonthForSubmit = useMemo(() => {
+    const manual = Number(estimatedBoxCount)
+    if (Number.isFinite(manual) && manual > 0) return manual
+    const pieces = Number(estimatedTotalPieces)
+    return estimateBoxesPerMonthFromPieces(pieces)
+  }, [estimatedBoxCount, estimatedTotalPieces])
+
+  const estimatedBoxCountTotal = useMemo(() => {
+    if (boxesPerMonthForSubmit == null || estimatedMonthCount <= 0) return null
+    return Math.round(boxesPerMonthForSubmit * estimatedMonthCount)
+  }, [boxesPerMonthForSubmit, estimatedMonthCount])
+
+  const minEndDate = useMemo(
+    () => minRentalEndDate(expectedStartDate),
+    [expectedStartDate]
+  )
+
+  const boxTypeSuggestion = useMemo(() => {
+    const pieces = Number(estimatedTotalPieces)
+    return suggestGuestBoxTypesFromPieces(pieces)
+  }, [estimatedTotalPieces])
 
   useEffect(() => {
     let cancelled = false
@@ -295,6 +300,22 @@ export function RentalRequestForm({
       setError('Ngày kết thúc phải sau ngày bắt đầu')
       return
     }
+    if (!meetsMinimumRentalMonths(expectedStartDate, expectedEndDate)) {
+      setError('Thời hạn thuê tối thiểu 1 tháng (ngày kết thúc phải sau ngày bắt đầu ít nhất 30 ngày)')
+      return
+    }
+
+    const areaNum = Number(requestedAreaM2)
+    const hasArea = Number.isFinite(areaNum) && areaNum > 0
+    const piecesNum = Number(estimatedTotalPieces)
+    const hasPieces = Number.isFinite(piecesNum) && piecesNum > 0
+    if (!hasArea && !hasPieces) {
+      setError(
+        'Vui lòng nhập diện tích mong muốn (m²) hoặc tổng số cái/tháng — ít nhất một trong hai để kho ước tính sức chứa'
+      )
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -306,6 +327,11 @@ export function RentalRequestForm({
         taxCode: taxCode.trim() || undefined,
       })
 
+      const capacityNote = hasPieces
+        ? `Tổng cái/tháng (ước tính): ${piecesNum.toLocaleString('vi-VN')}`
+        : ''
+      const mergedNotes = [notes.trim(), capacityNote].filter(Boolean).join('\n')
+
       const rental = await createRentalRequest({
         tenantId: tenant.tenantId,
         city: city.trim(),
@@ -313,7 +339,7 @@ export function RentalRequestForm({
         contractType,
         pricingModel: defaultPricingModel(contractType),
         billingCycle,
-        estimatedBoxCount: estimatedBoxCount ? Number(estimatedBoxCount) : undefined,
+        estimatedBoxCount: estimatedBoxCountTotal ?? undefined,
         estimatedSkuCount: estimatedSkuCount ? Number(estimatedSkuCount) : undefined,
         estimatedInboundPerWeek: estimatedInboundPerWeek
           ? Number(estimatedInboundPerWeek)
@@ -321,17 +347,14 @@ export function RentalRequestForm({
         estimatedOutboundPerWeek: estimatedOutboundPerWeek
           ? Number(estimatedOutboundPerWeek)
           : undefined,
-        requestedAreaM2:
-          showsRequestedAreaField(contractType) && requestedAreaM2
-            ? Number(requestedAreaM2)
-            : undefined,
+        requestedAreaM2: hasArea ? areaNum : undefined,
         suggestedZoneType: suggestedZoneType || undefined,
         suggestedRackType: suggestedRackType || undefined,
         requiresFastPicking,
         requiresPremiumStorage,
         expectedStartDate: new Date(expectedStartDate).toISOString(),
         expectedEndDate: new Date(expectedEndDate).toISOString(),
-        notes: notes.trim() || undefined,
+        notes: mergedNotes || undefined,
       })
 
       setSuccess({
@@ -556,13 +579,21 @@ export function RentalRequestForm({
                 options={contractSelectOptions}
               />
             </div>
-            {showsRequestedAreaField(contractType) && (
+            {(showsRequestedAreaField(contractType) ||
+              contractType === 'SHARED_STORAGE' ||
+              contractType === 'RESERVED_STORAGE') && (
               <div className="flex flex-col gap-2 sm:col-span-2">
                 <FieldLabel
                   htmlFor="requestedAreaM2"
-                  hint={requestedAreaFieldHint(contractType)}
+                  hint={
+                    showsRequestedAreaField(contractType)
+                      ? `${requestedAreaFieldHint(contractType)} Hoặc nhập tổng số cái/tháng ở mục quy mô hàng bên dưới.`
+                      : 'Không bắt buộc nếu bạn đã nhập tổng số cái/tháng bên dưới.'
+                  }
                 >
-                  {requestedAreaFieldLabel(contractType)}
+                  {showsRequestedAreaField(contractType)
+                    ? requestedAreaFieldLabel(contractType)
+                    : 'Diện tích mong muốn (m²) — nếu biết'}
                 </FieldLabel>
                 <TextInput
                   id="requestedAreaM2"
@@ -593,6 +624,7 @@ export function RentalRequestForm({
                   id="expectedStartDate"
                   type="date"
                   required
+                  title="Ngày bắt đầu dự kiến"
                   value={expectedStartDate}
                   onChange={(e) => {
                     setExpectedStartDate(e.target.value)
@@ -607,7 +639,7 @@ export function RentalRequestForm({
             <div className="flex flex-col gap-2">
               <FieldLabel
                 htmlFor="expectedEndDate"
-                hint="Thời hạn thuê kho bạn mong muốn — kho sẽ căn cứ khi lập hợp đồng"
+                hint="Tối thiểu 1 tháng kể từ ngày bắt đầu — kho sẽ căn cứ khi lập hợp đồng"
               >
                 Ngày kết thúc dự kiến *
               </FieldLabel>
@@ -616,7 +648,8 @@ export function RentalRequestForm({
                   id="expectedEndDate"
                   type="date"
                   required
-                  min={expectedStartDate || undefined}
+                  min={(minEndDate ?? expectedStartDate) || undefined}
+                  title="Ngày kết thúc dự kiến"
                   value={expectedEndDate}
                   onChange={(e) => setExpectedEndDate(e.target.value)}
                   className="block w-full px-4 py-3 bg-transparent border-0 text-white focus:outline-none text-base [color-scheme:dark]"
@@ -625,77 +658,121 @@ export function RentalRequestForm({
             </div>
 
             <div className="sm:col-span-2">
-              <p className="text-sm font-medium text-gray-200 mb-1">Quy mô hàng hóa (ước tính)</p>
+              <p className="text-sm font-medium text-gray-200 mb-1">Quy mô hàng hóa (ước tính theo tháng)</p>
               <p className="text-xs text-[#9bb9bb] mb-3">
-                Số <strong className="text-gray-300">cái</strong> (chiếc sản phẩm) khác số{' '}
-                <strong className="text-gray-300">thùng</strong> (carton/LPN). Hệ thống gợi ý số thùng
-                từ tổng cái ÷ cái/thùng — kho sẽ xác nhận khi nhận hàng thật.
+                Bắt buộc nhập <strong className="text-gray-300">diện tích (m²)</strong> ở trên{' '}
+                <strong className="text-gray-300">hoặc</strong> <strong className="text-gray-300">tổng số cái/tháng</strong>{' '}
+                tại đây. Kho sẽ quyết định xếp bao nhiêu cái vào từng thùng khi nhận hàng thật — bạn không cần
+                nhập cái/thùng.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 sm:col-span-2">
                   <FieldLabel
                     htmlFor="estimatedTotalPieces"
-                    hint="VD: 100 áo thun trong kho (không phải số thùng)"
+                    hint="VD: 1.000 áo thun trung bình mỗi tháng. Bỏ trống nếu đã nhập diện tích m²."
                   >
-                    Tổng số cái (ước tính)
+                    Tổng số cái / tháng (ước tính)
                   </FieldLabel>
                   <TextInput
                     id="estimatedTotalPieces"
                     type="number"
                     min={1}
                     value={estimatedTotalPieces}
-                    onChange={(v) => {
-                      setEstimatedTotalPieces(v)
-                      setBoxCountManual(false)
-                    }}
-                    placeholder="100"
+                    onChange={setEstimatedTotalPieces}
+                    placeholder="1000"
                   />
                 </div>
-                <div className="flex flex-col gap-2">
-                  <FieldLabel
-                    htmlFor="piecesPerBox"
-                    hint="Trung bình mỗi thùng carton chứa bao nhiêu cái"
-                  >
-                    Cái / thùng (trung bình)
-                  </FieldLabel>
-                  <TextInput
-                    id="piecesPerBox"
-                    type="number"
-                    min={1}
-                    value={piecesPerBox}
-                    onChange={(v) => {
-                      setPiecesPerBox(v)
-                      setBoxCountManual(false)
-                    }}
-                    placeholder="25"
-                  />
-                </div>
+
+                {boxTypeSuggestion && (
+                  <div className="sm:col-span-2 space-y-2">
+                    <p className="text-xs text-[#9bb9bb] pl-1">
+                      Với{' '}
+                      <strong className="text-white">
+                        {boxTypeSuggestion.piecesPerMonth.toLocaleString('vi-VN')} cái/tháng
+                      </strong>{' '}
+                      (ước tính), quy mô tham khảo:
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {GUEST_BOX_TYPE_HINTS.map((hint) => {
+                        const perMonth =
+                          hint.type === 'MEDIUM'
+                            ? boxTypeSuggestion.mediumPerMonth
+                            : boxTypeSuggestion.extraPerMonth
+                        const forPeriod =
+                          estimatedMonthCount > 0
+                            ? perMonth * estimatedMonthCount
+                            : null
+                        return (
+                          <div
+                            key={hint.type}
+                            className="rounded-lg border border-[#06edf9]/35 bg-[#06edf9]/10 p-3 text-xs ring-1 ring-[#06edf9]/20"
+                          >
+                            <p className="font-semibold text-[#06edf9] flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-base">{hint.icon}</span>
+                              {hint.title}
+                            </p>
+                            <p className="text-[#9bb9bb] mt-1 leading-relaxed">{hint.description}</p>
+                            <p className="mt-2 text-sm font-medium text-white">
+                              ≈{' '}
+                              <span className="text-[#06edf9]">
+                                {perMonth.toLocaleString('vi-VN')} {hint.title}
+                              </span>
+                              /tháng
+                              {forPeriod != null && (
+                                <>
+                                  {' '}
+                                  · ≈{' '}
+                                  <span className="text-[#06edf9]">
+                                    {forPeriod.toLocaleString('vi-VN')} {hint.title}
+                                  </span>{' '}
+                                  cho {estimatedMonthCount} tháng
+                                </>
+                              )}
+                            </p>
+                            <p className="text-[10px] text-slate-500 mt-1">
+                              (~{hint.piecesPerBox} cái/thùng {hint.title} — tham khảo)
+                            </p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex flex-col gap-2 sm:col-span-2">
                   <FieldLabel
                     htmlFor="estimatedBoxCount"
-                    hint="Số thùng / pallet dự kiến lưu kho (≈ số LPN). Tự tính khi nhập tổng cái + cái/thùng; có thể sửa tay."
+                    hint="Tuỳ chọn — chỉ điền nếu bạn quen ước tính theo thùng/LPN. Để trống khi chỉ nhập số cái/tháng."
                   >
-                    Số thùng hàng (ước tính)
+                    Số thùng hàng / tháng (tuỳ chọn)
                   </FieldLabel>
                   <TextInput
                     id="estimatedBoxCount"
                     type="number"
                     min={0}
                     value={estimatedBoxCount}
-                    onChange={(v) => {
-                      setEstimatedBoxCount(v)
-                      setBoxCountManual(true)
-                    }}
-                    placeholder="4"
+                    onChange={setEstimatedBoxCount}
+                    placeholder="40"
                   />
-                  {boxEstimateSummary && (
-                    <p className="text-xs text-[#06edf9]/90 pl-1">{boxEstimateSummary}</p>
-                  )}
-                  {Number(piecesPerBox) > 0 && (
-                    <p className="text-xs text-[#9bb9bb] pl-1">
-                      Gợi ý loại thùng khi nhập kho (kho chọn khi tạo LPN):{' '}
-                      <span className="text-gray-300">{suggestedBoxType}</span>
-                    </p>
+                  {estimatedBoxCountTotal != null && boxesPerMonthForSubmit != null && (
+                    <div
+                      className="mt-2 rounded-lg border border-[#06edf9]/50 bg-[#06edf9]/15 px-4 py-3 text-sm text-[#06edf9] ring-1 ring-[#06edf9]/30"
+                      role="status"
+                    >
+                      <p className="font-semibold text-white mb-1 flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-base">calculate</span>
+                        Quy đổi theo thời hạn thuê
+                      </p>
+                      <p>
+                        ~{boxesPerMonthForSubmit.toLocaleString('vi-VN')} thùng/tháng ×{' '}
+                        {estimatedMonthCount} tháng ≈{' '}
+                        <strong className="text-white text-base">
+                          {estimatedBoxCountTotal.toLocaleString('vi-VN')} thùng
+                        </strong>{' '}
+                        cho toàn kỳ{' '}
+                        <span className="text-[#9bb9bb] text-xs">(tham khảo)</span>
+                      </p>
+                    </div>
                   )}
                 </div>
                 <div className="flex flex-col gap-2">

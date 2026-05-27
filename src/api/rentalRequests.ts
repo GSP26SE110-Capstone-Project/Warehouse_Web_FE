@@ -73,6 +73,44 @@ export function createRentalRequest(body: {
   return apiRequest<ApiRentalRequest>('/rental-requests', { method: 'POST', body, auth: false })
 }
 
+export interface ApiContractPriceEstimate {
+  rentalRequestId: string
+  warehouseId: string | null
+  contractType: string
+  billingCycle: string
+  monthCount: number
+  monthlyAmount: number
+  suggestedTotalAmount: number
+  areaM2Used: number | null
+  unitPricePerM2Month: number | null
+  basisLabel: string
+  breakdown: Array<{ label: string; detail: string }>
+  warehouse: {
+    warehouseId: string
+    warehouseName: string
+    totalAreaM2: number | null
+    usableAreaM2: number | null
+  } | null
+  zonePlanning: {
+    zoneCount: number
+    usedZoneAreaM2: number
+    remainingZoneAreaM2: number | null
+    usableAreaM2: number | null
+    suggestedMinZoneCount: number | null
+  } | null
+  requestedAreaM2: number | null
+  currency: string
+  source: string
+}
+
+export function getContractPriceEstimate(rentalRequestId: string, warehouseId?: string) {
+  return apiRequest<ApiContractPriceEstimate>(
+    `/rental-requests/${rentalRequestId}/price-estimate${buildQuery(
+      warehouseId ? { warehouseId } : {}
+    )}`
+  )
+}
+
 export function updateRentalRequest(
   rentalRequestId: string,
   body: {
@@ -82,6 +120,9 @@ export function updateRentalRequest(
     reviewNote?: string
     reviewedBy?: string
     reviewedAt?: string
+    contractType?: string
+    pricingModel?: string
+    billingCycle?: string
   }
 ) {
   return apiRequest<ApiRentalRequest>(`/rental-requests/${rentalRequestId}`, {

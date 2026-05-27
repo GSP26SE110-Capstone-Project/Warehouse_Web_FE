@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { InboundApprovalPanel } from '../../components/inbound/InboundApprovalPanel'
 import { InboundStatusBadge } from '../../components/inbound/InboundStatusBadge'
 import { PutawayBinPicker } from '../../components/inbound/PutawayBinPicker'
+import { InboundLpnReceivingSection } from '../../components/inbound/InboundLpnReceivingSection'
 import {
   InboundDeliveryForm,
   emptyDeliveryForm,
@@ -24,7 +25,7 @@ import type {
 import * as batchesApi from '../../api/batches'
 import type { ApiBatch } from '../../api/batches'
 import * as lpnsApi from '../../api/lpns'
-import type { ApiLpn, BoxType } from '../../api/lpns'
+import type { ApiLpn, ApiLpnDetail, BoxType } from '../../api/lpns'
 import { BOX_TYPE_OPTIONS } from '../../data/inboundStatus'
 import { formatDate } from '../../mappers'
 
@@ -44,6 +45,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   const [inbound, setInbound] = useState<ApiInboundRequestWithItems | null>(null)
   const [batches, setBatches] = useState<ApiBatch[]>([])
   const [lpns, setLpns] = useState<ApiLpn[]>([])
+  const [lpnDetails, setLpnDetails] = useState<ApiLpnDetail[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -51,6 +53,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   const [batchCode, setBatchCode] = useState('')
   const [lpnCode, setLpnCode] = useState('')
   const [boxType, setBoxType] = useState<BoxType>('MEDIUM')
+  const [boxTypeTouched, setBoxTypeTouched] = useState(false)
   const [selectedBatchId, setSelectedBatchId] = useState('')
   const [selectedLpnId, setSelectedLpnId] = useState('')
   const [detailSkuId, setDetailSkuId] = useState('')
@@ -112,14 +115,24 @@ export function InboundDetailPage({ mode, basePath }: Props) {
         const lpnLists = await Promise.all(
           batchRes.items.map((b) => lpnsApi.listLpns({ batchId: b.batchId, limit: 100 }))
         )
-        setLpns(lpnLists.flatMap((r) => r.items))
+        const allLpns = lpnLists.flatMap((r) => r.items)
+        setLpns(allLpns)
+        if (allLpns.length > 0) {
+          const withDetails = await Promise.all(
+            allLpns.map((l) => lpnsApi.getLpnWithDetails(l.lpnId))
+          )
+          setLpnDetails(withDetails.flatMap((w) => w.details ?? []))
+        } else {
+          setLpnDetails([])
+        }
       } else {
         setLpns([])
+        setLpnDetails([])
       }
 
       if (
         isWarehouse &&
-        ['PENDING', 'APPROVED', 'ARRIVED'].includes(data.status)
+        ['PENDING', 'APPROVED', 'ARRIVED', 'RECEIVING'].includes(data.status)
       ) {
         const r = await inboundApi.getApprovalReadiness(inboundRequestId)
         setReadiness(r)
@@ -136,6 +149,14 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    if (!readiness?.boxTypeSuggestion?.recommendedBoxType || boxTypeTouched) return
+    const recommended = readiness.boxTypeSuggestion.recommendedBoxType as BoxType
+    if (BOX_TYPE_OPTIONS.some((o) => o.value === recommended)) {
+      setBoxType(recommended)
+    }
+  }, [readiness, boxTypeTouched])
 
   const runAction = async (fn: () => Promise<unknown>, successMsg?: string) => {
     setBusy(true)
@@ -235,27 +256,89 @@ export function InboundDetailPage({ mode, basePath }: Props) {
       setBatchCode('')
     }, 'Đã tạo batch')
 
-  const handleCreateLpn = () =>
+  const piecesPerLpn = readiness?.assumptions.piecesPerLpn ?? 25
+
+  const getTargetQtyForItem = (item: ApiInboundRequestItem) =>
+    receivedDraft[item.inboundRequestItemId] ?? item.receivedQuantity ?? 0
+
+  const allocatedForSku = (skuId: string) =>
+    lpnDetails
+      .filter((d) => d.skuId === skuId)
+      .reduce((sum, d) => sum + Number(d.quantity ?? 0), 0)
+
+  const remainingForSku = (skuId: string) => {
+    const item = items.find((i) => i.skuId === skuId)
+    if (!item) return 0
+    return Math.max(0, getTargetQtyForItem(item) - allocatedForSku(skuId))
+  }
+
+  const nextLpnCode = () => {
+    const base = inbound?.inboundCode?.replace(/[^a-zA-Z0-9-]/g, '') ?? 'IN'
+    const n = lpns.length + 1
+    return `${base}-LPN-${String(n).padStart(3, '0')}`
+  }
+
+  const createLpnWithSkuQty = async (
+    qty: number,
+    code?: string,
+    knownRemaining?: number
+  ) => {
+    if (!inbound || !selectedBatchId || !detailSkuId || qty < 1) {
+      throw new ApiError('Chọn batch, SKU và số lượng hợp lệ', 400)
+    }
+    const rem = knownRemaining ?? remainingForSku(detailSkuId)
+    if (rem <= 0) throw new ApiError('SKU đã đủ số lượng trong các LPN', 400)
+    const actualQty = Math.min(qty, rem)
+    const vol = BOX_TYPE_OPTIONS.find((b) => b.value === boxType)?.volumeUnits ?? 2
+    const lpn = await lpnsApi.createLpn({
+      tenantId: inbound.tenantId,
+      batchId: selectedBatchId,
+      lpnCode: (code ?? lpnCode).trim() || nextLpnCode(),
+      boxType,
+      volumeUnits: vol,
+      status: 'RECEIVING',
+    })
+    await lpnsApi.createLpnDetail({
+      lpnId: lpn.lpnId,
+      skuId: detailSkuId,
+      quantity: actualQty,
+    })
+    setLpnCode('')
+    return actualQty
+  }
+
+  const handleCreateNextLpn = () =>
     runAction(async () => {
-      if (!inbound || !selectedBatchId || !lpnCode.trim()) {
-        throw new ApiError('Chọn batch và nhập mã LPN', 400)
+      const qty = Math.min(piecesPerLpn, remainingForSku(detailSkuId))
+      await createLpnWithSkuQty(qty)
+    }, 'Đã tạo LPN và gán SKU')
+
+  const handleFillSkuLpns = () =>
+    runAction(async () => {
+      if (!detailSkuId) throw new ApiError('Chọn SKU', 400)
+      let created = 0
+      let rem = remainingForSku(detailSkuId)
+      const base = inbound?.inboundCode?.replace(/[^a-zA-Z0-9-]/g, '') ?? 'IN'
+      let seq = lpns.length
+      while (rem > 0 && created < 200) {
+        seq += 1
+        const qty = Math.min(piecesPerLpn, rem)
+        const code = `${base}-LPN-${String(seq).padStart(3, '0')}`
+        await createLpnWithSkuQty(qty, code, rem)
+        rem -= qty
+        created += 1
       }
-      const vol = BOX_TYPE_OPTIONS.find((b) => b.value === boxType)?.volumeUnits ?? 2
-      await lpnsApi.createLpn({
-        tenantId: inbound.tenantId,
-        batchId: selectedBatchId,
-        lpnCode: lpnCode.trim(),
-        boxType,
-        volumeUnits: vol,
-        status: 'RECEIVING',
-      })
-      setLpnCode('')
-    }, 'Đã tạo LPN')
+      if (created === 0) throw new ApiError('SKU đã đủ hoặc chưa chọn batch', 400)
+    }, 'Đã tạo đủ LPN cho SKU')
 
   const handleAddLpnDetail = () =>
     runAction(async () => {
       if (!selectedLpnId || !detailSkuId || detailQty < 1) {
         throw new ApiError('Chọn LPN, SKU và số lượng', 400)
+      }
+      const rem = remainingForSku(detailSkuId)
+      if (detailQty > rem) {
+        throw new ApiError(`Chỉ còn ${rem} cái cần gán cho SKU này`, 400)
       }
       await lpnsApi.createLpnDetail({
         lpnId: selectedLpnId,
@@ -575,6 +658,8 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                             <input
                               type="number"
                               min={0}
+                              aria-label="Số đã nhận"
+                              placeholder="0"
                               className="w-20 rounded border border-white/10 bg-[#0f172a] px-2 py-1 text-right"
                               value={receivedDraft[item.inboundRequestItemId] ?? 0}
                               onChange={(e) =>
@@ -617,141 +702,80 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                 </table>
               </section>
 
-              {/* Receiving / LPN (warehouse) */}
               {isWarehouse && ['ARRIVED', 'RECEIVING'].includes(inbound.status) && (
-                <section className="mb-8 grid gap-6 md:grid-cols-2">
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                    <h2 className="mb-3 font-semibold">Batch</h2>
-                    <div className="mb-2 flex gap-2">
-                      <input
-                        value={batchCode}
-                        onChange={(e) => setBatchCode(e.target.value)}
-                        placeholder="BATCH-001"
-                        className="flex-1 rounded border border-white/10 bg-[#0f172a] px-3 py-2 text-sm"
+                <InboundLpnReceivingSection
+                  inboundCode={inbound.inboundCode}
+                  items={items}
+                  batches={batches}
+                  lpns={lpns}
+                  lpnDetails={lpnDetails}
+                  receivedDraft={receivedDraft}
+                  readiness={readiness}
+                  batchCode={batchCode}
+                  onBatchCodeChange={setBatchCode}
+                  onCreateBatch={handleCreateBatch}
+                  selectedBatchId={selectedBatchId}
+                  onSelectedBatchIdChange={setSelectedBatchId}
+                  lpnCode={lpnCode}
+                  onLpnCodeChange={setLpnCode}
+                  boxType={boxType}
+                  onBoxTypeChange={(v) => {
+                    setBoxType(v)
+                    setBoxTypeTouched(true)
+                  }}
+                  onApplySuggestedBoxType={() => {
+                    if (readiness?.boxTypeSuggestion?.recommendedBoxType) {
+                      setBoxType(readiness.boxTypeSuggestion.recommendedBoxType as BoxType)
+                      setBoxTypeTouched(true)
+                    }
+                  }}
+                  detailSkuId={detailSkuId}
+                  onDetailSkuIdChange={setDetailSkuId}
+                  detailQty={detailQty}
+                  onDetailQtyChange={setDetailQty}
+                  selectedLpnId={selectedLpnId}
+                  onSelectedLpnIdChange={setSelectedLpnId}
+                  onCreateNextLpn={handleCreateNextLpn}
+                  onFillSkuLpns={handleFillSkuLpns}
+                  onAddLpnDetail={handleAddLpnDetail}
+                  putawaySlot={
+                    <>
+                      <PutawayBinPicker
+                        warehouseId={inbound.warehouseId}
+                        value={putawayBinId}
+                        onChange={setPutawayBinId}
                       />
                       <button
                         type="button"
-                        onClick={handleCreateBatch}
-                        className="rounded bg-cyan-600 px-3 py-2 text-sm"
+                        onClick={handlePutaway}
+                        disabled={!putawayBinId || !selectedLpnId}
+                        className="mt-2 w-full rounded bg-emerald-600 px-3 py-2 text-sm disabled:opacity-40"
                       >
-                        Tạo
+                        Putaway
                       </button>
-                    </div>
-                    <ul className="text-xs text-slate-400">
-                      {batches.map((b) => (
-                        <li key={b.batchId} className="py-1 font-mono">
-                          {b.batchCode}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                    <h2 className="mb-3 font-semibold">LPN</h2>
-                    <select
-                      value={selectedBatchId}
-                      onChange={(e) => setSelectedBatchId(e.target.value)}
-                      className="mb-2 w-full rounded border border-white/10 bg-[#0f172a] px-3 py-2 text-sm"
-                    >
-                      <option value="">— Batch —</option>
-                      {batches.map((b) => (
-                        <option key={b.batchId} value={b.batchId}>
-                          {b.batchCode}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="mb-2 flex gap-2">
-                      <input
-                        value={lpnCode}
-                        onChange={(e) => setLpnCode(e.target.value)}
-                        placeholder="LPN-001"
-                        className="flex-1 rounded border border-white/10 bg-[#0f172a] px-3 py-2 text-sm"
-                      />
-                      <select
-                        value={boxType}
-                        onChange={(e) => setBoxType(e.target.value as BoxType)}
-                        className="rounded border border-white/10 bg-[#0f172a] px-2 text-sm"
-                      >
-                        {BOX_TYPE_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleCreateLpn}
-                      className="mb-3 rounded bg-cyan-600 px-3 py-2 text-sm"
-                    >
-                      Tạo LPN
-                    </button>
-
-                    <select
-                      value={selectedLpnId}
-                      onChange={(e) => setSelectedLpnId(e.target.value)}
-                      className="mb-2 w-full rounded border border-white/10 bg-[#0f172a] px-3 py-2 text-sm"
-                    >
-                      <option value="">— LPN —</option>
-                      {lpns.map((l) => (
-                        <option key={l.lpnId} value={l.lpnId}>
-                          {l.lpnCode} ({l.status})
-                        </option>
-                      ))}
-                    </select>
-                    <div className="mb-2 flex gap-2">
-                      <select
-                        value={detailSkuId}
-                        onChange={(e) => setDetailSkuId(e.target.value)}
-                        className="flex-1 rounded border border-white/10 bg-[#0f172a] px-2 text-sm"
-                      >
-                        <option value="">— SKU —</option>
-                        {items.map((item) => (
-                          <option key={item.skuId} value={item.skuId}>
-                            {item.sku?.skuCode}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="number"
-                        min={1}
-                        value={detailQty}
-                        onChange={(e) => setDetailQty(Number(e.target.value))}
-                        className="w-16 rounded border border-white/10 bg-[#0f172a] px-2 text-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddLpnDetail}
-                        className="rounded bg-slate-600 px-2 text-sm"
-                      >
-                        +
-                      </button>
-                    </div>
-
-                    <h3 className="mb-2 mt-4 text-sm font-medium text-slate-300">Putaway</h3>
-                    <PutawayBinPicker
-                      warehouseId={inbound.warehouseId}
-                      value={putawayBinId}
-                      onChange={setPutawayBinId}
-                    />
-                    <button
-                      type="button"
-                      onClick={handlePutaway}
-                      disabled={!putawayBinId || !selectedLpnId}
-                      className="mt-2 w-full rounded bg-emerald-600 px-3 py-2 text-sm disabled:opacity-40"
-                    >
-                      Putaway
-                    </button>
-                    <p className="mt-2 text-xs text-slate-500">
-                      LPN phải có SKU trong thùng. Sau putaway status → STORED.
-                    </p>
-                  </div>
-                </section>
+                      <p className="mt-2 text-xs text-slate-500">
+                        LPN phải có SKU trong thùng. Sau putaway status → STORED.
+                      </p>
+                    </>
+                  }
+                />
               )}
 
               {inbound.status === 'COMPLETED' && (
                 <section className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-sm text-emerald-200">
-                  Inbound đã hoàn tất. Xem tồn kho theo LPN/batch trong module Inventory (sắp tới).
+                  <p className="mb-3">Inbound đã hoàn tất. Hàng đã putaway có thể xem trong tồn kho.</p>
+                  <Link
+                    to={
+                      basePath.startsWith('/staff/inbound-ops')
+                        ? `/staff/inventory-ops?inboundRequestId=${inbound.inboundRequestId}`
+                        : isWarehouse
+                          ? `/admin/inventory?inboundRequestId=${inbound.inboundRequestId}`
+                          : `/staff/inventory?inboundRequestId=${inbound.inboundRequestId}`
+                    }
+                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-600/80 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+                  >
+                    Xem tồn kho đợt này (LPN / batch)
+                  </Link>
                 </section>
               )}
             </>

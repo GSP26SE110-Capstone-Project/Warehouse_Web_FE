@@ -81,7 +81,7 @@ export const Landing: React.FC = () => {
   const [lookupCode, setLookupCode] = useState('')
   const [lookupEmail, setLookupEmail] = useState('')
   const [autoLookup, setAutoLookup] = useState(false)
-  const [contractType, setContractType] = useState<ContractTypeValue>('SHARED_STORAGE')
+  const [contractType, setContractType] = useState<ContractTypeValue>('NEEDS_CONSULTATION')
 
   const handleSubmitted = (requestCode: string, contactEmail: string) => {
     setLookupCode(requestCode)

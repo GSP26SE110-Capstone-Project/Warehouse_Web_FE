@@ -13,6 +13,7 @@ import { ApiError } from '../../api/client'
 import * as warehousesApi from '../../api/warehouses'
 import * as usersApi from '../../api/users'
 import { warehouseToRow } from '../../mappers'
+import { useAuth } from '../../auth/AuthContext'
 
 function formatArea(m2?: number | null) {
   if (m2 == null || m2 === 0) return '—'
@@ -21,6 +22,9 @@ function formatArea(m2?: number | null) {
 
 export const WarehouseManagement: React.FC = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const isWhAdmin = user?.role === 'WH_ADMIN'
+  const fixedWarehouseId = isWhAdmin ? user?.warehouseId ?? '' : ''
   const [search, setSearch] = useState('')
   const [warehouse, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
@@ -43,14 +47,19 @@ export const WarehouseManagement: React.FC = () => {
     setLoading(true)
     setError('')
     try {
-      const { items } = await warehousesApi.listWarehouses({ limit: 100 })
-      setWarehouses(items.map(warehouseToRow))
+      if (isWhAdmin && fixedWarehouseId) {
+        const w = await warehousesApi.getWarehouse(fixedWarehouseId)
+        setWarehouses([warehouseToRow(w)])
+      } else {
+        const { items } = await warehousesApi.listWarehouses({ limit: 100 })
+        setWarehouses(items.map(warehouseToRow))
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không tải được danh sách kho')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [isWhAdmin, fixedWarehouseId])
 
   useEffect(() => {
     loadWarehouses()
@@ -175,6 +184,14 @@ export const WarehouseManagement: React.FC = () => {
     setCurrentPage(1)
   }, [searchWarehouse.length])
 
+  if (isWhAdmin && !fixedWarehouseId) {
+    return (
+      <div className="p-8 text-amber-300">
+        Tài khoản Warehouse Admin chưa được gắn kho. Liên hệ System Admin.
+      </div>
+    )
+  }
+
   return (
     <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
       <LoadingOverlay show={loading} text="Đang tải kho..." />
@@ -212,14 +229,16 @@ export const WarehouseManagement: React.FC = () => {
                       className="rounded-lg border border-white/10 bg-[#1a2333] py-2 pl-10 pr-4 text-sm text-white focus:border-cyan-400 focus:outline-none"
                     />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setModal({ open: true, mode: 'create' })}
-                    className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold text-black"
-                  >
-                    <span className="material-symbols-outlined text-lg">add</span>
-                    TẠO KHO
-                  </button>
+                  {!isWhAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setModal({ open: true, mode: 'create' })}
+                      className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold text-black"
+                    >
+                      <span className="material-symbols-outlined text-lg">add</span>
+                      TẠO KHO
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -281,20 +300,22 @@ export const WarehouseManagement: React.FC = () => {
                             >
                               <span className="material-symbols-outlined text-lg">edit</span>
                             </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setAlert({
-                                  open: true,
-                                  type: 'confirm',
-                                  message: `Bạn có chắc muốn xóa kho ${item.warehouseName}?`,
-                                  onConfirm: () => handleDelete(item.warehouseId),
-                                })
-                              }
-                              className="rounded p-1.5 hover:bg-white/10"
-                            >
-                              <span className="material-symbols-outlined text-lg">delete</span>
-                            </button>
+                            {!isWhAdmin && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setAlert({
+                                    open: true,
+                                    type: 'confirm',
+                                    message: `Bạn có chắc muốn xóa kho ${item.warehouseName}?`,
+                                    onConfirm: () => handleDelete(item.warehouseId),
+                                  })
+                                }
+                                className="rounded p-1.5 hover:bg-white/10"
+                              >
+                                <span className="material-symbols-outlined text-lg">delete</span>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
