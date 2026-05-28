@@ -13,7 +13,7 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/admin' },
-  { label: 'Quản lý Hợp đồng', icon: 'grid_view', key: 'contracts', href: '/admin/contract' },
+  { label: 'Quản lý Hợp đồng', icon: 'grid_view', key: 'contracts', href: '/admin-tenant/contracts' },
   { label: 'Quản lý Hàng', icon: 'grid_view', key: 'inventory', href: '/admin-tenant/products' },
   { label: 'Xuất  Kho', icon: 'grid_view', key: 'stock-movements', href: '/admin-tenant/outbound' },
   { label: ' Nhập Kho', icon: 'grid_view', key: 'stock-movements', href: '/admin-tenant/inbound' },

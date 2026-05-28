@@ -1,17 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { rentalRequestApi } from '../../service/rentalRequestApi'
+import { tenantCompanyApi } from '../../service/tenantCompany'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import type { RentalRequestResponse, RentalRequestStatus } from '../../types/RentalRequest'
+import type { TenantCompanyResponse } from '../../types/TenantCompany'
 import { WPagination } from '../../components/ui/WhitePagination'
-
-interface User {
-  id: string
-  email: string
-  role: 'SYSTEM_ADMIN' | 'WH_ADMIN' | 'TENANT_ADMIN' | 'STAFF'
-  warehouseId?: string
-  tenantId?: string
-}
+import { RentalRequestDetailModal } from '../../components/ui/modal/RentalRequestModal'
 
 interface TableFilters {
   search: string
@@ -20,11 +15,13 @@ interface TableFilters {
 }
 
 export const ManageRequestRental: React.FC = () => {
-  // Get warehouseId from localStorage (only for WH_ADMIN)
-  const [warehouseId, setWarehouseId] = useState<string | null>(null)
   const [requests, setRequests] = useState<RentalRequestResponse[]>([])
+  const [tenantMap, setTenantMap] = useState<Record<string, TenantCompanyResponse>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
+  const [detailRequest, setDetailRequest] = useState<RentalRequestResponse | null>(null)
+  const [userId, setUserId] = useState<string>('')
 
   const [filters, setFilters] = useState<TableFilters>({
     search: '',
@@ -46,68 +43,63 @@ export const ManageRequestRental: React.FC = () => {
     onConfirm?: () => void
   }>({ open: false, type: 'success', message: '' })
 
-  // Get warehouseId from localStorage
+  // Fetch all rental requests and tenant companies
   useEffect(() => {
-    const userString = localStorage.getItem('user')
-    if (userString) {
-      try {
-        const user: User = JSON.parse(userString)
-        if (user.role === 'WH_ADMIN' && user.warehouseId) {
-          setWarehouseId(user.warehouseId)
-        } else {
-          setError('Bạn không có quyền quản lý các yêu cầu thuê này')
-          setLoading(false)
-        }
-      } catch (e) {
-        console.error('Lỗi phân tích dữ liệu user:', e)
-        setError('Lỗi xác thực người dùng')
-        setLoading(false)
-      }
-    } else {
-      setError('Vui lòng đăng nhập lại')
-      setLoading(false)
-    }
-  }, [])
-
-  // Fetch rental requests for this warehouse
-  useEffect(() => {
-    const fetchRequests = async () => {
-      if (!warehouseId) return
-
+    const fetchData = async () => {
       try {
         setLoading(true)
         setError(null)
-        const response = await rentalRequestApi.getRentalRequestsByWarehouse(warehouseId)
-        if (response.data.success && response.data.data) {
-          setRequests(response.data.data)
-        } else {
-          setError(response.data.message || 'Không thể tải dữ liệu yêu cầu')
+
+        // Fetch rental requests
+        const requestsResponse = await rentalRequestApi.getAll()
+        if (!requestsResponse.data.success || !requestsResponse.data.data) {
+          throw new Error(requestsResponse.data.message || 'Không thể tải dữ liệu yêu cầu')
         }
+        setRequests(requestsResponse.data.data)
+
+        // Fetch tenant companies
+        const tenantsResponse = await tenantCompanyApi.getAll()
+        if (!tenantsResponse.data.success || !tenantsResponse.data.data) {
+          throw new Error(tenantsResponse.data.message || 'Không thể tải dữ liệu công ty')
+        }
+
+        // Build tenantId -> tenant company map
+        const map: Record<string, TenantCompanyResponse> = {}
+        tenantsResponse.data.data.forEach((tenant) => {
+          map[tenant.tenantId] = tenant
+        })
+        setTenantMap(map)
       } catch (err) {
-        console.error('Lỗi tải yêu cầu thuê:', err)
-        setError('Lỗi kết nối khi tải dữ liệu')
+        console.error('Lỗi tải dữ liệu:', err)
+        setError(err instanceof Error ? err.message : 'Lỗi kết nối khi tải dữ liệu')
       } finally {
         setLoading(false)
       }
     }
 
-    fetchRequests()
-  }, [warehouseId])
+    fetchData()
+  }, [])
+
+  // Get tenant info by ID
+  const getTenantInfo = (tenantId: string) => {
+    return tenantMap[tenantId]
+  }
 
   // Filter requests
   const filteredRequests = useMemo(() => {
     return requests.filter((req) => {
+      const tenant = getTenantInfo(req.tenantId)
       const matchSearch =
-        req.companyName.toLowerCase().includes(filters.search.toLowerCase()) ||
+        tenant?.companyName?.toLowerCase().includes(filters.search.toLowerCase()) ||
         req.requestCode.toLowerCase().includes(filters.search.toLowerCase()) ||
-        req.contactName.toLowerCase().includes(filters.search.toLowerCase())
+        tenant?.contactName?.toLowerCase().includes(filters.search.toLowerCase())
 
       const matchStatus = filters.status === 'all' || req.status === filters.status
       const matchContract = filters.contractType === 'all' || req.contractType === filters.contractType
 
       return matchSearch && matchStatus && matchContract
     })
-  }, [requests, filters])
+  }, [requests, filters, tenantMap])
 
   // Pagination
   const totalItems = filteredRequests.length
@@ -121,37 +113,90 @@ export const ManageRequestRental: React.FC = () => {
   const start = (currentPage - 1) * pageSize + 1
   const end = Math.min(currentPage * pageSize, totalItems)
 
+  // Get userId from localStorage
+useEffect(() => {
+  const userString = localStorage.getItem('user')
+  if (userString) {
+    try {
+      const user = JSON.parse(userString)
+      if (user.userId) {
+        setUserId(user.userId)
+      }
+    } catch (e) {
+      console.error('Lỗi phân tích dữ liệu user:', e)
+    }
+  }
+}, [])
+
   // Approve request
+  // const handleApprove = async (request: RentalRequestResponse) => {
+  //   const tenant = getTenantInfo(request.tenantId)
+  //   setAlert({
+  //     open: true,
+  //     type: 'confirm',
+  //     message: `Xác nhận phê duyệt yêu cầu thuê của ${tenant?.companyName || 'công ty'}?`,
+  //     onConfirm: async () => {
+  //       try {
+  //         await rentalRequestApi.approveApi(request.rentalRequestId)
+  //         setRequests(
+  //           requests.map((r) =>
+  //             r.rentalRequestId === request.rentalRequestId
+  //               ? { ...r, status: 'APPROVED' as RentalRequestStatus }
+  //               : r
+  //           )
+  //         )
+  //         setAlert({
+  //           open: true,
+  //           type: 'success',
+  //           message: 'Phê duyệt yêu cầu thành công',
+  //         })
+  //       } catch (err) {
+  //         console.error('Lỗi phê duyệt:', err)
+  //         setAlert({
+  //           open: true,
+  //           type: 'error',
+  //           message: 'Lỗi phê duyệt yêu cầu',
+  //         })
+  //       }
+  //     },
+  //   })
+  // }
   const handleApprove = async (request: RentalRequestResponse) => {
-    setAlert({
-      open: true,
-      type: 'confirm',
-      message: `Xác nhận phê duyệt yêu cầu thuê của ${request.companyName}?`,
-      onConfirm: async () => {
-        try {
-          await rentalRequestApi.approveApi(request.rentalRequestId)
-          setRequests(
-            requests.map((r) =>
-              r.rentalRequestId === request.rentalRequestId
-                ? { ...r, status: 'APPROVED' as RentalRequestStatus }
-                : r
-            )
+  const tenant = getTenantInfo(request.tenantId)
+  setAlert({
+    open: true,
+    type: 'confirm',
+    message: `Xác nhận phê duyệt yêu cầu thuê của ${tenant?.companyName || 'công ty'}?`,
+    onConfirm: async () => {
+      try {
+        await rentalRequestApi.approveApi(request.rentalRequestId, userId)
+        setRequests(
+          requests.map((r) =>
+            r.rentalRequestId === request.rentalRequestId
+              ? { ...r, status: 'APPROVED' as RentalRequestStatus }
+              : r
           )
-          setAlert({
-            open: true,
-            type: 'success',
-            message: 'Phê duyệt yêu cầu thành công',
-          })
-        } catch (err) {
-          console.error('Lỗi phê duyệt:', err)
-          setAlert({
-            open: true,
-            type: 'error',
-            message: 'Lỗi phê duyệt yêu cầu',
-          })
-        }
-      },
-    })
+        )
+        setAlert({
+          open: true,
+          type: 'success',
+          message: 'Phê duyệt yêu cầu thành công',
+        })
+      } catch (err) {
+        console.error('Lỗi phê duyệt:', err)
+        setAlert({
+          open: true,
+          type: 'error',
+          message: 'Lỗi phê duyệt yêu cầu',
+        })
+      }
+    },
+  })
+}
+
+  const handleViewDetails = (request: RentalRequestResponse) => {
+    setDetailRequest(request)
+    setDetailModalOpen(true)
   }
 
   // Reject request
@@ -161,47 +206,90 @@ export const ManageRequestRental: React.FC = () => {
     setModalOpen(true)
   }
 
+  // const confirmReject = async () => {
+  //   if (!selectedRequest) return
+
+  //   if (!rejectionReason.trim()) {
+  //     setAlert({
+  //       open: true,
+  //       type: 'error',
+  //       message: 'Vui lòng nhập lý do từ chối',
+  //     })
+  //     return
+  //   }
+
+  //   try {
+  //     await rentalRequestApi.rejectApi(
+  //       selectedRequest.rentalRequestId,
+  //       rejectionReason
+  //     )
+  //     setRequests(
+  //       requests.map((r) =>
+  //         r.rentalRequestId === selectedRequest.rentalRequestId
+  //           ? { ...r, status: 'REJECTED' as RentalRequestStatus }
+  //           : r
+  //       )
+  //     )
+  //     setModalOpen(false)
+  //     setSelectedRequest(null)
+  //     setRejectionReason('')
+  //     setAlert({
+  //       open: true,
+  //       type: 'success',
+  //       message: 'Từ chối yêu cầu thành công',
+  //     })
+  //   } catch (err) {
+  //     console.error('Lỗi từ chối:', err)
+  //     setAlert({
+  //       open: true,
+  //       type: 'error',
+  //       message: 'Lỗi từ chối yêu cầu',
+  //     })
+  //   }
+  // }
+
   const confirmReject = async () => {
-    if (!selectedRequest) return
+  if (!selectedRequest) return
 
-    if (!rejectionReason.trim()) {
-      setAlert({
-        open: true,
-        type: 'error',
-        message: 'Vui lòng nhập lý do từ chối',
-      })
-      return
-    }
-
-    try {
-      await rentalRequestApi.rejectApi(
-        selectedRequest.rentalRequestId,
-        rejectionReason
-      )
-      setRequests(
-        requests.map((r) =>
-          r.rentalRequestId === selectedRequest.rentalRequestId
-            ? { ...r, status: 'REJECTED' as RentalRequestStatus }
-            : r
-        )
-      )
-      setModalOpen(false)
-      setSelectedRequest(null)
-      setRejectionReason('')
-      setAlert({
-        open: true,
-        type: 'success',
-        message: 'Từ chối yêu cầu thành công',
-      })
-    } catch (err) {
-      console.error('Lỗi từ chối:', err)
-      setAlert({
-        open: true,
-        type: 'error',
-        message: 'Lỗi từ chối yêu cầu',
-      })
-    }
+  if (!rejectionReason.trim()) {
+    setAlert({
+      open: true,
+      type: 'error',
+      message: 'Vui lòng nhập lý do từ chối',
+    })
+    return
   }
+
+  try {
+    await rentalRequestApi.rejectApi(
+      selectedRequest.rentalRequestId,
+      rejectionReason,
+      userId
+    )
+    setRequests(
+      requests.map((r) =>
+        r.rentalRequestId === selectedRequest.rentalRequestId
+          ? { ...r, status: 'REJECTED' as RentalRequestStatus }
+          : r
+      )
+    )
+    setModalOpen(false)
+    setSelectedRequest(null)
+    setRejectionReason('')
+    setAlert({
+      open: true,
+      type: 'success',
+      message: 'Từ chối yêu cầu thành công',
+    })
+  } catch (err) {
+    console.error('Lỗi từ chối:', err)
+    setAlert({
+      open: true,
+      type: 'error',
+      message: 'Lỗi từ chối yêu cầu',
+    })
+  }
+}
 
   const getStatusBadge = (status: RentalRequestStatus) => {
     const statusMap = {
@@ -214,11 +302,11 @@ export const ManageRequestRental: React.FC = () => {
     return statusMap[status] || statusMap.PENDING
   }
 
-  if (loading && !warehouseId) {
+  if (loading) {
     return <LoadingOverlay show />
   }
 
-  if (error && !warehouseId) {
+  if (error) {
     return (
       <div className="p-8 bg-slate-50 min-h-screen">
         <div className="max-w-[1200px] mx-auto">
@@ -283,9 +371,7 @@ export const ManageRequestRental: React.FC = () => {
         </div>
 
         {/* Table */}
-        {loading ? (
-          <LoadingOverlay show={loading} />
-        ) : filteredRequests.length === 0 ? (
+        {filteredRequests.length === 0 ? (
           <div className="p-12 rounded-xl bg-white border border-slate-200 text-center shadow-sm">
             <span className="material-symbols-outlined text-5xl text-slate-300 mb-3 block">inbox</span>
             <p className="text-slate-500 text-base font-medium">Không có yêu cầu thuê nào</p>
@@ -306,65 +392,71 @@ export const ManageRequestRental: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {paginatedRequests.map((request) => (
-                    <tr key={request.rentalRequestId} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="px-6 py-4 text-sm text-slate-900 font-mono font-medium">{request.requestCode}</td>
-                      <td className="px-6 py-4 text-sm text-slate-800">
-                        <div>
-                          <p className="font-semibold text-slate-900">{request.companyName}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">{request.companyCode}</p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-800">
-                        <div>
-                          <p className="font-medium text-slate-800">{request.contactName}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">{request.contactPhone}</p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600 font-medium">
-                        {request.contractType === 'SHARED_STORAGE' ? 'Lưu trữ chung' :
-                          request.contractType === 'RESERVED_STORAGE' ? 'Lưu trữ dự trữ' :
-                            request.contractType === 'DEDICATED_ZONE' ? 'Zone riêng' : 'Kho riêng'}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ring-inset ${getStatusBadge(request.status).className}`}>
-                          {getStatusBadge(request.status).label}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-500">
-                        {new Date(request.createdAt).toLocaleDateString('vi-VN')}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <div className="flex gap-2">
-                          {(request.status === 'PENDING' || request.status === 'UNDER_REVIEW') && (
-                            <>
-                              <button
-                                onClick={() => handleApprove(request)}
-                                className="px-3 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-all"
-                              >
-                                Phê duyệt
-                              </button>
-                              <button
-                                onClick={() => handleReject(request)}
-                                className="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-100 transition-all"
-                              >
-                                Từ chối
-                              </button>
-                            </>
-                          )}
-                          <button className="px-3 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200 transition-all">
-                            Chi tiết
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {paginatedRequests.map((request) => {
+                    const tenant = getTenantInfo(request.tenantId)
+                    return (
+                      <tr key={request.rentalRequestId} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="px-6 py-4 text-sm text-slate-900 font-mono font-medium">{request.requestCode}</td>
+                        <td className="px-6 py-4 text-sm text-slate-800">
+                          <div>
+                            <p className="font-semibold text-slate-900">{tenant?.companyName || '---'}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{tenant?.companyCode || '---'}</p>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-800">
+                          <div>
+                            <p className="font-medium text-slate-800">{tenant?.contactName || '---'}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{tenant?.contactPhone || '---'}</p>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-600 font-medium">
+                          {request.contractType === 'SHARED_STORAGE' ? 'Lưu trữ chung' :
+                            request.contractType === 'RESERVED_STORAGE' ? 'Lưu trữ dự trữ' :
+                              request.contractType === 'DEDICATED_ZONE' ? 'Zone riêng' : 'Kho riêng'}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ring-inset ${getStatusBadge(request.status).className}`}>
+                            {getStatusBadge(request.status).label}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-500">
+                          {new Date(request.createdAt).toLocaleDateString('vi-VN')}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          <div className="flex gap-2">
+                            {(request.status === 'PENDING' || request.status === 'UNDER_REVIEW') && (
+                              <>
+                                <button
+                                  onClick={() => handleApprove(request)}
+                                  className="px-3 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-all"
+                                >
+                                  Phê duyệt
+                                </button>
+                                <button
+                                  onClick={() => handleReject(request)}
+                                  className="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-100 transition-all"
+                                >
+                                  Từ chối
+                                </button>
+                              </>
+                            )}
+                            <button
+                              onClick={() => handleViewDetails(request)}
+                              className="px-3 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200 transition-all"
+                            >
+                              Chi tiết
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
             <div className="flex items-center justify-between border-t border-white/5 bg-white px-6 py-2">
               <p className="font-medium text-sm text-slate-500">
-                 Hiển thị <span className="text-slate-500">{start}-{end}</span> trong{' '}
+                Hiển thị <span className="text-slate-500">{start}-{end}</span> trong{' '}
                 <span className="text-slate-500">{totalItems}</span> yêu cầu
               </p>
 
@@ -376,8 +468,6 @@ export const ManageRequestRental: React.FC = () => {
             </div>
           </div>
         )}
-
-
       </div>
 
       {/* Rejection Modal */}
@@ -386,7 +476,7 @@ export const ManageRequestRental: React.FC = () => {
           <div className="p-6 rounded-xl bg-white border border-slate-200 max-w-md w-full shadow-xl">
             <h3 className="text-lg font-bold text-slate-900 mb-2">Từ chối yêu cầu</h3>
             <p className="text-sm text-slate-500 mb-4">
-              Yêu cầu từ: <span className="font-semibold text-slate-800">{selectedRequest.companyName}</span>
+              Yêu cầu từ: <span className="font-semibold text-slate-800">{getTenantInfo(selectedRequest.tenantId)?.companyName}</span>
             </p>
             <textarea
               value={rejectionReason}
@@ -412,6 +502,21 @@ export const ManageRequestRental: React.FC = () => {
         </div>
       )}
 
+      {detailModalOpen && detailRequest && (
+        <RentalRequestDetailModal
+          request={detailRequest}
+          tenant={getTenantInfo(detailRequest.tenantId)}
+          onClose={() => setDetailModalOpen(false)}
+          onApprove={() => {
+            handleApprove(detailRequest)
+            setDetailModalOpen(false)
+          }}
+          onReject={() => {
+            handleReject(detailRequest)
+            setDetailModalOpen(false)
+          }}
+        />
+      )}
       {alert.open && (
         <AlertModal
           title="Thông báo"

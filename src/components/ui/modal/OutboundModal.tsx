@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { ContractResponse } from '../../../types/Contract'
 import type { TenantCompanyResponse } from '../../../types/TenantCompany'
 import type { UserResponse } from '../../../types/Account'
+import type { Role } from '../../../types/Account'
 import { tenantCompanyApi } from '../../../service/tenantCompany'
 import { warehouseApi } from '../../../service/warehouseApi'
 import { contractApi } from '../../../service/contractApi'
@@ -34,6 +35,8 @@ export const OutboundModal: React.FC<Props> = ({
     const [warehouseStaff, setWarehouseStaff] = useState<UserResponse[]>([])
     const [loadingStaff, setLoadingStaff] = useState(false)
     const [userMap, setUserMap] = useState<Record<string, string>>({}) // userId -> fullName
+    const [userRole, setUserRole] = useState<Role | null>(null)
+    const [currentUser, setCurrentUser] = useState<{ userId: string; fullName: string; tenantId?: string; warehouseId?: string } | null>(null)
 
     // Fetch tenants on component mount
     useEffect(() => {
@@ -54,35 +57,95 @@ export const OutboundModal: React.FC<Props> = ({
         fetchTenants()
     }, [])
 
-    // Lấy warehouseId từ localStorage và fetch warehouse name, contracts, staff
+    // Get user info from localStorage and fetch data based on role
     useEffect(() => {
         const userString = localStorage.getItem('user')
         if (userString) {
             try {
                 const user = JSON.parse(userString)
-                if (user.warehouseId) {
+                setUserRole(user.role)
+                setCurrentUser({
+                    userId: user.userId,
+                    fullName: user.fullName,
+                    tenantId: user.tenantId,
+                    warehouseId: user.warehouseId,
+                })
+
+                // Initialize form with common fields
+                setForm(prev => ({
+                    ...prev,
+                    createdBy: user.userId,
+                }))
+
+                // Fetch all users and build userMap
+                const fetchUsers = async () => {
+                    try {
+                        setLoadingStaff(true)
+                        const response = await accountApi.getAll()
+                        if (response.data.success && response.data.data) {
+                            // Build userMap for all users
+                            const map: Record<string, string> = {}
+                            response.data.data.forEach((u) => {
+                                map[u.userId] = u.fullName
+                            })
+                            setUserMap(map)
+                        }
+                    } catch (err) {
+                        console.error('Lỗi tải danh sách nhân viên:', err)
+                    } finally {
+                        setLoadingStaff(false)
+                    }
+                }
+                fetchUsers()
+
+                // Role-based data fetching
+                if (user.role === 'TENANT_ADMIN' && user.tenantId) {
                     setForm(prev => ({
                         ...prev,
-                        warehouseId: user.warehouseId,
+                        tenantId: user.tenantId,
                         createdBy: user.userId,
-                        approvedBy: user.userId,
-                        receivedBy: user.userId,
                     }))
 
-                    // Fetch warehouse name
-                    const fetchWarehouse = async () => {
+                    // Fetch contracts by tenantId with ACTIVE status
+                    const fetchContracts = async () => {
                         try {
-                            const response = await warehouseApi.getById(user.warehouseId)
-                            if (response.data.data?.warehouseName) {
-                                setWarehouseName(response.data.data.warehouseName)
+                            setLoadingContracts(true)
+                            const response = await contractApi.getAllContractsByWarehouse('')
+                            if (response.data.success && response.data.data) {
+                                // Filter contracts by tenantId and ACTIVE status
+                                const filteredContracts = response.data.data.filter(
+                                    (c) => c.tenantId === user.tenantId && c.status === 'ACTIVE'
+                                )
+                                setContracts(filteredContracts)
+
+                                // Get warehouseId from first active contract
+                                if (filteredContracts.length > 0) {
+                                    const warehouseId = filteredContracts[0].warehouseId
+                                    setForm(prev => ({
+                                        ...prev,
+                                        warehouseId: warehouseId,
+                                    }))
+
+                                    // Fetch warehouse name
+                                    try {
+                                        const whResponse = await warehouseApi.getById(warehouseId)
+                                        if (whResponse.data.data?.warehouseName) {
+                                            setWarehouseName(whResponse.data.data.warehouseName)
+                                        }
+                                    } catch (err) {
+                                        console.error('Lỗi tải thông tin kho hàng:', err)
+                                    }
+                                }
                             }
                         } catch (err) {
-                            console.error('Lỗi tải thông tin kho hàng:', err)
+                            console.error('Lỗi tải danh sách hợp đồng:', err)
+                        } finally {
+                            setLoadingContracts(false)
                         }
                     }
-                    fetchWarehouse()
-
-                    // Fetch contracts by warehouse
+                    fetchContracts()
+                } else if (user.role === 'WH_ADMIN' && user.warehouseId) {
+                    // Fetch contracts by warehouse for WH_ADMIN
                     const fetchContracts = async () => {
                         try {
                             setLoadingContracts(true)
@@ -98,36 +161,26 @@ export const OutboundModal: React.FC<Props> = ({
                     }
                     fetchContracts()
 
-                    // Fetch all users and filter WH_STAFF for this warehouse
-                    const fetchStaff = async () => {
+                    // Fetch warehouse name
+                    const fetchWarehouse = async () => {
                         try {
-                            setLoadingStaff(true)
-                            const response = await accountApi.getAll()
-                            if (response.data.success && response.data.data) {
-                                // Build userMap for all users
-                                const map: Record<string, string> = {}
-                                response.data.data.forEach((u) => {
-                                    map[u.userId] = u.fullName
-                                })
-                                setUserMap(map)
-
-                                // Filter WH_STAFF for this warehouse
-                                const staff = response.data.data.filter(
-                                    (u) => u.role === 'WH_STAFF' && u.warehouseId === user.warehouseId
-                                )
-                                setWarehouseStaff(staff)
+                            const response = await warehouseApi.getById(user.warehouseId)
+                            if (response.data.data?.warehouseName) {
+                                setWarehouseName(response.data.data.warehouseName)
                             }
                         } catch (err) {
-                            console.error('Lỗi tải danh sách nhân viên:', err)
-                        } finally {
-                            setLoadingStaff(false)
+                            console.error('Lỗi tải thông tin kho hàng:', err)
                         }
                     }
-                    fetchStaff()
+                    fetchWarehouse()
+
+                    setForm(prev => ({
+                        ...prev,
+                        warehouseId: user.warehouseId,
+                    }))
                 }
-            }
-            catch (err) {
-                console.error('Lỗi lấy warehouseId:', err)
+            } catch (err) {
+                console.error('Lỗi lấy thông tin user:', err)
             }
         }
     }, [])
@@ -144,7 +197,7 @@ export const OutboundModal: React.FC<Props> = ({
         approvedBy: '',
     })
 
-    // Cập nhật form khi có dữ liệu (View/Edit mode)
+    // Update form when data is provided (View/Edit mode)
     useEffect(() => {
         if (data) {
             setForm({
@@ -161,6 +214,31 @@ export const OutboundModal: React.FC<Props> = ({
         }
     }, [data])
 
+    useEffect(() => {
+        if (form.contractId && contracts.length > 0) {
+            const selectedContract = contracts.find(c => c.contractId === form.contractId)
+            if (selectedContract) {
+                setForm(prev => ({
+                    ...prev,
+                    warehouseId: selectedContract.warehouseId,
+                }))
+
+                // Fetch warehouse name for the selected contract
+                const fetchWarehouse = async () => {
+                    try {
+                        const response = await warehouseApi.getById(selectedContract.warehouseId)
+                        if (response.data.data?.warehouseName) {
+                            setWarehouseName(response.data.data.warehouseName)
+                        }
+                    } catch (err) {
+                        console.error('Lỗi tải thông tin kho hàng:', err)
+                    }
+                }
+                fetchWarehouse()
+            }
+        }
+    }, [form.contractId, contracts])
+
     const handleSubmit = () => {
         if (isView) return
 
@@ -174,17 +252,17 @@ export const OutboundModal: React.FC<Props> = ({
             return
         }
 
-        // Validation
         if (!form.outboundCode) {
             alert('Vui lòng điền mã phiếu xuất')
             return
         }
 
         if (!form.requestedShipDate) {
-            alert('Vui lòng chọn ngày dự kiến tới')
+            alert('Vui lòng chọn ngày dự kiến xuất')
             return
         }
 
+        // For WH_ADMIN, auto-fill approvedBy with current user
         const submitData: OutboundRequestRequest = {
             tenantId: form.tenantId,
             contractId: form.contractId,
@@ -194,7 +272,7 @@ export const OutboundModal: React.FC<Props> = ({
             actualShippedAt: form.actualShippedAt,
             status: form.status,
             createdBy: form.createdBy,
-            approvedBy: form.approvedBy,
+            approvedBy: userRole === 'WH_ADMIN' && currentUser ? currentUser.userId : form.approvedBy,
         }
 
         onSubmit?.(submitData)
@@ -202,22 +280,19 @@ export const OutboundModal: React.FC<Props> = ({
     }
 
     const isEditMode = !isCreate && !isView
+    const isTenantAdmin = userRole === 'TENANT_ADMIN'
+    const isWHAdmin = userRole === 'WH_ADMIN'
     const getUserName = (userId: string) => userMap[userId] || userId
 
-    // Đổi màu label sang xám đậm hơn trên nền trắng
     const labelStyle = 'text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5 block'
-    // Đổi màu input sang trắng, viền xám, chữ đen
     const inputStyle = 'w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20 transition-all disabled:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed'
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Overlay tối vừa phải */}
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
-            {/* Container chính: nền trắng, viền nhẹ, đổ bóng đậm hơn */}
             <div className="relative z-10 w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-xl border border-slate-100 bg-white shadow-xl flex flex-col">
 
-                {/* Header: nền xám rất nhẹ */}
                 <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-slate-50/50">
                     <div>
                         <h2 className="text-lg font-bold text-slate-950 flex items-center gap-2">
@@ -232,61 +307,54 @@ export const OutboundModal: React.FC<Props> = ({
                     </button>
                 </div>
 
-                {/* Body */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white">
 
-                    {/* Section: Thông tin cơ bản */}
                     <div className="p-5 rounded-xl bg-slate-50 border border-slate-100 space-y-4">
                         <h3 className="text-[10px] font-black text-cyan-700 tracking-[2px]">THÔNG TIN CƠ BẢN</h3>
+
                         <div>
-                            <label className={labelStyle}>Kho hàng</label>
-                            <input
-                                disabled
+                            <label className={labelStyle}>Hợp đồng *</label>
+                            <select
+                                disabled={isView || loadingContracts || isEditMode || isWHAdmin}
                                 className={inputStyle}
-                                value={warehouseName || 'Đang tải...'}
-                                placeholder="Sẽ tự động điền"
-                            />
+                                value={form.contractId}
+                                onChange={(e) => setForm({ ...form, contractId: e.target.value })}
+                            >
+                                <option value="">-- Chọn hợp đồng --</option>
+                                {contracts.map((contract) => (
+                                    <option key={contract.contractId} value={contract.contractId}>
+                                        {contract.contractCode} - {contract.contractName}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className={labelStyle}>Thương nhân *</label>
-                                <select
-                                    disabled={isView || loadingTenants || isEditMode}
+                                <input
+                                    disabled={isView || loadingTenants || isEditMode || isWHAdmin || isTenantAdmin}
                                     className={inputStyle}
-                                    value={form.tenantId}
-                                    onChange={(e) => setForm({ ...form, tenantId: e.target.value })}
-                                >
-                                    <option value="">-- Chọn thương nhân --</option>
-                                    {tenants.map((tenant) => (
-                                        <option key={tenant.tenantId} value={tenant.tenantId}>
-                                            {tenant.companyName} ({tenant.companyCode})
-                                        </option>
-                                    ))}
-                                </select>
+                                    value={tenants.find(t => t.tenantId === form.tenantId)?.companyName || ''}
+                                    placeholder="Sẽ tự động điền"
+                                />
                             </div>
 
                             <div>
-                                <label className={labelStyle}>Hợp đồng *</label>
-                                <select
-                                    disabled={isView || loadingContracts || isEditMode}
+                                <label className={labelStyle}>Kho hàng</label>
+                                <input
+                                    disabled
                                     className={inputStyle}
-                                    value={form.contractId}
-                                    onChange={(e) => setForm({ ...form, contractId: e.target.value })}
-                                >
-                                    <option value="">-- Chọn hợp đồng --</option>
-                                    {contracts.map((contract) => (
-                                        <option key={contract.contractId} value={contract.contractId}>
-                                            {contract.contractCode} - {contract.contractName}
-                                        </option>
-                                    ))}
-                                </select>
+                                    value={warehouseName || 'Đang tải...'}
+                                    placeholder="Sẽ tự động điền"
+                                />
                             </div>
+
 
                             <div>
                                 <label className={labelStyle}>Mã phiếu xuất *</label>
                                 <input
-                                    disabled={isView || isEditMode}
+                                    disabled={isView || isEditMode || isWHAdmin}
                                     className={inputStyle}
                                     placeholder="OUT-001"
                                     value={form.outboundCode}
@@ -314,15 +382,14 @@ export const OutboundModal: React.FC<Props> = ({
                         </div>
                     </div>
 
-                    {/* Section: Thời gian xuất */}
                     <div className="p-5 rounded-xl bg-slate-50 border border-slate-100 space-y-4">
                         <h3 className="text-[10px] font-black text-orange-700 tracking-[2px]">THỜI GIAN XUẤT HÀNG</h3>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className={labelStyle}>Ngày dự kiến xuất *</label>
+                                <label className={labelStyle}>Ngày xuất (dự kiến) *</label>
                                 <input
-                                    disabled={isView || isEditMode}
+                                    disabled={isView || isEditMode || isWHAdmin}
                                     type="date"
                                     className={inputStyle}
                                     value={form.requestedShipDate}
@@ -333,7 +400,7 @@ export const OutboundModal: React.FC<Props> = ({
                             <div>
                                 <label className={labelStyle}>Ngày thực tế tới</label>
                                 <input
-                                    disabled={isView}
+                                    disabled={isView || !isWHAdmin}
                                     type="date"
                                     className={inputStyle}
                                     value={form.actualShippedAt}
@@ -343,7 +410,6 @@ export const OutboundModal: React.FC<Props> = ({
                         </div>
                     </div>
 
-                    {/* Section: Thông tin người xử lý */}
                     <div className="p-5 rounded-xl bg-slate-50 border border-slate-100 space-y-4">
                         <h3 className="text-[10px] font-black text-emerald-700 tracking-[2px]">THÔNG TIN NGƯỜI XỬ LÝ</h3>
 
@@ -353,30 +419,45 @@ export const OutboundModal: React.FC<Props> = ({
                                 <input
                                     disabled
                                     className={inputStyle}
-                                    value={getUserName(form.createdBy)}
+                                    value={currentUser?.fullName || getUserName(form.createdBy) || '---'}
                                 />
                             </div>
 
                             <div>
                                 <label className={labelStyle}>Người phê duyệt</label>
-                                <select
-                                    disabled={isView}
-                                    className={inputStyle}
-                                    value={form.approvedBy}
-                                    onChange={(e) => setForm({ ...form, approvedBy: e.target.value })}
-                                >
-                                    <option value="">-- Chọn người phê duyệt --</option>
-                                    {Object.entries(userMap).map(([userId, fullName]) => (
-                                        <option key={userId} value={userId}>
-                                            {fullName}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div>
+                                    {isTenantAdmin ? (
+                                        <input
+                                            disabled
+                                            className={inputStyle}
+                                            value="Chưa phê duyệt"
+                                        />
+                                    ) : isWHAdmin ? (
+                                        <input
+                                            disabled
+                                            className={inputStyle}
+                                            value={currentUser?.fullName || '---'}
+                                        />
+                                    ) : (
+                                        <select
+                                            disabled={isView}
+                                            className={inputStyle}
+                                            value={form.approvedBy}
+                                            onChange={(e) => setForm({ ...form, approvedBy: e.target.value })}
+                                        >
+                                            <option value="">-- Chọn người phê duyệt --</option>
+                                            {Object.entries(userMap).map(([userId, fullName]) => (
+                                                <option key={userId} value={userId}>
+                                                    {fullName}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Nhật ký thời gian */}
                     {!isCreate && data && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
                             <div>
@@ -399,7 +480,6 @@ export const OutboundModal: React.FC<Props> = ({
                     )}
                 </div>
 
-                {/* Footer: Nền xám nhẹ */}
                 <div className="flex justify-end items-center gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
                     <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors">
                         Hủy bỏ

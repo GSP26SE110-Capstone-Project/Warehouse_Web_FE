@@ -38,6 +38,8 @@ import { ProductManagement } from './pages/adminTenant/ProductManagement'
 import { ManageStaffTenant } from './pages/adminTenant/ManageStaffTenant'
 import { TenantManageInbound } from './pages/adminTenant/ManageInbound'
 import { TenantManageOutbound } from './pages/adminTenant/ManageOutbound'
+import { ManageContract } from './pages/adminTenant/ManageContract'
+import { Rental } from './pages/public/Rental'
 
 export const Router: React.FC = () => {
     return (
@@ -51,6 +53,9 @@ export const Router: React.FC = () => {
                     <Route path="/profile/:id?" element={<Profile />} />
                     <Route path="/home" element={<HomePage />} />
                     <Route path="/about-us" element={<AboutUs />} />
+                    <Route path="/warehouses" element={<Rental />} />
+
+
 
                     {/* ==================Admin System Routes with Layout=============== */}
                     <Route path='/admin-system' element={
@@ -104,6 +109,7 @@ export const Router: React.FC = () => {
                         <Route path='/admin-tenant/import-export' element={<ImportExportManagement />} />
                         <Route path='/admin-tenant/reports' element={<ReportManagement />} />
                         <Route path='/admin-tenant/tenant-staff' element={<ManageStaffTenant />} />
+                        <Route path='/admin-tenant/contracts' element={<ManageContract />} />
                     </Route>
 
 
