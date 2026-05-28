@@ -8,11 +8,17 @@ import type { RentalRequestRow } from '../../../mappers'
 
 type Props = {
   data: RentalRequestRow
+  canProcess?: boolean
   onClose: () => void
   onStartOnboarding: () => void
 }
 
-export const RequestDetailModal: React.FC<Props> = ({ data, onClose, onStartOnboarding }) => {
+export const RequestDetailModal: React.FC<Props> = ({
+  data,
+  canProcess = true,
+  onClose,
+  onStartOnboarding,
+}) => {
   const labelStyle =
     'text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block'
 
@@ -49,13 +55,21 @@ export const RequestDetailModal: React.FC<Props> = ({ data, onClose, onStartOnbo
 
             <div>
               <label className={labelStyle}>Khách hàng</label>
-              <input className={inputStyle} value={data.customer} disabled />
+              <input
+                title="Khách hàng"
+                placeholder="Khách hàng"
+                className={inputStyle}
+                value={data.customer}
+                disabled
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelStyle}>Khu vực</label>
                 <input
+                  title="Khu vực"
+                  placeholder="Khu vực"
                   className={inputStyle}
                   value={`${data.district}, ${data.city}`}
                   disabled
@@ -63,7 +77,7 @@ export const RequestDetailModal: React.FC<Props> = ({ data, onClose, onStartOnbo
               </div>
               <div>
                 <label className={labelStyle}>Kho / claim</label>
-                <input className={inputStyle} value={data.warehouse} disabled />
+                <input title="Kho / claim" placeholder="Kho" className={inputStyle} value={data.warehouse} disabled />
               </div>
             </div>
 
@@ -72,6 +86,8 @@ export const RequestDetailModal: React.FC<Props> = ({ data, onClose, onStartOnbo
                 <div>
                   <label className={labelStyle}>Loại hợp đồng</label>
                   <input
+                    title="Loại hợp đồng"
+                    placeholder="Loại hợp đồng"
                     className={inputStyle}
                     value={CONTRACT_TYPE_LABELS[ct] ?? ct}
                     disabled
@@ -80,6 +96,8 @@ export const RequestDetailModal: React.FC<Props> = ({ data, onClose, onStartOnbo
                 <div>
                   <label className={labelStyle}>Chu kỳ</label>
                   <input
+                    title="Chu kỳ thanh toán"
+                    placeholder="Chu kỳ"
                     className={inputStyle}
                     value={
                       BILLING_CYCLE_GUEST_LABELS[data.billingCycle ?? ''] ??
@@ -95,11 +113,11 @@ export const RequestDetailModal: React.FC<Props> = ({ data, onClose, onStartOnbo
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelStyle}>Ngày bắt đầu</label>
-                <input className={inputStyle} value={data.startDate} disabled />
+                <input title="Ngày bắt đầu" placeholder="Ngày bắt đầu" className={inputStyle} value={data.startDate} disabled />
               </div>
               <div>
                 <label className={labelStyle}>Ngày kết thúc</label>
-                <input className={inputStyle} value={data.endDate} disabled />
+                <input title="Ngày kết thúc" placeholder="Ngày kết thúc" className={inputStyle} value={data.endDate} disabled />
               </div>
             </div>
 
@@ -119,7 +137,13 @@ export const RequestDetailModal: React.FC<Props> = ({ data, onClose, onStartOnbo
             {data.notes && (
               <div>
                 <label className={labelStyle}>Ghi chú</label>
-                <textarea className={`${inputStyle} min-h-[60px]`} value={data.notes} disabled />
+                <textarea
+                  title="Ghi chú"
+                  placeholder="Ghi chú"
+                  className={`${inputStyle} min-h-[60px]`}
+                  value={data.notes}
+                  disabled
+                />
               </div>
             )}
 
@@ -146,7 +170,7 @@ export const RequestDetailModal: React.FC<Props> = ({ data, onClose, onStartOnbo
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-white">
               Đóng
             </button>
-            {showOnboard && (
+            {showOnboard && canProcess && (
               <button
                 type="button"
                 onClick={onStartOnboarding}

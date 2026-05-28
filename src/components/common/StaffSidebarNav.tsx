@@ -16,6 +16,8 @@ type NavItem = {
 
 const TENANT_NAV: NavItem[] = [
   { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/staff/dashboard' },
+  { label: 'Hợp đồng', icon: 'description', key: 'contracts', href: '/staff/contracts' },
+  { label: 'Yêu cầu thuê', icon: 'fact_check', key: 'rental-requests', href: '/staff/rental-requests' },
   {
     label: 'Quản lý hàng hóa',
     icon: 'inventory_2',

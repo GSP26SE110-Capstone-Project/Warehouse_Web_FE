@@ -127,9 +127,10 @@ export const RequestManagement = () => {
   }, [operator, warehouses])
 
   const canOnboard = (r: RentalRequestRow) =>
-    r.apiStatus === 'PENDING' ||
-    r.apiStatus === 'UNDER_REVIEW' ||
-    r.apiStatus === 'APPROVED'
+    currentUser?.role === 'WH_ADMIN' &&
+    (r.apiStatus === 'PENDING' ||
+      r.apiStatus === 'UNDER_REVIEW' ||
+      r.apiStatus === 'APPROVED')
 
   const contractTypeLabel = (r: RentalRequestRow) => {
     const ct = r.contractType as ContractTypeValue | undefined
@@ -187,6 +188,8 @@ export const RequestManagement = () => {
                     />
                   </div>
                   <select
+                    title="Lọc trạng thái yêu cầu"
+                    aria-label="Lọc trạng thái yêu cầu"
                     value={filter}
                     onChange={(e) => setFilter(e.target.value as Status | 'all')}
                     className="px-3 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm"
@@ -279,6 +282,7 @@ export const RequestManagement = () => {
       {modal.open && modal.data && (
         <RequestDetailModal
           data={modal.data}
+          canProcess={currentUser?.role === 'WH_ADMIN'}
           onClose={() => setModal({ open: false })}
           onStartOnboarding={() => {
             const data = modal.data!

@@ -13,8 +13,8 @@ const PRESETS: Record<string, BinCapacityPreset> = {
   },
   SHARED: {
     maxLpnCount: 4,
-    maxVolumeUnits: 8,
-    note: 'Chuẩn chung',
+    maxVolumeUnits: 16,
+    note: 'Chuẩn chung — tối đa 2 EXTRA/bin (8+8 volume)',
   },
   PREMIUM: {
     maxLpnCount: 2,
@@ -23,7 +23,7 @@ const PRESETS: Record<string, BinCapacityPreset> = {
   },
   RETURN: {
     maxLpnCount: 4,
-    maxVolumeUnits: 8,
+    maxVolumeUnits: 16,
     note: 'Giống shared',
   },
 }

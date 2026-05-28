@@ -31,6 +31,7 @@ import {
   formatZoneRackSummary,
   splitReservedCapacityAcrossZones,
 } from '../../../utils/warehouseCapacity'
+import { estimateMonthCount } from '../../../utils/rentalPeriod'
 import {
   filterWarehousesForRentalClaim,
   type WarehouseWithRegion,
@@ -57,6 +58,8 @@ const labelStyle = 'text-[11px] font-bold uppercase tracking-wider text-slate-50
 const inputStyle =
   'w-full bg-[#1a2333] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400'
 const selectStyle = inputStyle
+const ESTIMATE_BIN_SLOT_FOOTPRINT_M2 = 0.25
+const ESTIMATE_DEFAULT_BIN_MAX_LPN_COUNT = 4
 
 function toDateInput(iso?: string | null) {
   if (!iso) return ''
@@ -78,6 +81,7 @@ export function RentalOnboardingWizard({
   onComplete,
 }: Props) {
   const isWhOperator = operator.role === 'WH_ADMIN' && Boolean(operator.warehouseId)
+  const canApproveRental = operator.role === 'WH_ADMIN'
   const operatorWhId = operator.warehouseId ?? ''
 
   const [step, setStep] = useState(() => initialStep(row))
@@ -136,6 +140,9 @@ export function RentalOnboardingWizard({
   const [warehousePlanning, setWarehousePlanning] = useState<
     warehousesApi.ApiWarehouseZonePlanning | null
   >(null)
+  const [warehouseCapacitySnapshot, setWarehouseCapacitySnapshot] = useState<
+    warehousesApi.ApiWarehouseCapacitySnapshot | null
+  >(null)
 
   const storagePlan = useMemo(() => getOnboardingStoragePlan(contractType), [contractType])
   const allowsMultiZone = storagePlan.needsZone && !storagePlan.needsBin
@@ -163,6 +170,10 @@ export function RentalOnboardingWizard({
   )
 
   const selectedZonesAreaM2 = useMemo(
+    () => selectedZones.reduce((sum, z) => sum + (Number(z.areaM2) || 0), 0),
+    [selectedZones]
+  )
+  const preAllocationPreviewAreaM2 = useMemo(
     () => selectedZones.reduce((sum, z) => sum + (Number(z.areaM2) || 0), 0),
     [selectedZones]
   )
@@ -200,6 +211,52 @@ export function RentalOnboardingWizard({
     return { required: reservedCapacityNum, available: selectedZonesLpnCapacity, sufficient, deficit }
   }, [reservedCapacityNum, selectedZones.length, selectedZonesLpnCapacity])
 
+  const preAllocationPreview = useMemo(() => {
+    if (!priceEstimate || !selectedZones.length) return null
+    const monthlyBySelectedZones =
+      priceEstimate.unitPricePerM2Month != null && preAllocationPreviewAreaM2 > 0
+        ? Math.round(preAllocationPreviewAreaM2 * priceEstimate.unitPricePerM2Month)
+        : null
+    const totalBySelectedZones =
+      monthlyBySelectedZones != null ? monthlyBySelectedZones * priceEstimate.monthCount : null
+    return {
+      zoneCount: selectedZones.length,
+      totalAreaM2: preAllocationPreviewAreaM2,
+      monthlyBySelectedZones,
+      totalBySelectedZones,
+      baseMonthly: priceEstimate.monthlyAmount,
+      baseTotal: priceEstimate.suggestedTotalAmount,
+      monthCount: priceEstimate.monthCount,
+    }
+  }, [priceEstimate, selectedZones, preAllocationPreviewAreaM2])
+
+  const approvalCapacity = useMemo(() => {
+    if (!warehousePlanning) return null
+    const usable = Number(warehousePlanning.usableAreaM2) || 0
+    const used = Number(warehousePlanning.usedZoneAreaM2) || 0
+    const remaining = warehousePlanning.remainingZoneAreaM2
+    const utilizationPct = usable > 0 ? Math.round((used / usable) * 100) : 0
+    const areaRequired = tenantRequiredAreaNum
+    const areaFeasible =
+      areaRequired == null ||
+      remaining == null ||
+      areaRequired <= Number(remaining)
+
+    const referenceArea = Number(warehousePlanning.suggestedReferenceZoneAreaM2) || 50
+    const suggestedZoneCount =
+      areaRequired != null && referenceArea > 0 ? Math.ceil(areaRequired / referenceArea) : null
+
+    return {
+      utilizationPct: Math.max(0, Math.min(100, utilizationPct)),
+      usable,
+      used,
+      remaining: remaining == null ? null : Number(remaining),
+      areaRequired,
+      areaFeasible,
+      suggestedZoneCount,
+    }
+  }, [warehousePlanning, tenantRequiredAreaNum])
+
   const claimableWarehouses = useMemo(() => {
     if (isWhOperator) return []
     return filterWarehousesForRentalClaim(warehouses, row.city, row.district, row.warehouseId)
@@ -230,29 +287,42 @@ export function RentalOnboardingWizard({
     row.warehouse
 
   useEffect(() => {
-    if (!approved || step < 2 || !whId) return
+    if (!whId) return
     let cancelled = false
     ;(async () => {
       try {
-        const [{ items }, planning] = await Promise.all([
-          zonesApi.listZones({ warehouseId: whId, limit: 100, status: 'ACTIVE' }),
-          warehousesApi.getWarehouseZonePlanning(whId).catch(() => null),
+        const planningPromise = warehousesApi.getWarehouseZonePlanning(whId).catch(() => null)
+        const capacityPromise = warehousesApi.getWarehouseCapacitySnapshot(whId).catch(() => null)
+        const zonesPromise =
+          (step === 0 && contractType === 'DEDICATED_ZONE') || (approved && step >= 2)
+            ? zonesApi.listZones({ warehouseId: whId, limit: 100, status: 'ACTIVE' })
+            : Promise.resolve({ items: [] as zonesApi.ApiZone[] })
+        const [{ items }, planning, capacity] = await Promise.all([
+          zonesPromise,
+          planningPromise,
+          capacityPromise,
         ])
         if (!cancelled) {
-          setZones(items)
+          if ((step === 0 && contractType === 'DEDICATED_ZONE') || (approved && step >= 2)) {
+            setZones(items)
+          }
           setWarehousePlanning(planning)
+          setWarehouseCapacitySnapshot(capacity)
         }
       } catch {
         if (!cancelled) {
-          setZones([])
+          if ((step === 0 && contractType === 'DEDICATED_ZONE') || (approved && step >= 2)) {
+            setZones([])
+          }
           setWarehousePlanning(null)
+          setWarehouseCapacitySnapshot(null)
         }
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [approved, step, whId])
+  }, [approved, step, whId, contractType])
 
   useEffect(() => {
     if (!storagePlan.needsRack || !zoneId) {
@@ -380,6 +450,10 @@ export function RentalOnboardingWizard({
 
   const handleApprove = () =>
     run(async () => {
+      if (!canApproveRental) {
+        setError('Chỉ Warehouse Admin mới được duyệt yêu cầu thuê')
+        return
+      }
       if (claimedByOther) {
         setError('Yêu cầu đã được kho khác trong khu vực duyệt trước. Tải lại danh sách.')
         return
@@ -710,12 +784,83 @@ export function RentalOnboardingWizard({
                         ))}
                       </select>
                     )}
-                    {!isWhOperator && (
+                    {!canApproveRental && (
                       <p className="mt-1.5 text-[11px] text-slate-500">
-                        System Admin: chọn kho nhận yêu cầu trong vùng.
+                        System Admin chỉ được xem yêu cầu; Warehouse Admin mới có quyền duyệt/claim.
                       </p>
                     )}
                   </div>
+                  {approvalCapacity && (
+                    <WarehouseApprovalCapacityCard
+                      whName={whName}
+                      capacity={approvalCapacity}
+                      contractType={contractType}
+                      snapshot={warehouseCapacitySnapshot}
+                    />
+                  )}
+                  {contractType === 'DEDICATED_ZONE' && zones.length > 0 && (
+                    <div className="rounded-lg border border-cyan-500/25 bg-cyan-500/5 p-3">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">
+                        Pre-allocation preview (nháp trước hợp đồng)
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Chọn zone dự kiến ngay ở bước duyệt để ước tính giá sát thực tế nếu tenant cần nhiều
+                        hơn 1 zone.
+                      </p>
+                      <div className="mt-2 grid max-h-44 grid-cols-1 gap-2 overflow-y-auto rounded border border-white/10 p-2">
+                        {zones.map((z) => {
+                          const checked = selectedZoneIds.includes(z.zoneId)
+                          return (
+                            <label
+                              key={z.zoneId}
+                              className={`flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 text-xs ${
+                                checked ? 'bg-cyan-500/15 text-cyan-100' : 'bg-white/[0.03] text-slate-300'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedZoneIds((prev) => [...prev, z.zoneId])
+                                  } else {
+                                    setSelectedZoneIds((prev) => prev.filter((id) => id !== z.zoneId))
+                                  }
+                                }}
+                                className="mt-0.5 rounded border-white/20"
+                              />
+                              <span>
+                                {formatZoneOptionLabel(z)}
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                      {preAllocationPreview && (
+                        <div className="mt-2 rounded border border-cyan-400/30 bg-cyan-400/10 p-2 text-xs text-cyan-100">
+                          <p>
+                            Đã chọn {preAllocationPreview.zoneCount} zone · tổng{' '}
+                            {fmtM2(preAllocationPreview.totalAreaM2)} m²
+                          </p>
+                          {preAllocationPreview.monthlyBySelectedZones != null && (
+                            <p className="mt-1">
+                              Ước tính mới: ~{preAllocationPreview.monthlyBySelectedZones.toLocaleString('vi-VN')} VND/tháng
+                              (so với gốc {preAllocationPreview.baseMonthly.toLocaleString('vi-VN')}/tháng)
+                            </p>
+                          )}
+                          {preAllocationPreview.totalBySelectedZones != null && (
+                            <button
+                              type="button"
+                              onClick={() => setEstimatedAmount(String(preAllocationPreview.totalBySelectedZones))}
+                              className="mt-2 rounded border border-cyan-400/40 px-2 py-1 text-[11px] font-medium text-cyan-200 hover:bg-cyan-500/10"
+                            >
+                              Áp dụng vào ước tính giá trị HĐ ({preAllocationPreview.totalBySelectedZones.toLocaleString('vi-VN')} VND)
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div>
                     <label className={labelStyle}>Lý do từ chối (nếu từ chối)</label>
                     <textarea
@@ -784,6 +929,20 @@ export function RentalOnboardingWizard({
                       }
                     }}
                   />
+                  {preAllocationPreview?.totalBySelectedZones != null && (
+                    <p className="mt-2 rounded border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs text-cyan-100">
+                      Pre-allocation đã chọn {preAllocationPreview.zoneCount} zone (
+                      {fmtM2(preAllocationPreview.totalAreaM2)} m²) → ước tính tổng kỳ ~
+                      {preAllocationPreview.totalBySelectedZones.toLocaleString('vi-VN')} VND.
+                    </p>
+                  )}
+                  {contractType === 'DEDICATED_ZONE' && (
+                    <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                      Giá trị ước tính hiện tính theo diện tích khai báo/tham chiếu. Nếu khi cấp chỗ thực tế cần
+                      nhiều zone để đủ dung lượng, hãy cập nhật lại <strong>Ước tính giá trị</strong> trước khi
+                      kích hoạt hợp đồng.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className={labelStyle}>Ước tính giá trị (VND)</label>
@@ -854,6 +1013,12 @@ export function RentalOnboardingWizard({
                     onAllowUndersizedChange={setAllowUndersizedZone}
                   />
                   <p className="text-sm text-slate-300">{storagePlan.hint}</p>
+                  {contractType === 'SHARED_STORAGE' && (
+                    <p className="rounded-lg border border-cyan-500/25 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-100">
+                      Kho chia sẻ: ở bước này chỉ cần gán <strong>zone pool</strong>. Không khóa cố định
+                      rack/bin cho tenant; rack/bin cụ thể sẽ do putaway quyết định khi xử lý phiếu nhập.
+                    </p>
+                  )}
                   <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 text-xs text-slate-400">
                     <span className="text-cyan-400">reservation:</span> {storagePlan.reservationType}{' '}
                     · <span className="text-cyan-400">level:</span> {storagePlan.storageLevel}
@@ -1015,7 +1180,7 @@ export function RentalOnboardingWizard({
             Quay lại
           </button>
           <div className="flex gap-2">
-            {step === 0 && !approved && (
+            {step === 0 && !approved && canApproveRental && (
               <>
                 <button
                   type="button"
@@ -1088,6 +1253,11 @@ function fmtM2(n: number | null | undefined) {
 
 function fmtMoney(n: number) {
   return `${n.toLocaleString('vi-VN')} VND`
+}
+
+function estimateAreaFromLpnCount(lpnCount: number | null | undefined) {
+  if (lpnCount == null || !Number.isFinite(lpnCount) || lpnCount <= 0) return null
+  return (lpnCount / ESTIMATE_DEFAULT_BIN_MAX_LPN_COUNT) * ESTIMATE_BIN_SLOT_FOOTPRINT_M2
 }
 
 function TenantAreaRequirementCard({
@@ -1326,6 +1496,126 @@ function MultiZoneSelectionSummary({
   )
 }
 
+function WarehouseApprovalCapacityCard({
+  whName,
+  capacity,
+  contractType,
+  snapshot,
+}: {
+  whName: string
+  capacity: {
+    utilizationPct: number
+    usable: number
+    used: number
+    remaining: number | null
+    areaRequired: number | null
+    areaFeasible: boolean
+    suggestedZoneCount: number | null
+  }
+  contractType: ContractTypeValue
+  snapshot: warehousesApi.ApiWarehouseCapacitySnapshot | null
+}) {
+  const canApprove = contractType === 'DEDICATED_WAREHOUSE' ? true : capacity.areaFeasible
+  return (
+    <div
+      className={`rounded-lg border px-3 py-2 text-xs ${
+        canApprove
+          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
+          : 'border-amber-500/40 bg-amber-500/10 text-amber-100'
+      }`}
+    >
+      <p className="font-semibold text-white">
+        Sức chứa kho hiện tại — <span className="text-cyan-300">{whName}</span>
+      </p>
+      <p className="mt-1">
+        Đang dùng {fmtM2(capacity.used)} / {fmtM2(capacity.usable)} m² ({capacity.utilizationPct}%)
+        {capacity.remaining != null ? ` · còn ~${fmtM2(capacity.remaining)} m²` : ''}
+      </p>
+      {capacity.areaRequired != null && (
+        <p className="mt-1">
+          Tenant cần ~{fmtM2(capacity.areaRequired)} m² ·{' '}
+          {canApprove ? (
+            <span className="text-emerald-300 font-medium">có thể duyệt</span>
+          ) : (
+            <span className="text-amber-300 font-medium">nên cân nhắc (thiếu diện tích)</span>
+          )}
+        </p>
+      )}
+      {capacity.suggestedZoneCount != null && capacity.suggestedZoneCount > 1 && (
+        <p className="mt-1 text-amber-200/90">
+          Ước tính cần khoảng {capacity.suggestedZoneCount} zone tham chiếu để đáp ứng.
+        </p>
+      )}
+      {snapshot && (
+        <div className="mt-2 rounded border border-white/10 bg-white/[0.03] p-2 text-[11px] text-slate-300">
+          {snapshot.dataSource === 'projected' && (
+            <p className="mb-1 text-amber-200/90">
+              Chưa có bin thực tế trong layout — số dưới đây là <strong>ước tính</strong> theo diện tích kho.
+            </p>
+          )}
+          {(snapshot.diagnostics?.binsBelowStandardVolume ?? 0) > 0 && (
+            <p className="mb-1 text-amber-200/90">
+              {snapshot.diagnostics.binsBelowStandardVolume} bin đang dùng volume &lt; 16 (chỉ ~1 EXTRA/bin).
+              Cập nhật bin lên 16 volume để đủ 2 EXTRA/bin.
+            </p>
+          )}
+          <p>
+            Bin trống/khả dụng: <strong className="text-white">{snapshot.warehouseStorage.emptyBins}</strong> /{' '}
+            {snapshot.warehouseStorage.putawayEligibleBins} · free slot ~
+            <strong className="text-cyan-300">
+              {' '}
+              {snapshot.warehouseStorage.freeLpnSlots.toLocaleString('vi-VN')}
+            </strong>{' '}
+            thùng/LPN
+          </p>
+          <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
+            {Object.entries(snapshot.boxTypeCapacity).map(([boxType, c]) => {
+              const byVolume = c.estimatedBoxCapacity ?? c.totalFreeLpnSlots
+              const lpnCap = c.totalFreeLpnSlots
+              return (
+                <p key={boxType}>
+                  <span className="text-cyan-300">{boxType}</span>: {c.candidateBins} bin · ~
+                  {byVolume.toLocaleString('vi-VN')} thùng
+                  {lpnCap < byVolume && (
+                    <span className="text-slate-500">
+                      {' '}
+                      (≤ {lpnCap.toLocaleString('vi-VN')} theo slot LPN)
+                    </span>
+                  )}
+                  {(c.partialAdditionalLpn ?? 0) > 0 && (
+                    <span className="text-slate-500">
+                      {' '}
+                      (+{c.partialAdditionalLpn} trên bin dở)
+                    </span>
+                  )}
+                </p>
+              )
+            })}
+          </div>
+          <p className="mt-1 text-slate-400">
+            Gợi ý box type: <strong className="text-cyan-200">{snapshot.boxTypeSuggestion.recommendedBoxType}</strong>
+            <span className="text-slate-500"> (ưu tiên EXTRA)</span>
+          </p>
+          <p className="mt-0.5 text-[10px] text-slate-500">{snapshot.boxTypeSuggestion.reason}</p>
+          {(snapshot.boxTypeSuggestion.alternateNotes ?? []).map((note) => (
+            <p key={note} className="mt-0.5 text-[10px] text-amber-200/80">
+              {note}
+            </p>
+          ))}
+          {contractType === 'DEDICATED_WAREHOUSE' && snapshot.projectedCapacity && (
+            <p className="mt-1 text-amber-200/90">
+              Nếu chưa tạo rack/bin đầy đủ: với usable ~{fmtM2(snapshot.usableAreaM2)} m² có thể ước tính
+              ~{snapshot.projectedCapacity.projectedRackCount.toLocaleString('vi-VN')} rack ·{' '}
+              ~{snapshot.projectedCapacity.projectedBinSlots.toLocaleString('vi-VN')} bin ·{' '}
+              ~{snapshot.projectedCapacity.projectedLpnCapacity.toLocaleString('vi-VN')} thùng/LPN.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ZoneAreaFitAlert({
   fit,
   required,
@@ -1503,6 +1793,12 @@ function SummaryBlock({
   tenantContractType?: ContractTypeValue
 }) {
   const ct = (tenantContractType ?? row.contractType) as ContractTypeValue | undefined
+  const estimatedLpn = row.estimatedBoxCount ?? null
+  const estimatedAreaM2 = estimateAreaFromLpnCount(estimatedLpn)
+  const rentalMonths = estimateMonthCount(row.expectedStartDate ?? '', row.expectedEndDate ?? '')
+  const totalEstimatedLpn = estimatedLpn != null && rentalMonths > 0 ? estimatedLpn * rentalMonths : null
+  const totalEstimatedAreaM2 =
+    estimatedAreaM2 != null && rentalMonths > 0 ? estimatedAreaM2 * rentalMonths : null
   return (
     <div className="space-y-3 rounded-lg border border-white/5 bg-white/[0.02] p-4 text-sm">
       <div className="grid grid-cols-2 gap-3">
@@ -1542,7 +1838,24 @@ function SummaryBlock({
       </div>
       {!compact && (
         <div className="grid grid-cols-2 gap-3 border-t border-white/5 pt-3 text-xs text-slate-400">
-          {row.estimatedBoxCount != null && <p>Hộp ước tính: {row.estimatedBoxCount}</p>}
+          {row.estimatedBoxCount != null && (
+            <div className="col-span-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-amber-100">
+              <p className="font-semibold">
+                Hộp ước tính: {row.estimatedBoxCount.toLocaleString('vi-VN')} thùng/LPN
+              </p>
+              <p className="mt-1 text-[11px] text-amber-200/90">
+                Diện tích ước tính: ~{fmtM2(estimatedAreaM2)} m² (tham chiếu: ~
+                {ESTIMATE_DEFAULT_BIN_MAX_LPN_COUNT} thùng/bin, {ESTIMATE_BIN_SLOT_FOOTPRINT_M2} m²/bin)
+              </p>
+              {rentalMonths > 0 && totalEstimatedLpn != null && totalEstimatedAreaM2 != null && (
+                <p className="mt-1 text-[11px] text-amber-200/90">
+                  Quy đổi theo thời hạn thuê: ~{estimatedLpn.toLocaleString('vi-VN')} thùng/tháng x{' '}
+                  {rentalMonths} tháng ≈ {totalEstimatedLpn.toLocaleString('vi-VN')} thùng cho toàn kỳ
+                  (diện tích tham chiếu ~{fmtM2(totalEstimatedAreaM2)} m²).
+                </p>
+              )}
+            </div>
+          )}
           {row.estimatedSkuCount != null && <p>SKU: {row.estimatedSkuCount}</p>}
           {row.estimatedInboundPerWeek != null && (
             <p>Nhập/tuần: {row.estimatedInboundPerWeek}</p>

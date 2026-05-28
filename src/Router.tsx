@@ -29,6 +29,8 @@ import { InboundListPage } from './pages/inbound/InboundListPage'
 import { InboundCreatePage } from './pages/inbound/InboundCreatePage'
 import { InboundDetailPage } from './pages/inbound/InboundDetailPage'
 import { InventoryListPage } from './pages/inventory/InventoryListPage'
+import { TenantContractsPage } from './pages/staff/TenantContractsPage'
+import { TenantRentalRequestsPage } from './pages/staff/TenantRentalRequestsPage'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { ADMIN_ROLES, getHomePathForRole, STAFF_ROLES, useAuth } from './auth/AuthContext'
 
@@ -80,6 +82,8 @@ export const Router: React.FC = () => {
             <Route element={<StaffLayout />}>
               <Route path="/staff" element={<Navigate to="/staff/dashboard" replace />} />
               <Route path="/staff/dashboard" element={<StaffDashboard />} />
+              <Route path="/staff/contracts" element={<TenantContractsPage />} />
+              <Route path="/staff/rental-requests" element={<TenantRentalRequestsPage />} />
               <Route path="/staff/requests" element={<StaffRequestManagement />} />
               <Route path="/staff/products" element={<TenantProductManagement />} />
               <Route path="/staff/import-export" element={<ImportExportManagement />} />

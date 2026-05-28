@@ -1,4 +1,4 @@
-import { apiRequest } from './client'
+import { apiRequest, apiPaginated, buildQuery } from './client'
 
 export interface ApiStorageReservation {
   reservationId: string
@@ -14,6 +14,26 @@ export interface ApiStorageReservation {
   startDate: string
   endDate: string
   status: string
+  warehouseCode?: string | null
+  warehouseName?: string | null
+  zoneCode?: string | null
+  zoneName?: string | null
+  rackCode?: string | null
+  levelNumber?: number | null
+  binCode?: string | null
+}
+
+export function listStorageReservations(params?: {
+  contractId?: string
+  tenantId?: string
+  warehouseId?: string
+  status?: string
+  page?: number
+  limit?: number
+}) {
+  return apiPaginated<ApiStorageReservation>(
+    `/storage-reservations${buildQuery(params ?? {})}`
+  )
 }
 
 export function createStorageReservation(body: {

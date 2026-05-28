@@ -87,6 +87,7 @@ export const AccountModal: React.FC<Props> = ({
   const [tenants, setTenants] = useState<ApiTenant[]>([])
   const [selectedTenant, setSelectedTenant] = useState<ApiTenant | null>(null)
   const [whAdminByWarehouse, setWhAdminByWarehouse] = useState<Map<string, ApiUser>>(new Map())
+  const [tenantAdminByTenant, setTenantAdminByTenant] = useState<Map<string, ApiUser>>(new Map())
 
   const roleOptions =
     creatorRole === 'SYSTEM_ADMIN'
@@ -122,10 +123,11 @@ export const AccountModal: React.FC<Props> = ({
     let cancelled = false
     ;(async () => {
       try {
-        const [{ items: wh }, { items: tn }, { items: whAdmins }] = await Promise.all([
+        const [{ items: wh }, { items: tn }, { items: whAdmins }, { items: tenantAdmins }] = await Promise.all([
           warehousesApi.listWarehouses({ limit: 100 }),
           tenantsApi.listTenants({ limit: 100 }),
           usersApi.listUsers({ role: 'WH_ADMIN', limit: 200 }),
+          usersApi.listUsers({ role: 'TENANT_ADMIN', limit: 200 }),
         ])
         if (cancelled) return
         setWarehouses(wh.map((w) => ({ id: w.warehouseId, label: `${w.warehouseCode} — ${w.warehouseName}` })))
@@ -135,6 +137,11 @@ export const AccountModal: React.FC<Props> = ({
           if (u.warehouseId) adminMap.set(u.warehouseId, u)
         }
         setWhAdminByWarehouse(adminMap)
+        const tenantAdminMap = new Map<string, ApiUser>()
+        for (const u of tenantAdmins) {
+          if (u.tenantId) tenantAdminMap.set(u.tenantId, u)
+        }
+        setTenantAdminByTenant(tenantAdminMap)
       } catch {
         /* lists optional for UX */
       }
@@ -184,6 +191,10 @@ export const AccountModal: React.FC<Props> = ({
     form.role === 'WH_ADMIN' && form.warehouseId
       ? whAdminByWarehouse.get(form.warehouseId)
       : undefined
+  const existingTenantAdmin =
+    form.role === 'TENANT_ADMIN' && form.tenantId
+      ? tenantAdminByTenant.get(form.tenantId)
+      : undefined
 
   const handleSubmit = () => {
     if (isCreate && !form.email.trim()) {
@@ -211,6 +222,12 @@ export const AccountModal: React.FC<Props> = ({
       }
       if (form.role === 'TENANT_ADMIN' && !form.tenantId) {
         alert('Vui lòng chọn tenant cho Tenant Admin')
+        return
+      }
+      if (form.role === 'TENANT_ADMIN' && existingTenantAdmin) {
+        alert(
+          `Tenant này đã có Tenant Admin: ${existingTenantAdmin.fullName} (${existingTenantAdmin.email}).`
+        )
         return
       }
     }
@@ -262,6 +279,8 @@ export const AccountModal: React.FC<Props> = ({
             <div>
               <label className={labelStyle}>Họ và tên</label>
               <input
+                title="Họ và tên"
+                placeholder="Nguyễn Văn A"
                 disabled={isView}
                 className={inputStyle}
                 value={form.fullName}
@@ -274,6 +293,7 @@ export const AccountModal: React.FC<Props> = ({
                 <label className={labelStyle}>Email</label>
                 <input
                   type="email"
+                  title="Email"
                   disabled={!isCreate}
                   className={inputStyle}
                   value={form.email}
@@ -284,6 +304,8 @@ export const AccountModal: React.FC<Props> = ({
               <div>
                 <label className={labelStyle}>Số điện thoại</label>
                 <input
+                  title="Số điện thoại"
+                  placeholder="090..."
                   disabled={isView}
                   className={inputStyle}
                   value={form.phone}
@@ -297,6 +319,7 @@ export const AccountModal: React.FC<Props> = ({
                 <label className={labelStyle}>Vai trò</label>
                 {isCreate && roleOptions.length > 0 ? (
                   <select
+                    title="Vai trò"
                     className={inputStyle}
                     value={form.role}
                     onChange={(e) => {
@@ -316,7 +339,13 @@ export const AccountModal: React.FC<Props> = ({
                     ))}
                   </select>
                 ) : (
-                  <input disabled className={inputStyle} value={displayRole(form.role)} />
+                  <input
+                    title="Vai trò"
+                    placeholder="Vai trò"
+                    disabled
+                    className={inputStyle}
+                    value={displayRole(form.role)}
+                  />
                 )}
               </div>
 
@@ -328,6 +357,7 @@ export const AccountModal: React.FC<Props> = ({
                   </span>
                 ) : (
                   <select
+                    title="Trạng thái"
                     className={inputStyle}
                     value={form.status}
                     onChange={(e) => setForm({ ...form, status: e.target.value })}
@@ -347,6 +377,7 @@ export const AccountModal: React.FC<Props> = ({
                 </label>
                 <select
                   id="account-warehouse"
+                    title="Kho"
                   className={inputStyle}
                   value={form.warehouseId}
                   onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
@@ -382,20 +413,23 @@ export const AccountModal: React.FC<Props> = ({
                   </label>
                   <select
                     id="account-tenant"
+                    title="Tenant"
                     className={inputStyle}
                     value={form.tenantId}
                     onChange={(e) => handleTenantChange(e.target.value)}
                   >
                     <option value="">— Chọn tenant —</option>
-                    {tenants.map((t) => (
-                      <option key={t.tenantId} value={t.tenantId}>
-                        {t.companyName}
-                        {t.companyCode ? ` (${t.companyCode})` : ''}
-                      </option>
-                    ))}
+                    {tenants
+                      .filter((t) => !tenantAdminByTenant.has(t.tenantId))
+                      .map((t) => (
+                        <option key={t.tenantId} value={t.tenantId}>
+                          {t.companyName}
+                          {t.companyCode ? ` (${t.companyCode})` : ''}
+                        </option>
+                      ))}
                   </select>
                   <p className="mt-1 text-[10px] text-slate-500">
-                    Chọn tenant để tự điền họ tên, email, SĐT từ người liên hệ công ty
+                    Chỉ hiển thị tenant chưa có Tenant Admin
                   </p>
                 </div>
 
@@ -450,6 +484,8 @@ export const AccountModal: React.FC<Props> = ({
                   <label className={labelStyle}>{isCreate ? 'Mật khẩu' : 'Mật khẩu mới'}</label>
                   <input
                     type="password"
+                    title="Mật khẩu"
+                    placeholder="Tối thiểu 8 ký tự"
                     className={inputStyle}
                     value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -459,6 +495,8 @@ export const AccountModal: React.FC<Props> = ({
                   <label className={labelStyle}>Xác nhận mật khẩu</label>
                   <input
                     type="password"
+                    title="Xác nhận mật khẩu"
+                    placeholder="Nhập lại mật khẩu"
                     className={inputStyle}
                     value={form.confirmPassword}
                     onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}

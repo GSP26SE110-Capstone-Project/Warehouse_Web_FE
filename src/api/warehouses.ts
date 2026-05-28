@@ -27,9 +27,71 @@ export interface ApiWarehouseZonePlanning {
   areaValid: boolean
 }
 
+export interface ApiWarehouseCapacitySnapshot {
+  warehouseId: string
+  usableAreaM2?: number
+  dataSource?: 'actual' | 'projected'
+  warehouseStorage: {
+    totalBins: number
+    putawayEligibleBins: number
+    emptyBins: number
+    freeLpnSlots: number
+    freeVolumeUnits: number
+    isProjected?: boolean
+  }
+  boxTypeCapacity: Record<
+    string,
+    {
+      candidateBins: number
+      /** Ước tính theo volume còn trống / box type */
+      estimatedBoxCapacity?: number
+      /** Giới hạn thực tế theo slot LPN còn trống */
+      totalFreeLpnSlots: number
+      totalFreeVolumeUnits: number
+      volumeUnits: number
+      partialBinsCanAccept?: number
+      partialAdditionalLpn?: number
+    }
+  >
+  partialBinFitByType?: Record<
+    string,
+    { binsCanAcceptOneMore: number; additionalLpnCapacity: number }
+  >
+  boxTypeSuggestion: {
+    recommendedBoxType: string
+    reason: string
+    alternateNotes?: string[]
+  }
+  diagnostics?: {
+    binsTotal: number
+    binsPutawayEligible: number
+    binsActiveLayout: number
+    binsBelowStandardVolume?: number
+  }
+  assumptions: {
+    binMaxLpnCount: number
+    binMaxVolumeUnits: number
+  }
+  projectedCapacity?: {
+    rackFootprintM2: number
+    binFootprintM2: number
+    aisleRatio: number
+    projectedStorageAreaM2: number
+    projectedRackCount: number
+    projectedBinSlots: number
+    projectedLpnCapacity: number
+  }
+}
+
 export function getWarehouseZonePlanning(warehouseId: string) {
   return apiRequest<ApiWarehouseZonePlanning>(
     `/warehouses/${warehouseId}/zone-planning`
+  )
+}
+
+export function getWarehouseCapacitySnapshot(warehouseId: string) {
+  return apiRequest<ApiWarehouseCapacitySnapshot>(
+    `/warehouses/${warehouseId}/capacity-snapshot`
   )
 }
 
