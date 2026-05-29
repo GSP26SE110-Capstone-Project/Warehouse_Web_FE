@@ -16,6 +16,12 @@ import {
   type DeliveryFormState,
 } from '../../components/inbound/InboundDeliveryForm'
 import { DELIVERY_MODE_OPTIONS, type DeliveryMode } from '../../data/deliveryMode'
+import { DateTimePickerField } from '../../components/ui/DateTimePickerField'
+import {
+  contractStartDatetimeLocal,
+  formatContractDateLabel,
+  isArrivalBeforeContractStart,
+} from '../../utils/contractDates'
 
 type LineDraft = { skuId: string; expectedQuantity: number }
 
@@ -74,6 +80,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
   }, [load])
 
   const selectedContract = contracts.find((c) => c.contractId === contractId)
+  const contractStartMin = contractStartDatetimeLocal(selectedContract?.startDate)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -84,6 +91,17 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
     const validLines = lines.filter((l) => l.skuId && l.expectedQuantity > 0)
     if (validLines.length === 0) {
       setAlert({ open: true, message: 'Thêm ít nhất một dòng SKU' })
+      return
+    }
+
+    if (
+      expectedArrivalDate &&
+      isArrivalBeforeContractStart(expectedArrivalDate, selectedContract.startDate)
+    ) {
+      setAlert({
+        open: true,
+        message: `Ngày dự kiến đến kho không được trước ngày bắt đầu hợp đồng (${formatContractDateLabel(selectedContract.startDate)}).`,
+      })
       return
     }
 
@@ -157,7 +175,18 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
               <select
                 required
                 value={contractId}
-                onChange={(e) => setContractId(e.target.value)}
+                onChange={(e) => {
+                  const nextId = e.target.value
+                  setContractId(nextId)
+                  const next = contracts.find((c) => c.contractId === nextId)
+                  if (
+                    next?.startDate &&
+                    expectedArrivalDate &&
+                    isArrivalBeforeContractStart(expectedArrivalDate, next.startDate)
+                  ) {
+                    setExpectedArrivalDate('')
+                  }
+                }}
                 className="rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2"
               >
                 <option value="">— Chọn hợp đồng —</option>
@@ -172,15 +201,31 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
               </select>
             </label>
 
-            <label className="flex flex-col gap-1 text-sm">
+            <div className="flex flex-col gap-2 text-sm">
               <span className="text-slate-400">Ngày dự kiến đến kho</span>
-              <input
-                type="datetime-local"
+              <DateTimePickerField
+                id="expected-arrival"
                 value={expectedArrivalDate}
-                onChange={(e) => setExpectedArrivalDate(e.target.value)}
-                className="rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2"
+                onChange={setExpectedArrivalDate}
+                min={contractStartMin || undefined}
+                disabled={!contractId}
+                placeholder="Chọn ngày và giờ dự kiến"
               />
-            </label>
+              {selectedContract?.startDate && (
+                <p className="flex items-start gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs text-slate-400">
+                  <span className="material-symbols-outlined mt-0.5 shrink-0 text-base text-cyan-400">
+                    info
+                  </span>
+                  <span>
+                    Không được chọn trước ngày bắt đầu hợp đồng{' '}
+                    <strong className="text-cyan-300">
+                      {formatContractDateLabel(selectedContract.startDate)}
+                    </strong>
+                    . Chọn ngày trên lịch, giờ bên phải, rồi bấm <strong>Xác nhận</strong>.
+                  </span>
+                </p>
+              )}
+            </div>
 
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-slate-400">Hình thức vận chuyển</span>
@@ -215,64 +260,131 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
             )}
 
             <div>
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm text-slate-400">Dòng hàng (SKU)</span>
+              <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium text-slate-300">Dòng hàng (SKU)</p>
+                  <p className="mt-1 max-w-xl text-xs text-slate-500">
+                    Mỗi dòng là một mã hàng kèm{' '}
+                    <strong className="font-medium text-slate-400">
+                      số lượng dự kiến nhập kho
+                    </strong>{' '}
+                    — số đơn vị bạn khai báo trước khi hàng tới; kho sẽ đối chiếu khi kiểm đếm.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setLines((prev) => [...prev, { skuId: '', expectedQuantity: 1 }])}
-                  className="text-xs text-cyan-400"
+                  className="shrink-0 text-xs text-cyan-400 hover:text-cyan-300"
                 >
                   + Thêm dòng
                 </button>
               </div>
-              <div className="flex flex-col gap-3">
-                {lines.map((line, idx) => (
-                  <div key={idx} className="flex flex-wrap gap-2">
-                    <select
-                      required
-                      value={line.skuId}
-                      onChange={(e) => {
-                        const skuId = e.target.value
-                        setLines((prev) =>
-                          prev.map((l, i) => (i === idx ? { ...l, skuId } : l))
-                        )
-                      }}
-                      className="min-w-[200px] flex-1 rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2 text-sm"
-                    >
-                      <option value="">— SKU —</option>
-                      {skus.map((s) => (
-                        <option key={s.skuId} value={s.skuId}>
-                          {s.skuCode} — {s.productName}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      min={1}
-                      required
-                      value={line.expectedQuantity}
-                      onChange={(e) => {
-                        const n = Number(e.target.value)
-                        setLines((prev) =>
-                          prev.map((l, i) =>
-                            i === idx ? { ...l, expectedQuantity: n } : l
-                          )
-                        )
-                      }}
-                      className="w-28 rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2 text-sm"
-                      placeholder="SL"
-                    />
-                    {lines.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => setLines((prev) => prev.filter((_, i) => i !== idx))}
-                        className="text-red-400 text-sm"
+
+              <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
+                <div
+                  className="hidden gap-3 border-b border-white/10 bg-white/5 px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-slate-500 sm:grid sm:grid-cols-[minmax(0,1fr)_10.5rem_2.5rem]"
+                  aria-hidden
+                >
+                  <span>Mã hàng (SKU)</span>
+                  <span>Số lượng dự kiến nhập kho</span>
+                  <span />
+                </div>
+
+                <div className="divide-y divide-white/5">
+                  {lines.map((line, idx) => {
+                    const skuSelectId = `inbound-line-sku-${idx}`
+                    const qtyInputId = `inbound-line-qty-${idx}`
+                    return (
+                      <div
+                        key={idx}
+                        className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_10.5rem_2.5rem] sm:items-start"
                       >
-                        Xóa
-                      </button>
-                    )}
-                  </div>
-                ))}
+                        {lines.length > 1 && (
+                          <p className="col-span-full text-xs font-medium text-slate-500 sm:hidden">
+                            Dòng {idx + 1}
+                          </p>
+                        )}
+
+                        <label htmlFor={skuSelectId} className="flex min-w-0 flex-col gap-1.5">
+                          <span className="text-xs text-slate-400 sm:sr-only">Mã hàng (SKU)</span>
+                          <span className="text-xs font-medium text-slate-400 sm:hidden">
+                            Mã hàng (SKU)
+                          </span>
+                          <select
+                            id={skuSelectId}
+                            required
+                            title="Chọn mã hàng SKU"
+                            value={line.skuId}
+                            onChange={(e) => {
+                              const skuId = e.target.value
+                              setLines((prev) =>
+                                prev.map((l, i) => (i === idx ? { ...l, skuId } : l))
+                              )
+                            }}
+                            className="w-full rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2 text-sm"
+                          >
+                            <option value="">— Chọn mã hàng —</option>
+                            {skus.map((s) => (
+                              <option key={s.skuId} value={s.skuId}>
+                                {s.skuCode} — {s.productName}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label htmlFor={qtyInputId} className="flex flex-col gap-1.5">
+                          <span className="text-xs font-medium text-slate-400">
+                            Số lượng dự kiến nhập kho
+                          </span>
+                          <div className="relative">
+                            <input
+                              id={qtyInputId}
+                              type="number"
+                              min={1}
+                              step={1}
+                              required
+                              inputMode="numeric"
+                              aria-describedby={`${qtyInputId}-hint`}
+                              value={line.expectedQuantity}
+                              onChange={(e) => {
+                                const n = Number(e.target.value)
+                                setLines((prev) =>
+                                  prev.map((l, i) =>
+                                    i === idx ? { ...l, expectedQuantity: n } : l
+                                  )
+                                )
+                              }}
+                              className="w-full rounded-lg border border-white/10 bg-[#0f172a] py-2 pl-3 pr-14 text-sm tabular-nums"
+                              placeholder="VD: 100"
+                            />
+                            <span
+                              className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-slate-500"
+                              aria-hidden
+                            >
+                              đơn vị
+                            </span>
+                          </div>
+                          <span id={`${qtyInputId}-hint`} className="text-[11px] leading-snug text-slate-600">
+                            Tổng số cái/thùng/kiện bạn dự kiến giao cho mã này.
+                          </span>
+                        </label>
+
+                        <div className="flex items-end justify-end sm:justify-center sm:pt-7">
+                          {lines.length > 1 && (
+                            <button
+                              type="button"
+                              title="Xóa dòng hàng"
+                              onClick={() => setLines((prev) => prev.filter((_, i) => i !== idx))}
+                              className="rounded-lg px-2 py-1.5 text-sm text-red-400 hover:bg-red-500/10"
+                            >
+                              Xóa
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
 

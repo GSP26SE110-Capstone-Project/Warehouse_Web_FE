@@ -242,3 +242,45 @@ export function completeInbound(inboundRequestId: string, body?: { receivedBy?: 
     body: body ?? {},
   })
 }
+
+export interface PutawayAssignmentResult {
+  lpnId: string
+  lpnCode: string
+  binId: string
+  binCode: string
+}
+
+export function bulkPutawayInbound(
+  inboundRequestId: string,
+  body: {
+    assignments: { lpnId: string; binId: string }[]
+    movedBy?: string
+  }
+) {
+  return apiRequest<{
+    inboundRequestId: string
+    putawayCount: number
+    assignments: PutawayAssignmentResult[]
+  }>(`/inbound-requests/${inboundRequestId}/bulk-putaway`, {
+    method: 'POST',
+    body,
+  })
+}
+
+export function autoPutawayInbound(
+  inboundRequestId: string,
+  body: {
+    zoneId: string
+    rackLevelId?: string
+    movedBy?: string
+  }
+) {
+  return apiRequest<{
+    inboundRequestId: string
+    putawayCount: number
+    assignments: PutawayAssignmentResult[]
+  }>(`/inbound-requests/${inboundRequestId}/auto-putaway`, {
+    method: 'POST',
+    body,
+  })
+}

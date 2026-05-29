@@ -7,9 +7,21 @@ export interface ApiRack {
   rackType?: string | null
   maxLevels?: number | null
   status?: string
+  binCount?: number
+  usedBinCount?: number
+  maxLpnTotal?: number
+  usedLpnTotal?: number
+  usagePercent?: number
+  hasBins?: boolean
 }
 
-export function listRacks(params: { zoneId: string; status?: string; page?: number; limit?: number }) {
+export function listRacks(params: {
+  zoneId: string
+  status?: string
+  page?: number
+  limit?: number
+  includeBinStats?: boolean
+}) {
   return apiPaginated<ApiRack>(`/racks${buildQuery(params)}`)
 }
 
@@ -25,6 +37,21 @@ export function createRack(body: {
   status?: string
 }) {
   return apiRequest<ApiRack>('/racks', { method: 'POST', body })
+}
+
+export type BulkCreateRacksResult = {
+  items: ApiRack[]
+  meta: { created: number; zoneId: string; remainingSlots: number }
+}
+
+export function createRacksBulk(body: {
+  zoneId: string
+  rackCodes: string[]
+  status?: string
+  rackType?: string
+  maxLevels?: number
+}) {
+  return apiRequest<BulkCreateRacksResult>('/racks/bulk', { method: 'POST', body })
 }
 
 export function updateRack(

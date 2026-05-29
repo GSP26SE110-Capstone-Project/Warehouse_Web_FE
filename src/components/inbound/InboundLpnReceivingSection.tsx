@@ -96,6 +96,22 @@ export function InboundLpnReceivingSection({
     return map
   }, [lpnDetails])
 
+  const skuCodeById = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const item of items) {
+      if (item.sku?.skuCode) map[item.skuId] = item.sku.skuCode
+    }
+    for (const d of lpnDetails) {
+      if (d.sku?.skuCode) map[d.skuId] = d.sku.skuCode
+    }
+    return map
+  }, [items, lpnDetails])
+
+  function formatDetailLabel(d: ApiLpnDetail) {
+    const code = d.sku?.skuCode ?? skuCodeById[d.skuId] ?? d.skuId.slice(0, 8)
+    return `${d.quantity}×${code}`
+  }
+
   return (
     <section className="mb-8 grid gap-6 md:grid-cols-2">
       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
@@ -254,12 +270,16 @@ export function InboundLpnReceivingSection({
 
         <details className="mb-3 text-xs text-slate-500">
           <summary className="cursor-pointer text-slate-400">Thêm SKU vào LPN có sẵn</summary>
-          <div className="mt-2 flex gap-2">
+          <p className="mt-2 text-[11px] text-slate-600">
+            Chọn LPN → nhập <strong className="text-slate-500">số lượng SKU (cái)</strong> → Gán. SKU
+            lấy từ dropdown &quot;SKU đóng thùng&quot; phía trên.
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <select
               value={selectedLpnId}
               onChange={(e) => onSelectedLpnIdChange(e.target.value)}
               aria-label="Chọn LPN"
-              className="flex-1 rounded border border-white/10 bg-[#0f172a] px-2 py-1.5 text-sm"
+              className="min-w-[200px] flex-1 rounded border border-white/10 bg-[#0f172a] px-2 py-1.5 text-sm"
             >
               <option value="">— LPN —</option>
               {lpns.map((l) => (
@@ -272,16 +292,19 @@ export function InboundLpnReceivingSection({
               type="number"
               min={1}
               max={selectedRemaining || undefined}
-              aria-label="Số lượng"
+              aria-label="Số lượng SKU gán vào LPN"
+              title="Số cái SKU bỏ vào thùng LPN đã chọn"
+              placeholder="SL"
               value={detailQty}
               onChange={(e) => onDetailQtyChange(Number(e.target.value))}
-              className="w-16 rounded border border-white/10 bg-[#0f172a] px-2 py-1.5 text-sm"
+              className="w-20 rounded border border-white/10 bg-[#0f172a] px-2 py-1.5 text-sm"
             />
+            <span className="text-[11px] text-slate-500">cái</span>
             <button
               type="button"
               disabled={!selectedLpnId || !detailSkuId || detailQty < 1}
               onClick={onAddLpnDetail}
-              className="rounded bg-slate-600 px-2 text-sm disabled:opacity-40"
+              className="rounded bg-slate-600 px-3 py-1.5 text-sm disabled:opacity-40"
             >
               Gán
             </button>
@@ -289,18 +312,24 @@ export function InboundLpnReceivingSection({
         </details>
 
         {lpns.length > 0 && (
-          <ul className="mb-3 max-h-32 overflow-y-auto text-xs text-slate-400">
-            {lpns.map((l) => (
-              <li key={l.lpnId} className="border-t border-white/5 py-1 font-mono">
-                {l.lpnCode} · {l.boxType}
-                {(lpnDetailsByLpn[l.lpnId] ?? []).map((d) => (
-                  <span key={d.lpnDetailId} className="ml-2 text-slate-500">
-                    {d.quantity}×{d.skuId.slice(0, 6)}
-                  </span>
-                ))}
-              </li>
-            ))}
-          </ul>
+          <>
+            <p className="mb-1 text-[11px] text-slate-600">
+              Định dạng: mã LPN · loại thùng ·{' '}
+              <span className="text-slate-500">số lượng×mã SKU</span> (hàng đã gán vào thùng)
+            </p>
+            <ul className="mb-3 max-h-32 overflow-y-auto text-xs text-slate-400">
+              {lpns.map((l) => (
+                <li key={l.lpnId} className="border-t border-white/5 py-1 font-mono">
+                  {l.lpnCode} · {l.boxType}
+                  {(lpnDetailsByLpn[l.lpnId] ?? []).map((d) => (
+                    <span key={d.lpnDetailId} className="ml-2 text-slate-500" title="Số lượng × mã SKU">
+                      {formatDetailLabel(d)}
+                    </span>
+                  ))}
+                </li>
+              ))}
+            </ul>
+          </>
         )}
 
         <h3 className="mb-2 text-sm font-medium text-slate-300">Putaway</h3>

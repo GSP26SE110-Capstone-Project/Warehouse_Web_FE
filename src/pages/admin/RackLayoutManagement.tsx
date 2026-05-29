@@ -12,7 +12,17 @@ import {
   type CinemaSeat,
   type SeatVisualStatus,
 } from '../../components/rack/CinemaSeatGrid'
-import { layoutItemsInGrid, suggestRackCode } from '../../components/rack/rackLayoutUtils'
+import {
+  layoutItemsInGrid,
+  listEmptyRackSlotCodes,
+  suggestRackCode,
+} from '../../components/rack/rackLayoutUtils'
+import { BulkRackModal } from '../../components/ui/modal/BulkRackModal'
+import { BulkBinModal } from '../../components/ui/modal/BulkBinModal'
+import {
+  listEmptyBinSlotsForLevel,
+  listEmptyBinSlotsForRack,
+} from '../../components/rack/binLayoutUtils'
 import { ensureRackLevels } from '../../components/rack/ensureRackLevels'
 import { RACK_FIXED_LEVEL_COUNT, RACK_FIXED_TYPE } from '../../data/rackStructure'
 import {
@@ -50,10 +60,38 @@ function binSeatStatus(bin: ApiBin | null): SeatVisualStatus {
   }
 }
 
-function rackSeatStatus(rack: ApiRack | null, selected: boolean): SeatVisualStatus {
-  if (!rack) return 'empty'
-  if (selected) return 'selected'
-  return rack.status === 'BLOCKED' ? 'blocked' : 'active'
+function rackSeatVisual(rack: ApiRack, selected: boolean): { status: SeatVisualStatus; subLabel?: string; hint: string } {
+  if (selected) {
+    return {
+      status: 'selected',
+      hint: `${rack.rackType ?? 'STANDARD'} · ${rack.status ?? 'ACTIVE'}`,
+    }
+  }
+  if (rack.status === 'BLOCKED') {
+    return { status: 'blocked', hint: 'Rack khóa' }
+  }
+
+  const binCount = rack.binCount ?? 0
+  const usage = rack.usagePercent ?? 0
+  const hasBins = rack.hasBins ?? binCount > 0
+
+  if (!hasBins) {
+    return {
+      status: 'rack-no-bin',
+      subLabel: 'chưa bin',
+      hint: `${rack.rackCode} · chưa tạo bin — dùng Tạo bin hàng loạt`,
+    }
+  }
+
+  let status: SeatVisualStatus = 'rack-low'
+  if (usage >= 85) status = 'rack-heavy'
+  else if (usage >= 35) status = 'rack-partial'
+
+  return {
+    status,
+    subLabel: `${usage}%`,
+    hint: `${rack.rackCode} · ${binCount} bin · ~${usage}% LPN (${rack.usedLpnTotal ?? 0}/${rack.maxLpnTotal ?? 0})`,
+  }
 }
 
 export const RackLayoutManagement = () => {
@@ -85,6 +123,10 @@ export const RackLayoutManagement = () => {
     data?: ApiRack
   }>({ open: false, mode: 'create' })
 
+  const [bulkRackModalOpen, setBulkRackModalOpen] = useState(false)
+  const [bulkBinModalOpen, setBulkBinModalOpen] = useState(false)
+  const [bulkCreating, setBulkCreating] = useState(false)
+
   const [binModal, setBinModal] = useState<{
     open: boolean
     mode: 'create' | 'edit'
@@ -114,6 +156,40 @@ export const RackLayoutManagement = () => {
     if (!capacity.hasArea || capacity.maxRacks <= 0) return 8
     return Math.min(14, Math.max(4, Math.ceil(Math.sqrt(capacity.maxRacks))))
   }, [capacity])
+
+  const emptyRackSlotCodes = useMemo(() => {
+    if (!capacity.hasArea) return []
+    return listEmptyRackSlotCodes(racks, rackGridColumns, capacity.maxRacks)
+  }, [racks, rackGridColumns, capacity.hasArea, capacity.maxRacks])
+
+  const remainingRackSlots = capacity.hasArea
+    ? Math.max(0, capacity.maxRacks - racks.length)
+    : 0
+
+  const emptyBinSlotsForRack = useMemo(() => {
+    if (!selectedRack || !levels.length || !capacity.hasArea) return []
+    return listEmptyBinSlotsForRack(
+      selectedRack.rackCode,
+      levels.map((l) => ({ rackLevelId: l.rackLevelId, levelNumber: l.levelNumber })),
+      binsByLevel,
+      capacity.binsPerLevel
+    )
+  }, [selectedRack, levels, binsByLevel, capacity.hasArea, capacity.binsPerLevel])
+
+  const emptyBinSlotsByLevel = useMemo(() => {
+    if (!selectedRack || !capacity.hasArea) return {}
+    const map: Record<string, ReturnType<typeof listEmptyBinSlotsForLevel>> = {}
+    for (const lv of levels) {
+      map[lv.rackLevelId] = listEmptyBinSlotsForLevel(
+        selectedRack.rackCode,
+        lv.rackLevelId,
+        lv.levelNumber,
+        binsByLevel[lv.rackLevelId] ?? [],
+        capacity.binsPerLevel
+      )
+    }
+    return map
+  }, [selectedRack, levels, binsByLevel, capacity.hasArea, capacity.binsPerLevel])
 
   useEffect(() => {
     if (!isWhAdmin) {
@@ -161,7 +237,11 @@ export const RackLayoutManagement = () => {
     setLoading(true)
     setError('')
     try {
-      const { items } = await racksApi.listRacks({ zoneId: selectedZoneId, limit: 200 })
+      const { items } = await racksApi.listRacks({
+        zoneId: selectedZoneId,
+        limit: 200,
+        includeBinStats: true,
+      })
       setRacks(items)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không tải được rack')
@@ -219,22 +299,39 @@ export const RackLayoutManagement = () => {
   }, [selectedRackId, loadRackDetail])
 
   const rackGrid = useMemo(() => {
-    const { cells } = layoutItemsInGrid(racks, rackGridColumns, (r) => r.rackCode)
-    const seatRows: CinemaSeat[][] = cells.map((row) =>
-      row.map((rack) => {
-        const selected = rack?.rackId === selectedRackId
+    const minSlots = capacity.hasArea ? capacity.maxRacks : undefined
+    const { cells, cols: gridCols } = layoutItemsInGrid(
+      racks,
+      rackGridColumns,
+      (r) => r.rackCode,
+      minSlots
+    )
+    const seatRows: CinemaSeat[][] = cells.map((row, rowIndex) =>
+      row.map((rack, colIndex) => {
+        const slotIndex = rowIndex * gridCols + colIndex
+        const overCapacity = Boolean(minSlots && slotIndex >= minSlots)
+        if (!rack) {
+          return {
+            id: null,
+            label: overCapacity ? '—' : '+',
+            hint: overCapacity ? 'Vượt sức chứa zone' : 'Thêm rack',
+            status: overCapacity ? 'blocked' : 'empty',
+            disabled: overCapacity,
+          }
+        }
+        const visual = rackSeatVisual(rack, rack.rackId === selectedRackId)
         return {
-          id: rack?.rackId ?? null,
-          label: rack ? rack.rackCode : '+',
-          hint: rack
-            ? `${rack.rackType ?? 'STANDARD'} · ${rack.status ?? 'ACTIVE'}`
-            : 'Thêm rack',
-          status: rackSeatStatus(rack, Boolean(selected)),
+          id: rack.rackId,
+          label: rack.rackCode,
+          subLabel: visual.subLabel,
+          hint: visual.hint,
+          status: visual.status,
+          disabled: false,
         }
       })
     )
     return seatRows
-  }, [racks, rackGridColumns, selectedRackId])
+  }, [racks, rackGridColumns, selectedRackId, capacity.hasArea, capacity.maxRacks])
 
   const binGrid = useMemo(() => {
     if (!levels.length) return { cells: [] as CinemaSeat[][], cols: 0 }
@@ -272,6 +369,7 @@ export const RackLayoutManagement = () => {
   }, [levels, binsByLevel, capacity.binsPerLevel])
 
   const handleRackSeatClick = (seat: CinemaSeat, row: number, col: number) => {
+    if (seat.disabled) return
     if (seat.id) {
       setSelectedRackId(seat.id)
       return
@@ -359,6 +457,71 @@ export const RackLayoutManagement = () => {
     })
   }
 
+  const submitBulkBins = async (
+    slots: { rackLevelId: string; binCode: string }[]
+  ) => {
+    if (!selectedRack || !activeZone) return
+    const preset = getDefaultBinCapacity(activeZone.zoneType)
+    setBulkCreating(true)
+    setError('')
+    try {
+      const { meta } = await binsApi.createBinsBulk({
+        bins: slots.map((s) => ({
+          rackLevelId: s.rackLevelId,
+          binCode: s.binCode,
+        })),
+        maxLpnCount: preset.maxLpnCount,
+        maxVolumeUnits: preset.maxVolumeUnits,
+        reservationType: 'SHARED',
+        status: 'EMPTY',
+      })
+      await loadRackDetail(selectedRack.rackId)
+      setAlert({
+        open: true,
+        type: 'success',
+        message: `Đã tạo ${meta.created} bin (${preset.maxLpnCount} LPN · ${preset.maxVolumeUnits} volume theo zone).`,
+      })
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Tạo bin hàng loạt thất bại'
+      setError(msg)
+      throw err
+    } finally {
+      setBulkCreating(false)
+    }
+  }
+
+  const submitBulkRacks = async (rackCodes: string[]) => {
+    if (!selectedZoneId || !activeZone) return
+    setBulkCreating(true)
+    setError('')
+    try {
+      const { items } = await racksApi.createRacksBulk({
+        zoneId: selectedZoneId,
+        rackCodes,
+        status: 'ACTIVE',
+      })
+      const batchSize = 5
+      for (let i = 0; i < items.length; i += batchSize) {
+        const chunk = items.slice(i, i + batchSize)
+        await Promise.all(
+          chunk.map((rack) => ensureRackLevels(rack.rackId, capacity.binsPerLevel))
+        )
+      }
+      await loadRacks()
+      setAlert({
+        open: true,
+        type: 'success',
+        message: `Đã tạo ${items.length} rack (${RACK_FIXED_LEVEL_COUNT} tầng/rack mỗi rack).`,
+      })
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Tạo rack hàng loạt thất bại'
+      setError(msg)
+      throw err
+    } finally {
+      setBulkCreating(false)
+    }
+  }
+
   const submitRack = async (payload: RackFormPayload) => {
     if (!selectedZoneId) return
     if (rackModal.mode === 'create') {
@@ -389,7 +552,14 @@ export const RackLayoutManagement = () => {
 
   return (
     <div className="flex min-h-full flex-col gap-6 p-6 lg:p-8">
-      <LoadingOverlay show={loading && !racks.length} text="Đang tải sơ đồ rack…" />
+      <LoadingOverlay
+        show={(loading && !racks.length) || bulkCreating}
+        text={
+          bulkCreating
+            ? 'Đang tạo hàng loạt…'
+            : 'Đang tải sơ đồ rack…'
+        }
+      />
 
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -429,6 +599,16 @@ export const RackLayoutManagement = () => {
               </option>
             ))}
           </select>
+          {selectedZoneId && capacity.hasArea && emptyRackSlotCodes.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setBulkRackModalOpen(true)}
+              className="flex items-center gap-2 rounded-lg border border-cyan-400/40 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20"
+            >
+              <span className="material-symbols-outlined text-lg">grid_on</span>
+              Tạo hàng loạt
+            </button>
+          )}
         </div>
       </header>
 
@@ -475,7 +655,10 @@ export const RackLayoutManagement = () => {
             onSeatClick={handleRackSeatClick}
             legend={
               <>
-                <SeatLegendItem status="active" label="Rack hoạt động" />
+                <SeatLegendItem status="rack-no-bin" label="Rack chưa có bin" />
+                <SeatLegendItem status="rack-low" label="Có bin · ít dùng" />
+                <SeatLegendItem status="rack-partial" label="Đang dùng vừa" />
+                <SeatLegendItem status="rack-heavy" label="Gần đầy" />
                 <SeatLegendItem status="blocked" label="Rack khóa" />
                 <SeatLegendItem status="selected" label="Đang chọn" />
                 <SeatLegendItem status="empty" label="Ô trống (+ thêm rack)" />
@@ -503,6 +686,16 @@ export const RackLayoutManagement = () => {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              {capacity.hasArea && emptyBinSlotsForRack.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setBulkBinModalOpen(true)}
+                  className="flex items-center gap-1 rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20"
+                >
+                  <span className="material-symbols-outlined text-base">view_module</span>
+                  Tạo bin hàng loạt
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() =>
@@ -593,6 +786,32 @@ export const RackLayoutManagement = () => {
           data={rackModal.data}
           onClose={() => setRackModal({ open: false, mode: 'create' })}
           onSubmit={submitRack}
+        />
+      )}
+
+      {bulkRackModalOpen && activeZone && (
+        <BulkRackModal
+          zoneLabel={`${activeZone.zoneCode}${activeZone.zoneName ? ` · ${activeZone.zoneName}` : ''}`}
+          emptySlotCodes={emptyRackSlotCodes}
+          maxCreatable={remainingRackSlots}
+          onClose={() => setBulkRackModalOpen(false)}
+          onSubmit={submitBulkRacks}
+        />
+      )}
+
+      {bulkBinModalOpen && selectedRack && activeZone && (
+        <BulkBinModal
+          rackCode={selectedRack.rackCode}
+          zoneType={activeZone.zoneType}
+          levels={levels.map((l) => ({
+            rackLevelId: l.rackLevelId,
+            levelNumber: l.levelNumber,
+          }))}
+          allEmptySlots={emptyBinSlotsForRack}
+          slotsByLevel={emptyBinSlotsByLevel}
+          binsPerLevel={capacity.binsPerLevel}
+          onClose={() => setBulkBinModalOpen(false)}
+          onSubmit={submitBulkBins}
         />
       )}
 

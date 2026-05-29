@@ -129,7 +129,9 @@ export interface ApiContract {
   billingCycle?: string | null
   startDate: string
   endDate: string
-  estimatedTotalAmount?: number | null
+  estimatedTotalAmount?: number | string | null
+  tenantSignature?: string | null
+  warehouseSignature?: string | null
   status: ContractStatus
   createdAt?: string
   updatedAt?: string

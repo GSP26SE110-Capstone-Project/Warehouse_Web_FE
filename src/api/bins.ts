@@ -40,6 +40,30 @@ export function createBin(body: {
   return apiRequest<ApiBin>('/bins', { method: 'POST', body })
 }
 
+export type BulkCreateBinEntry = {
+  rackLevelId: string
+  binCode: string
+  maxLpnCount?: number
+  maxVolumeUnits?: number
+  reservationType?: string
+  status?: string
+}
+
+export type BulkCreateBinsResult = {
+  items: ApiBin[]
+  meta: { created: number }
+}
+
+export function createBinsBulk(body: {
+  bins: BulkCreateBinEntry[]
+  maxLpnCount?: number
+  maxVolumeUnits?: number
+  reservationType?: string
+  status?: string
+}) {
+  return apiRequest<BulkCreateBinsResult>('/bins/bulk', { method: 'POST', body })
+}
+
 export function updateBin(
   binId: string,
   body: {

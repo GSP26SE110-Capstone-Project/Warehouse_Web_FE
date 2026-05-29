@@ -25,11 +25,14 @@ import type { UserRole } from '../../../api/types'
 import type { RentalRequestRow } from '../../../mappers'
 import { getOnboardingStoragePlan } from '../../../utils/onboardingStorage'
 import {
+  computeMinZonesCapacityHint,
+  type MinZonesCapacityHint,
   computeZoneStorageCapacity,
   estimateZoneLpnCapacity,
   formatZoneCapacitySummary,
   formatZoneRackSummary,
   splitReservedCapacityAcrossZones,
+  splitReservedCapacityEvenly,
 } from '../../../utils/warehouseCapacity'
 import { estimateMonthCount } from '../../../utils/rentalPeriod'
 import {
@@ -210,6 +213,28 @@ export function RentalOnboardingWizard({
     const deficit = Math.max(0, reservedCapacityNum - selectedZonesLpnCapacity)
     return { required: reservedCapacityNum, available: selectedZonesLpnCapacity, sufficient, deficit }
   }, [reservedCapacityNum, selectedZones.length, selectedZonesLpnCapacity])
+
+  const minZonesHint = useMemo(() => {
+    if (!reservedCapacityNum || !allowsMultiZone || zones.length === 0) return null
+    return computeMinZonesCapacityHint(reservedCapacityNum, zones)
+  }, [reservedCapacityNum, allowsMultiZone, zones])
+
+  const zoneCapacitySplit = useMemo(() => {
+    if (!reservedCapacityNum || selectedZones.length === 0) return null
+    const proportional = splitReservedCapacityAcrossZones(reservedCapacityNum, selectedZones)
+    const even = splitReservedCapacityEvenly(reservedCapacityNum, selectedZones)
+    const zonesEqualCapacity =
+      selectedZones.length > 1 &&
+      selectedZones.every(
+        (z) => estimateZoneLpnCapacity(z) === estimateZoneLpnCapacity(selectedZones[0])
+      )
+    return {
+      proportional,
+      even,
+      useEven: zonesEqualCapacity,
+      active: zonesEqualCapacity ? even : proportional,
+    }
+  }, [reservedCapacityNum, selectedZones])
 
   const preAllocationPreview = useMemo(() => {
     if (!priceEstimate || !selectedZones.length) return null
@@ -529,8 +554,7 @@ export function RentalOnboardingWizard({
       }
 
       await contractsApi.updateContract(cId, {
-        status: 'ACTIVE',
-        tenantSignature: 'SIGNED_WH_ONBOARDING',
+        status: 'PENDING_APPROVAL',
         warehouseSignature: 'SIGNED_WH_ONBOARDING',
         startDate: contractStart,
         endDate: contractEnd,
@@ -542,7 +566,7 @@ export function RentalOnboardingWizard({
   const handleAssignStorage = () =>
     run(async () => {
       if (!contractId) {
-        setError('Chưa có hợp đồng ACTIVE — hoàn tất bước 2 trước')
+        setError('Chưa có hợp đồng — hoàn tất bước 2 (tạo HĐ & ký kho) trước')
         return
       }
       if (
@@ -609,7 +633,8 @@ export function RentalOnboardingWizard({
       } else if (storagePlan.storageLevel === 'ZONE') {
         const capacitySplit =
           reservedCapacityNum != null
-            ? splitReservedCapacityAcrossZones(reservedCapacityNum, selectedZones)
+            ? zoneCapacitySplit?.active ??
+              splitReservedCapacityAcrossZones(reservedCapacityNum, selectedZones)
             : new Map<string, number>()
 
         for (const zId of selectedZoneIds) {
@@ -723,6 +748,16 @@ export function RentalOnboardingWizard({
                     Loại thuê ghi vào yêu cầu và hợp đồng sau khi duyệt — khác với lựa chọn ban đầu của khách
                     nếu họ chọn “tư vấn”.
                   </p>
+                  <ContractTypeStorageHint
+                    contractType={contractType}
+                    reservedCapacity={reservedCapacityNum}
+                  />
+                  {minZonesHint && minZonesHint.minZones > 1 && (
+                    <MinZonesCapacityAlert
+                      hint={minZonesHint}
+                      selectedZoneCount={selectedZoneIds.length}
+                    />
+                  )}
                 </div>
               )}
               <TenantAreaRequirementCard
@@ -991,8 +1026,9 @@ export function RentalOnboardingWizard({
               </div>
               <p className="text-xs text-slate-500">
                 Thời hạn hợp đồng lấy từ yêu cầu thuê của khách ({row.startDate || '—'} →{' '}
-                {row.endDate || '—'}). HĐ tạo DRAFT rồi kích hoạt ACTIVE (chữ ký nội bộ WH). Sau đó
-                cấp chỗ lưu trữ.
+                {row.endDate || '—'}). Kho ký và gửi trạng thái{' '}
+                <strong className="text-slate-300">Chờ tenant ký</strong>; Tenant Admin ký trên
+                portal rồi HĐ mới ACTIVE. Sau đó cấp chỗ lưu trữ (bước 3).
               </p>
             </div>
           )}
@@ -1063,14 +1099,27 @@ export function RentalOnboardingWizard({
                           ))}
                         </select>
                       )}
+                      {minZonesHint && minZonesHint.minZones > 1 && allowsMultiZone && (
+                        <MinZonesCapacityAlert
+                          hint={minZonesHint}
+                          selectedZoneCount={selectedZones.length}
+                        />
+                      )}
+
                       {selectedZones.length > 0 && allowsMultiZone && (
                         <MultiZoneSelectionSummary
                           zones={selectedZones}
                           reservedCapacity={reservedCapacityNum}
                           totalLpnCapacity={selectedZonesLpnCapacity}
                           totalAreaM2={selectedZonesAreaM2}
+                          capacitySplit={zoneCapacitySplit?.active ?? null}
+                          splitMode={
+                            zoneCapacitySplit?.useEven ? ('even' as const) : ('proportional' as const)
+                          }
                         />
                       )}
+
+                      <ContractTypeStorageHint contractType={contractType} reservedCapacity={reservedCapacityNum} />
                       {zoneAreaFit && tenantRequiredAreaNum != null && selectedZones.length > 0 && (
                         <ZoneAreaFitAlert
                           fit={zoneAreaFit}
@@ -1161,7 +1210,10 @@ export function RentalOnboardingWizard({
                       placeholder="VD: 80"
                     />
                     <p className="mt-1 text-[11px] text-slate-500">
-                      Tổng số thùng/LPN cần giữ cho tenant — chia theo tỷ lệ sức chứa khi chọn nhiều zone.
+                      Tổng số thùng/LPN cần giữ cho tenant. Với{' '}
+                      <strong className="text-slate-400">SHARED_STORAGE</strong> /{' '}
+                      <strong className="text-slate-400">DEDICATED_ZONE</strong>: khi chọn nhiều zone, hệ thống
+                      chia theo bảng phân bổ bên dưới (zone bằng nhau → chia đều).
                     </p>
                   </div>
                 </>
@@ -1458,16 +1510,125 @@ function ZoneMultiSelectList({
   )
 }
 
+function MinZonesCapacityAlert({
+  hint,
+  selectedZoneCount,
+}: {
+  hint: MinZonesCapacityHint
+  selectedZoneCount: number
+}) {
+  const areaPart =
+    hint.referenceAreaM2 != null && hint.referenceAreaM2 > 0
+      ? ` (~${new Intl.NumberFormat('vi-VN').format(hint.referenceAreaM2)} m²/zone)`
+      : ''
+  const needsMore = selectedZoneCount < hint.minZones
+
+  return (
+    <div
+      className={`mt-3 rounded-lg border px-3 py-2 text-xs ${
+        needsMore
+          ? 'border-amber-500/40 bg-amber-500/10 text-amber-100'
+          : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
+      }`}
+    >
+      <p className="font-semibold text-white">
+        {needsMore ? 'Cần thêm zone' : 'Đủ số zone theo ước tính'}
+      </p>
+      <p className="mt-1">
+        Tenant cần giữ <strong>{hint.requiredLpn.toLocaleString('vi-VN')}</strong> thùng/LPN — mỗi zone
+        tối đa ~<strong>{hint.referenceLpnPerZone.toLocaleString('vi-VN')}</strong> thùng{areaPart}.
+      </p>
+      <p className="mt-1">
+        → Cần tối thiểu <strong>{hint.minZones} zone</strong>
+        {hint.minZones === 2 && hint.referenceAreaM2 != null
+          ? ` (vd. 2 zone × ${new Intl.NumberFormat('vi-VN').format(hint.referenceAreaM2)} m²)`
+          : ''}
+        .
+        {selectedZoneCount > 0 && (
+          <>
+            {' '}
+            Hiện đã chọn <strong>{selectedZoneCount}</strong>.
+          </>
+        )}
+      </p>
+    </div>
+  )
+}
+
+function ContractTypeStorageHint({
+  contractType,
+  reservedCapacity,
+}: {
+  contractType: BillableContractTypeValue
+  reservedCapacity: number | null
+}) {
+  if (contractType === 'SHARED_STORAGE') {
+    return (
+      <div className="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-100/95">
+        <p className="font-semibold text-emerald-200">SHARED_STORAGE — gợi ý cho nhu cầu lớn</p>
+        <p className="mt-1 text-slate-300">
+          Chọn nhiều zone SHARED; phần thùng được <strong>chia cho tenant</strong> theo bảng phân bổ. Ô
+          trống còn lại trong zone vẫn có thể dùng cho tenant khác — thường <strong>tiết kiệm hơn</strong>{' '}
+          thuê nguyên 2 zone DEDICATED.
+        </p>
+        {reservedCapacity != null && reservedCapacity > 500 && (
+          <p className="mt-1 text-slate-400">
+            Billing theo mức dùng (USAGE_BASED), không trả cố định toàn bộ m² zone nếu không dùng hết.
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  if (contractType === 'DEDICATED_ZONE') {
+    return (
+      <div className="mt-3 rounded-lg border border-violet-500/25 bg-violet-500/5 px-3 py-2 text-xs text-violet-100/95">
+        <p className="font-semibold text-violet-200">DEDICATED_ZONE — lưu ý chi phí</p>
+        <p className="mt-1 text-slate-300">
+          Mỗi zone tick = tenant thuê <strong>trọn diện tích zone</strong> (vd. 2 × 100 m² = 200 m² trên
+          HĐ). Phù hợp khi cần tách riêng vận hành; với cùng ~1.800 thùng, tenant thường trả{' '}
+          <strong>cao hơn</strong> SHARED_STORAGE.
+        </p>
+      </div>
+    )
+  }
+
+  if (contractType === 'RESERVED_STORAGE') {
+    return (
+      <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+        <p className="font-semibold text-amber-200">RESERVED_STORAGE — giữ chỗ bin cố định</p>
+        <p className="mt-1">
+          Mỗi lần onboarding hiện tạo <strong>một reservation gắn một bin</strong> (chọn zone → rack →
+          tầng → bin). Một bin thường chứa vài thùng/LPN (theo maxLpnCount), không phải cả zone.
+        </p>
+        {reservedCapacity != null && reservedCapacity > 100 && (
+          <p className="mt-1 text-amber-200/90">
+            Với ~{reservedCapacity.toLocaleString('vi-VN')} thùng: cần <strong>nhiều bin RESERVED</strong>{' '}
+            (nhiều lần cấp / mở rộng sau) hoặc chuyển sang{' '}
+            <strong>SHARED_STORAGE</strong> + nhiều zone để chia dung lượng trên HĐ.
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  return null
+}
+
 function MultiZoneSelectionSummary({
   zones,
   reservedCapacity,
   totalLpnCapacity,
   totalAreaM2,
+  capacitySplit,
+  splitMode,
 }: {
   zones: zonesApi.ApiZone[]
   reservedCapacity: number | null
   totalLpnCapacity: number
   totalAreaM2: number
+  capacitySplit: Map<string, number> | null
+  splitMode: 'even' | 'proportional'
 }) {
   return (
     <div className="mt-3 rounded-lg border border-cyan-500/30 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-100">
@@ -1492,6 +1653,35 @@ function MultiZoneSelectionSummary({
           </>
         )}
       </p>
+      {reservedCapacity != null && capacitySplit && zones.length > 0 && (
+        <div className="mt-2 border-t border-cyan-500/20 pt-2">
+          <p className="font-medium text-cyan-200">
+            Phân bổ lên HĐ ({splitMode === 'even' ? 'chia đều' : 'theo sức chứa zone'}):
+          </p>
+          <ul className="mt-1 space-y-0.5">
+            {zones.map((z) => {
+              const share = capacitySplit.get(z.zoneId) ?? 0
+              const pct =
+                reservedCapacity > 0 ? Math.round((share / reservedCapacity) * 100) : 0
+              return (
+                <li key={z.zoneId} className="flex justify-between gap-2 text-slate-300">
+                  <span>
+                    <strong className="text-white">{z.zoneCode}</strong>
+                    {z.zoneType ? ` (${z.zoneType})` : ''}
+                  </span>
+                  <span className="shrink-0 font-mono text-cyan-300">
+                    {share.toLocaleString('vi-VN')} thùng{pct > 0 ? ` · ${pct}%` : ''}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+          <p className="mt-1.5 text-[10px] text-slate-500">
+            Khi kích hoạt HĐ, mỗi zone nhận một storage reservation với reservedCapacity tương ứng. Phần
+            capacity zone còn trống (SHARED) có thể nhận tenant khác.
+          </p>
+        </div>
+      )}
     </div>
   )
 }

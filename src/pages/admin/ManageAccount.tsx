@@ -105,8 +105,7 @@ export const AccountManagement: React.FC = () => {
     return accounts.filter(acc => {
       const matchSearch =
         acc.name.toLowerCase().includes(search.toLowerCase()) ||
-        acc.email.toLowerCase().includes(search.toLowerCase()) ||
-        acc.id.toLowerCase().includes(search.toLowerCase())
+        acc.email.toLowerCase().includes(search.toLowerCase())
 
       return matchSearch
     })
@@ -209,7 +208,6 @@ export const AccountManagement: React.FC = () => {
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-white/5 bg-[#131b29] text-xs uppercase text-slate-400">
-                      <th className="px-6 py-4">ID</th>
                       <th className="px-6 py-4">Tên</th>
                       <th className="px-6 py-4">Email</th>
                       <th className="px-6 py-4">Vai trò</th>
@@ -221,8 +219,7 @@ export const AccountManagement: React.FC = () => {
                   <tbody className="divide-y divide-white/5">
                     {paginatedAccounts.length > 0 ? (
                       paginatedAccounts.map((acc) => (
-                        <tr key={acc.id} >
-                          <td className="px-6 py-4 text-cyan-400 font-mono">{acc.id}</td>
+                        <tr key={acc.id}>
                           <td className="px-6 py-4 text-white">{acc.name}</td>
                           <td className="px-6 py-4 text-slate-400">{acc.email}</td>
 
@@ -261,7 +258,7 @@ export const AccountManagement: React.FC = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={8} className="text-center py-10 text-slate-400">
+                        <td colSpan={5} className="text-center py-10 text-slate-400">
                           Không tìm thấy tài khoản nào
                         </td>
                       </tr>

@@ -100,6 +100,70 @@ export function formatZoneRackSummary(zone: {
   return `${actual} rack đã tạo`
 }
 
+/** Số zone tối thiểu nếu mỗi zone tối đa ~referenceLpn thùng. */
+export function suggestMinZoneCountForLpnCapacity(
+  requiredLpn: number,
+  referenceLpnPerZone: number
+): number {
+  if (requiredLpn <= 0) return 0
+  if (referenceLpnPerZone <= 0) return 1
+  return Math.ceil(requiredLpn / referenceLpnPerZone)
+}
+
+export type MinZonesCapacityHint = {
+  minZones: number
+  requiredLpn: number
+  referenceLpnPerZone: number
+  referenceAreaM2: number | null
+}
+
+/** Gợi ý số zone tối thiểu từ danh sách zone trong kho (lấy zone có sức chứa LPN lớn nhất làm mốc 1 zone). */
+export function computeMinZonesCapacityHint(
+  requiredLpn: number,
+  zones: Array<{ areaM2?: number | null; estimatedLpnCapacity?: number | null; totalBinSlots?: number | null }>
+): MinZonesCapacityHint | null {
+  if (requiredLpn <= 0 || !zones.length) return null
+
+  let bestLpn = 0
+  let bestArea: number | null = null
+  for (const z of zones) {
+    const lpn = estimateZoneLpnCapacity(z)
+    if (lpn > bestLpn) {
+      bestLpn = lpn
+      const area = z.areaM2 != null ? Number(z.areaM2) : NaN
+      bestArea = Number.isFinite(area) && area > 0 ? area : bestArea
+    }
+  }
+  if (bestLpn <= 0) return null
+
+  return {
+    minZones: suggestMinZoneCountForLpnCapacity(requiredLpn, bestLpn),
+    requiredLpn,
+    referenceLpnPerZone: bestLpn,
+    referenceAreaM2: bestArea,
+  }
+}
+
+/** Chia đều số thùng/LPN cho từng zone (phần dư cộng vào zone cuối). */
+export function splitReservedCapacityEvenly(
+  total: number,
+  zones: Array<{ zoneId: string }>
+): Map<string, number> {
+  const result = new Map<string, number>()
+  if (!zones.length || total <= 0) return result
+  const base = Math.floor(total / zones.length)
+  let assigned = 0
+  zones.forEach((z, i) => {
+    if (i === zones.length - 1) {
+      result.set(z.zoneId, Math.max(0, total - assigned))
+    } else {
+      result.set(z.zoneId, base)
+      assigned += base
+    }
+  })
+  return result
+}
+
 /** Chia dung lượng giữ (thùng/LPN) theo tỷ lệ sức chứa từng zone. */
 export function splitReservedCapacityAcrossZones(
   total: number,

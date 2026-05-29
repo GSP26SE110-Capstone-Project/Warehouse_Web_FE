@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
@@ -347,10 +347,20 @@ export function InboundDetailPage({ mode, basePath }: Props) {
       })
     }, 'Đã thêm SKU vào LPN')
 
+  const pendingPutawayCount = useMemo(
+    () => lpns.filter((l) => l.status === 'RECEIVING').length,
+    [lpns]
+  )
+
+  const putawayBoxType = useMemo((): BoxType => {
+    const selected = lpns.find((l) => l.lpnId === selectedLpnId)
+    return selected?.boxType ?? boxType
+  }, [lpns, selectedLpnId, boxType])
+
   const handlePutaway = () =>
     runAction(async () => {
       if (!selectedLpnId || !putawayBinId.trim()) {
-        throw new ApiError('Chọn LPN và nhập binId', 400)
+        throw new ApiError('Chọn LPN và bin putaway', 400)
       }
       await lpnsApi.putawayLpn(selectedLpnId, {
         binId: putawayBinId.trim(),
@@ -742,19 +752,40 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                     <>
                       <PutawayBinPicker
                         warehouseId={inbound.warehouseId}
+                        contractId={inbound.contractId}
+                        inboundRequestId={inbound.inboundRequestId}
+                        movedBy={user?.userId}
                         value={putawayBinId}
                         onChange={setPutawayBinId}
+                        pendingPutawayCount={pendingPutawayCount}
+                        boxType={putawayBoxType}
+                        onBulkPutawayDone={(result) => {
+                          void load()
+                          const lines = result.assignments
+                            .slice(0, 8)
+                            .map((a) => `${a.lpnCode} → ${a.binCode}`)
+                          const more =
+                            result.assignments.length > 8
+                              ? `\n... +${result.assignments.length - 8} LPN`
+                              : ''
+                          setAlert({
+                            open: true,
+                            message: `Đã putaway ${result.putawayCount} LPN.\n${lines.join('\n')}${more}`,
+                          })
+                        }}
                       />
                       <button
                         type="button"
                         onClick={handlePutaway}
                         disabled={!putawayBinId || !selectedLpnId}
-                        className="mt-2 w-full rounded bg-emerald-600 px-3 py-2 text-sm disabled:opacity-40"
+                        className="mt-2 w-full rounded border border-white/10 bg-slate-700 px-3 py-2 text-sm hover:bg-slate-600 disabled:opacity-40"
                       >
-                        Putaway
+                        Putaway 1 LPN (thủ công)
                       </button>
                       <p className="mt-2 text-xs text-slate-500">
-                        LPN phải có SKU trong thùng. Sau putaway status → STORED.
+                        LPN phải có SKU trong thùng. Ưu tiên nút{' '}
+                        <strong className="text-emerald-400">Putaway tự động</strong> phía trên khi còn
+                        nhiều LPN.
                       </p>
                     </>
                   }

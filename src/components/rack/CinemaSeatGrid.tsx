@@ -6,6 +6,10 @@ export type SeatVisualStatus =
   | 'active'
   | 'blocked'
   | 'selected'
+  | 'rack-no-bin'
+  | 'rack-low'
+  | 'rack-partial'
+  | 'rack-heavy'
   | 'empty-bin'
   | 'partial'
   | 'full'
@@ -14,6 +18,7 @@ export type SeatVisualStatus =
 export type CinemaSeat = {
   id: string | null
   label: string
+  subLabel?: string
   hint?: string
   status: SeatVisualStatus
   disabled?: boolean
@@ -24,6 +29,14 @@ const STATUS_CLASS: Record<SeatVisualStatus, string> = {
     'border-dashed border-white/15 bg-white/[0.02] text-white/30 hover:border-cyan-400/40 hover:bg-cyan-500/10',
   active:
     'border-cyan-500/50 bg-gradient-to-b from-cyan-500/30 to-cyan-900/40 text-cyan-100 shadow-[0_0_12px_rgba(6,237,249,0.25)]',
+  'rack-no-bin':
+    'border-cyan-500/35 bg-cyan-950/40 text-cyan-200/80 border-dashed',
+  'rack-low':
+    'border-emerald-500/45 bg-gradient-to-b from-emerald-500/25 to-emerald-900/35 text-emerald-100',
+  'rack-partial':
+    'border-amber-500/50 bg-gradient-to-b from-amber-500/30 to-amber-900/35 text-amber-100',
+  'rack-heavy':
+    'border-orange-500/55 bg-gradient-to-b from-orange-500/35 to-orange-900/40 text-orange-100',
   blocked: 'border-red-500/40 bg-red-900/30 text-red-200',
   selected:
     'border-amber-400 bg-gradient-to-b from-amber-400/40 to-amber-700/30 text-amber-50 ring-2 ring-amber-300/60 scale-105 z-10',
@@ -55,7 +68,9 @@ export function CinemaSeatGrid({
   legend,
   onSeatClick,
 }: Props) {
-  const seatSize = compact ? 'w-9 h-9 text-[9px]' : 'w-11 h-11 sm:w-12 sm:h-12 text-[10px]'
+  const seatSize = compact
+    ? 'w-9 h-9 text-[9px]'
+    : 'min-w-11 min-h-11 w-11 h-auto sm:min-w-12 sm:min-h-12 sm:w-12 py-1 text-[9px] sm:text-[10px]'
 
   return (
     <div className={perspective ? 'cinema-floor mx-auto max-w-full' : 'mx-auto max-w-full'}>
@@ -93,6 +108,11 @@ export function CinemaSeatGrid({
                       className={`cinema-seat flex ${seatSize} flex-col items-center justify-center rounded-md border font-mono font-bold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-40 ${STATUS_CLASS[status]}`}
                     >
                       <span className="leading-none">{seat.label}</span>
+                      {seat.subLabel && (
+                        <span className="mt-0.5 text-[8px] font-normal leading-none opacity-90">
+                          {seat.subLabel}
+                        </span>
+                      )}
                     </button>
                   )
                 })}

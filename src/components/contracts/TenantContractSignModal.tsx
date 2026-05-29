@@ -1,0 +1,200 @@
+import { useEffect, useState } from 'react'
+import { ApiError } from '../../api/client'
+import * as contractsApi from '../../api/contracts'
+import * as warehousesApi from '../../api/warehouses'
+import type { ApiContract } from '../../api/types'
+import {
+  BILLING_CYCLE_GUEST_LABELS,
+  CONTRACT_TYPE_LABELS,
+  type ContractTypeValue,
+} from '../../data/contractTypes'
+import { formatVnd } from '../../data/pricing'
+import { parseContractAmount } from '../../utils/contractSigning'
+import { SignaturePad } from './SignaturePad'
+
+type Props = {
+  contractId: string
+  onClose: () => void
+  onSigned: () => void
+}
+
+function formatDate(iso?: string | null) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('vi-VN')
+}
+
+export function TenantContractSignModal({ contractId, onClose, onSigned }: Props) {
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [contract, setContract] = useState<ApiContract | null>(null)
+  const [warehouseLabel, setWarehouseLabel] = useState('')
+  const [signature, setSignature] = useState<string | null>(null)
+  const [agreed, setAgreed] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const c = await contractsApi.getContract(contractId)
+        const wh = await warehousesApi.getWarehouse(c.warehouseId)
+        if (cancelled) return
+        setContract(c)
+        setWarehouseLabel(
+          `${wh.warehouseName} (${wh.warehouseCode}) — ${wh.district}, ${wh.city}`
+        )
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof ApiError ? err.message : 'Không tải được hợp đồng')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [contractId])
+
+  const handleSubmit = async () => {
+    if (!signature) {
+      setError('Vui lòng ký trong khung chữ ký trước khi xác nhận')
+      return
+    }
+    if (!agreed) {
+      setError('Vui lòng đồng ý với điều khoản hợp đồng')
+      return
+    }
+    setSubmitting(true)
+    setError('')
+    try {
+      await contractsApi.updateContract(contractId, {
+        tenantSignature: signature,
+        status: 'ACTIVE',
+      })
+      onSigned()
+      onClose()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Ký hợp đồng thất bại')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const amount = contract ? parseContractAmount(contract.estimatedTotalAmount) : null
+  const ct = contract?.contractType as ContractTypeValue | undefined
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" onClick={onClose} aria-hidden />
+
+      <div className="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-white/10 bg-[#0b101a] shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+          <div>
+            <h2 className="text-lg font-bold text-white">Ký hợp đồng thuê kho</h2>
+            <p className="mt-1 text-xs text-slate-400">
+              Bước cuối — Tenant Admin xác nhận và kích hoạt hợp đồng
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded p-2 hover:bg-white/10">
+            <span className="material-symbols-outlined text-slate-400">close</span>
+          </button>
+        </div>
+
+        <div className="flex-1 space-y-4 overflow-y-auto p-6">
+          {loading && <p className="text-sm text-slate-400">Đang tải...</p>}
+          {error && (
+            <p className="rounded-lg border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-300">
+              {error}
+            </p>
+          )}
+
+          {!loading && contract && (
+            <>
+              <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4 text-sm">
+                <p className="font-mono text-cyan-300">{contract.contractCode}</p>
+                <p className="mt-1 font-medium text-white">
+                  {contract.contractName ?? 'Hợp đồng thuê kho'}
+                </p>
+                <dl className="mt-3 grid gap-2 text-xs text-slate-400 sm:grid-cols-2">
+                  <div>
+                    <dt className="uppercase tracking-wide">Loại thuê</dt>
+                    <dd className="text-slate-200">
+                      {ct ? CONTRACT_TYPE_LABELS[ct] ?? contract.contractType : '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="uppercase tracking-wide">Kho</dt>
+                    <dd className="text-slate-200">{warehouseLabel}</dd>
+                  </div>
+                  <div>
+                    <dt className="uppercase tracking-wide">Thời hạn</dt>
+                    <dd className="text-slate-200">
+                      {formatDate(contract.startDate)} → {formatDate(contract.endDate)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="uppercase tracking-wide">Chu kỳ thanh toán</dt>
+                    <dd className="text-slate-200">
+                      {BILLING_CYCLE_GUEST_LABELS[contract.billingCycle ?? ''] ??
+                        contract.billingCycle ??
+                        '—'}
+                    </dd>
+                  </div>
+                </dl>
+                <div className="mt-4 rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-4 py-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300/90">
+                    Giá trị ước tính toàn kỳ
+                  </p>
+                  <p className="mt-1 text-xl font-bold text-cyan-300">
+                    {amount != null ? formatVnd(amount) : 'Chưa có — liên hệ kho'}
+                  </p>
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Số tiền tham chiếu theo báo giá kho; hóa đơn thực tế có thể theo mức sử dụng.
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-500">
+                Kho đã ký trước. Sau khi bạn ký, hợp đồng chuyển sang{' '}
+                <strong className="text-emerald-400">ACTIVE</strong> và bạn có thể tạo yêu cầu nhập
+                kho.
+              </p>
+
+              <SignaturePad onChange={setSignature} />
+
+              <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={agreed}
+                  onChange={(e) => setAgreed(e.target.checked)}
+                  className="mt-1 rounded border-white/20"
+                />
+                <span>
+                  Tôi đại diện tenant đã đọc và đồng ý với điều khoản, giá ước tính và thời hạn
+                  hợp đồng trên.
+                </span>
+              </label>
+            </>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 border-t border-white/10 px-6 py-4">
+          <button type="button" onClick={onClose} className="text-sm text-slate-400 hover:text-white">
+            Đóng
+          </button>
+          <button
+            type="button"
+            disabled={loading || submitting || !contract}
+            onClick={handleSubmit}
+            className="rounded-lg bg-cyan-500 px-5 py-2 text-sm font-semibold text-slate-900 hover:bg-cyan-400 disabled:opacity-50"
+          >
+            {submitting ? 'Đang lưu...' : 'Xác nhận ký & kích hoạt'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
