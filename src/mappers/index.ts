@@ -10,6 +10,7 @@ export const USER_ROLE_LABEL: Record<UserRole, string> = {
   WH_ADMIN: 'Warehouse Admin',
   TENANT_ADMIN: 'Tenant Admin',
   WH_STAFF: 'Warehouse Staff',
+  WH_TRANSPORTER: 'Tài xế kho',
   TENANT_STAFF: 'Tenant Staff',
 }
 
@@ -18,6 +19,7 @@ const ROLE_CLASS: Record<UserRole, string> = {
   WH_ADMIN: 'bg-cyan-400/10 text-cyan-300 ring-cyan-400/20',
   TENANT_ADMIN: 'bg-blue-400/10 text-blue-300 ring-blue-400/20',
   WH_STAFF: 'bg-emerald-400/10 text-emerald-300 ring-emerald-400/20',
+  WH_TRANSPORTER: 'bg-sky-400/10 text-sky-300 ring-sky-400/20',
   TENANT_STAFF: 'bg-amber-400/10 text-amber-300 ring-amber-400/20',
 }
 

@@ -52,6 +52,7 @@ const ROLE_OPTIONS_SYSTEM_ADMIN: { value: UserRole; label: string }[] = [
 
 const ROLE_OPTIONS_WH_ADMIN: { value: UserRole; label: string }[] = [
   { value: 'WH_STAFF', label: 'Warehouse Staff (Nhân viên kho)' },
+  { value: 'WH_TRANSPORTER', label: 'Tài xế kho (WH Transporter)' },
 ]
 
 const ROLE_OPTIONS_TENANT_ADMIN: { value: UserRole; label: string }[] = [
@@ -63,6 +64,7 @@ function displayRole(role?: string) {
     WH_ADMIN: 'Warehouse Admin',
     TENANT_ADMIN: 'Tenant Admin',
     WH_STAFF: 'Warehouse Staff',
+    WH_TRANSPORTER: 'Tài xế kho',
     TENANT_STAFF: 'Tenant Staff',
     SYSTEM_ADMIN: 'System Admin',
     Admin: 'Admin',

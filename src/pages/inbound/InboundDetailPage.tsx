@@ -28,8 +28,10 @@ import * as lpnsApi from '../../api/lpns'
 import type { ApiLpn, ApiLpnDetail, BoxType } from '../../api/lpns'
 import { BOX_TYPE_OPTIONS } from '../../data/inboundStatus'
 import { formatDate } from '../../mappers'
+import * as usersApi from '../../api/users'
+import type { ApiUser } from '../../api/types'
 
-type Mode = 'tenant' | 'warehouse'
+type Mode = 'tenant' | 'warehouse' | 'transporter'
 
 type Props = {
   mode: Mode
@@ -40,6 +42,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   const { inboundRequestId = '' } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const isTransporter = mode === 'transporter'
   const isWarehouse = mode === 'warehouse'
 
   const [inbound, setInbound] = useState<ApiInboundRequestWithItems | null>(null)
@@ -65,6 +68,8 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   const [readiness, setReadiness] = useState<ApiInboundApprovalReadiness | null>(null)
   const [deliveryForm, setDeliveryForm] = useState<DeliveryFormState>(emptyDeliveryForm())
   const [deliveryDirty, setDeliveryDirty] = useState(false)
+  const [assignedDriverUserId, setAssignedDriverUserId] = useState('')
+  const [transporters, setTransporters] = useState<ApiUser[]>([])
 
   const [alert, setAlert] = useState<{
     open: boolean
@@ -97,6 +102,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
         carrierName: d?.carrierName ?? '',
         notes: d?.notes ?? '',
       })
+      setAssignedDriverUserId(d?.assignedDriverUserId ?? '')
       setDeliveryDirty(false)
 
       const draft: Record<string, number> = {}
@@ -105,29 +111,31 @@ export function InboundDetailPage({ mode, basePath }: Props) {
       }
       setReceivedDraft(draft)
 
-      const batchRes = await batchesApi.listBatches({ inboundRequestId, limit: 50 })
-      setBatches(batchRes.items)
-      if (batchRes.items.length > 0 && !selectedBatchId) {
-        setSelectedBatchId(batchRes.items[0].batchId)
-      }
+      if (!isTransporter) {
+        const batchRes = await batchesApi.listBatches({ inboundRequestId, limit: 50 })
+        setBatches(batchRes.items)
+        if (batchRes.items.length > 0 && !selectedBatchId) {
+          setSelectedBatchId(batchRes.items[0].batchId)
+        }
 
-      if (batchRes.items.length > 0) {
-        const lpnLists = await Promise.all(
-          batchRes.items.map((b) => lpnsApi.listLpns({ batchId: b.batchId, limit: 100 }))
-        )
-        const allLpns = lpnLists.flatMap((r) => r.items)
-        setLpns(allLpns)
-        if (allLpns.length > 0) {
-          const withDetails = await Promise.all(
-            allLpns.map((l) => lpnsApi.getLpnWithDetails(l.lpnId))
+        if (batchRes.items.length > 0) {
+          const lpnLists = await Promise.all(
+            batchRes.items.map((b) => lpnsApi.listLpns({ batchId: b.batchId, limit: 100 }))
           )
-          setLpnDetails(withDetails.flatMap((w) => w.details ?? []))
+          const allLpns = lpnLists.flatMap((r) => r.items)
+          setLpns(allLpns)
+          if (allLpns.length > 0) {
+            const withDetails = await Promise.all(
+              allLpns.map((l) => lpnsApi.getLpnWithDetails(l.lpnId))
+            )
+            setLpnDetails(withDetails.flatMap((w) => w.details ?? []))
+          } else {
+            setLpnDetails([])
+          }
         } else {
+          setLpns([])
           setLpnDetails([])
         }
-      } else {
-        setLpns([])
-        setLpnDetails([])
       }
 
       if (
@@ -144,11 +152,32 @@ export function InboundDetailPage({ mode, basePath }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [inboundRequestId, isWarehouse])
+  }, [inboundRequestId, isWarehouse, isTransporter])
 
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    if (
+      !isWarehouse ||
+      (user?.role !== 'WH_ADMIN' && user?.role !== 'WH_STAFF')
+    ) {
+      return
+    }
+    let cancelled = false
+    usersApi
+      .listUsers({ role: 'WH_TRANSPORTER', status: 'ACTIVE', limit: 100 })
+      .then((res) => {
+        if (!cancelled) setTransporters(res.items)
+      })
+      .catch(() => {
+        if (!cancelled) setTransporters([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isWarehouse, user?.role])
 
   useEffect(() => {
     if (!readiness?.boxTypeSuggestion?.recommendedBoxType || boxTypeTouched) return
@@ -209,26 +238,47 @@ export function InboundDetailPage({ mode, basePath }: Props) {
     })
   }
 
-  const canEditDelivery =
-    isWarehouse
+  const isWarehouseTransport =
+    inbound?.deliveryMode === 'WAREHOUSE_TRANSPORT'
+
+  const canEditDelivery = isTransporter
+    ? inbound && inbound.status === 'APPROVED'
+    : isWarehouse
       ? inbound && ['PENDING', 'APPROVED', 'ARRIVED'].includes(inbound.status)
       : inbound && ['DRAFT', 'PENDING', 'APPROVED'].includes(inbound.status)
 
+  const canAssignTransporter =
+    isWarehouse &&
+    isWarehouseTransport &&
+    inbound &&
+    ['PENDING', 'APPROVED', 'ARRIVED'].includes(inbound.status)
+
   const saveDelivery = () =>
     runAction(async () => {
-      if (!deliveryForm.vehiclePlate.trim()) {
-        throw new ApiError('Nhập biển số xe', 400)
+      const plate = deliveryForm.vehiclePlate.trim()
+      const assignId = assignedDriverUserId.trim() || undefined
+      if (!isTransporter && !plate && !assignId) {
+        throw new ApiError('Nhập biển số xe hoặc chọn tài xế', 400)
+      }
+      if (isTransporter && !plate) {
+        throw new ApiError('Nhập biển số xe trước khi lưu', 400)
       }
       await deliveryApi.upsertInboundDelivery(inboundRequestId, {
-        vehiclePlate: deliveryForm.vehiclePlate.trim(),
+        vehiclePlate: plate || undefined,
         driverName: deliveryForm.driverName?.trim() || undefined,
         driverPhone: deliveryForm.driverPhone?.trim() || undefined,
         driverIdNumber: deliveryForm.driverIdNumber?.trim() || undefined,
         carrierName: deliveryForm.carrierName?.trim() || undefined,
         notes: deliveryForm.notes?.trim() || undefined,
+        assignedDriverUserId: canAssignTransporter ? assignId ?? null : undefined,
       })
       setDeliveryDirty(false)
-    }, 'Đã lưu thông tin xe')
+    }, 'Đã lưu thông tin vận chuyển')
+
+  const reportArrival = () =>
+    runAction(async () => {
+      await inboundApi.reportInboundArrival(inboundRequestId)
+    }, 'Đã báo xe đến kho')
 
   const confirmWarehouseCancel = () => {
     setAlert({
@@ -448,6 +498,32 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                     </span>
                   )}
                 </p>
+                {canAssignTransporter && (
+                  <div className="mb-3">
+                    <label className="mb-1 block text-xs text-slate-500">Tài xế kho được gán</label>
+                    <select
+                      aria-label="Tài xế kho được gán"
+                      value={assignedDriverUserId}
+                      onChange={(e) => {
+                        setAssignedDriverUserId(e.target.value)
+                        setDeliveryDirty(true)
+                      }}
+                      className="w-full max-w-md rounded border border-white/10 bg-black/30 px-3 py-2 text-sm"
+                    >
+                      <option value="">— Chưa gán —</option>
+                      {transporters.map((t) => (
+                        <option key={t.userId} value={t.userId}>
+                          {t.fullName} ({t.email})
+                        </option>
+                      ))}
+                    </select>
+                    {transporters.length === 0 && (
+                      <p className="mt-1 text-xs text-amber-300">
+                        Chưa có tài khoản WH_TRANSPORTER — WH Admin tạo trong Quản lý tài khoản.
+                      </p>
+                    )}
+                  </div>
+                )}
                 {canEditDelivery ? (
                   <>
                     <InboundDeliveryForm
@@ -465,8 +541,25 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                       onClick={saveDelivery}
                       className="mt-3 rounded bg-cyan-600 px-3 py-1.5 text-sm disabled:opacity-40"
                     >
-                      Lưu thông tin xe
+                      {isTransporter ? 'Lưu thông tin xe' : 'Lưu vận chuyển'}
                     </button>
+                    {isTransporter && inbound.status === 'APPROVED' && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAlert({
+                            open: true,
+                            type: 'confirm',
+                            title: 'Xe đã đến kho?',
+                            message: `Xác nhận ${inbound.inboundCode} đã tới cổng kho.`,
+                            onConfirm: reportArrival,
+                          })
+                        }
+                        className="ml-2 mt-3 rounded bg-violet-600 px-3 py-1.5 text-sm"
+                      >
+                        Báo đã đến kho
+                      </button>
+                    )}
                   </>
                 ) : inbound.delivery ? (
                   <dl className="grid gap-2 text-sm sm:grid-cols-2">
@@ -486,6 +579,16 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                         <dd>{inbound.delivery.driverPhone}</dd>
                       </div>
                     )}
+                    {inbound.delivery.assignedDriverUserId && (
+                      <div>
+                        <dt className="text-slate-500">Tài xế (account)</dt>
+                        <dd className="font-mono text-xs text-slate-300">
+                          {transporters.find(
+                            (t) => t.userId === inbound.delivery?.assignedDriverUserId
+                          )?.fullName ?? inbound.delivery.assignedDriverUserId}
+                        </dd>
+                      </div>
+                    )}
                   </dl>
                 ) : (
                   <p className="text-sm text-slate-500">Chưa có thông tin xe.</p>
@@ -493,7 +596,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
               </section>
 
               {/* Warehouse workflow actions */}
-              {isWarehouse && (
+              {isWarehouse && !isTransporter && (
                 <div className="mb-6 flex flex-wrap gap-2">
                   {inbound.status === 'PENDING' && (
                     <>

@@ -8,6 +8,7 @@ const ROLE_LABEL: Record<string, string> = {
   SYSTEM_ADMIN: 'System Admin',
   WH_ADMIN: 'Warehouse Admin',
   WH_STAFF: 'Warehouse Staff',
+  WH_TRANSPORTER: 'Tài xế kho',
   TENANT_ADMIN: 'Tenant Admin',
   TENANT_STAFF: 'Tenant Staff',
 }

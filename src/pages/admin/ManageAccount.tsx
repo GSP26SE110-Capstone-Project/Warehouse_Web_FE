@@ -12,14 +12,58 @@ import { useAuth } from '../../auth/AuthContext'
 import type { AccountFormValues } from '../../components/ui/modal/AccountModal'
 import type { UserRole } from '../../api/types'
 
+type AccountRoleFilter = UserRole | 'all'
+
+function roleFilterOptionsFor(creatorRole?: UserRole): { value: AccountRoleFilter; label: string }[] {
+  const all = { value: 'all' as const, label: 'Tất cả vai trò' }
+  if (creatorRole === 'WH_ADMIN') {
+    return [
+      all,
+      { value: 'WH_STAFF', label: USER_ROLE_LABEL.WH_STAFF },
+      { value: 'WH_TRANSPORTER', label: USER_ROLE_LABEL.WH_TRANSPORTER },
+      { value: 'WH_ADMIN', label: USER_ROLE_LABEL.WH_ADMIN },
+    ]
+  }
+  if (creatorRole === 'TENANT_ADMIN') {
+    return [
+      all,
+      { value: 'TENANT_STAFF', label: USER_ROLE_LABEL.TENANT_STAFF },
+      { value: 'TENANT_ADMIN', label: USER_ROLE_LABEL.TENANT_ADMIN },
+    ]
+  }
+  return [
+    all,
+    { value: 'WH_ADMIN', label: USER_ROLE_LABEL.WH_ADMIN },
+    { value: 'TENANT_ADMIN', label: USER_ROLE_LABEL.TENANT_ADMIN },
+    { value: 'WH_STAFF', label: USER_ROLE_LABEL.WH_STAFF },
+    { value: 'WH_TRANSPORTER', label: USER_ROLE_LABEL.WH_TRANSPORTER },
+    { value: 'TENANT_STAFF', label: USER_ROLE_LABEL.TENANT_STAFF },
+    { value: 'SYSTEM_ADMIN', label: USER_ROLE_LABEL.SYSTEM_ADMIN },
+  ]
+}
+
+function pageSubtitleFor(creatorRole?: UserRole): string {
+  if (creatorRole === 'WH_ADMIN') {
+    return 'Tạo và quản lý nhân viên kho (WH_STAFF) và tài xế (WH_TRANSPORTER) trong kho của bạn.'
+  }
+  if (creatorRole === 'TENANT_ADMIN') {
+    return 'Tạo và quản lý nhân viên tenant (TENANT_STAFF) trong brand của bạn.'
+  }
+  return 'Quản lý tài khoản hệ thống, warehouse admin và tenant admin.'
+}
+
 export const AccountManagement: React.FC = () => {
   const { user: currentUser } = useAuth()
   const [search, setSearch] = useState('')
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  type AccountRoleFilter = UserRole | 'all'
   const [roleFilter, setRoleFilter] = useState<AccountRoleFilter>('all')
+  const roleFilterOptions = roleFilterOptionsFor(currentUser?.role)
+  const canManageAccounts =
+    currentUser?.role === 'SYSTEM_ADMIN' ||
+    currentUser?.role === 'WH_ADMIN' ||
+    currentUser?.role === 'TENANT_ADMIN'
 
   const [modal, setModal] = useState<{
     open: boolean
@@ -52,6 +96,12 @@ export const AccountManagement: React.FC = () => {
   useEffect(() => {
     loadAccounts()
   }, [loadAccounts])
+
+  useEffect(() => {
+    if (!roleFilterOptions.some((o) => o.value === roleFilter)) {
+      setRoleFilter('all')
+    }
+  }, [roleFilter, roleFilterOptions])
 
   const handleSubmit = async (form: AccountFormValues) => {
     try {
@@ -145,6 +195,10 @@ export const AccountManagement: React.FC = () => {
                 {error}
               </p>
             )}
+            <div className="mb-2">
+              <p className="text-sm text-slate-400">{pageSubtitleFor(currentUser?.role)}</p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <StatsCard title="Tổng tài khoản" value={accounts.length} icon="group" accentColor="emerald" />
               <StatsCard title="Đang hoạt động" value={activeCount} icon="verified_user" accentColor="primary" />
@@ -182,24 +236,27 @@ export const AccountManagement: React.FC = () => {
                   </div>
 
                   <select
+                    aria-label="Lọc theo vai trò"
                     value={roleFilter}
                     onChange={(e) => setRoleFilter(e.target.value as AccountRoleFilter)}
                     className="px-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
                   >
-                    <option value="all">Tất cả vai trò</option>
-                    <option value="WH_ADMIN">{USER_ROLE_LABEL.WH_ADMIN}</option>
-                    <option value="TENANT_ADMIN">{USER_ROLE_LABEL.TENANT_ADMIN}</option>
-                    <option value="WH_STAFF">{USER_ROLE_LABEL.WH_STAFF}</option>
-                    <option value="TENANT_STAFF">{USER_ROLE_LABEL.TENANT_STAFF}</option>
-                    <option value="SYSTEM_ADMIN">{USER_ROLE_LABEL.SYSTEM_ADMIN}</option>
+                    {roleFilterOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
                   </select>
-                  <button
-                    onClick={() => setModal({ open: true, mode: 'create' })}
-
-                    className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold text-black">
-                    <span className="material-symbols-outlined text-lg">person_add</span>
-                    Thêm tài khoản
-                  </button>
+                  {canManageAccounts && (
+                    <button
+                      type="button"
+                      onClick={() => setModal({ open: true, mode: 'create' })}
+                      className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold text-black"
+                    >
+                      <span className="material-symbols-outlined text-lg">person_add</span>
+                      Thêm tài khoản
+                    </button>
+                  )}
                 </div>
               </div>
 

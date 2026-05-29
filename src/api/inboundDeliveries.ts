@@ -4,23 +4,25 @@ export interface ApiInboundDelivery {
   inboundDeliveryId: string
   inboundRequestId: string
   tenantId: string
-  vehiclePlate: string
+  vehiclePlate?: string | null
   driverName?: string | null
   driverPhone?: string | null
   driverIdNumber?: string | null
   carrierName?: string | null
   scheduledAt?: string | null
   notes?: string | null
+  assignedDriverUserId?: string | null
 }
 
 export type InboundDeliveryPayload = {
-  vehiclePlate: string
+  vehiclePlate?: string
   driverName?: string
   driverPhone?: string
   driverIdNumber?: string
   carrierName?: string
   scheduledAt?: string
   notes?: string
+  assignedDriverUserId?: string | null
 }
 
 export function getInboundDelivery(inboundRequestId: string) {

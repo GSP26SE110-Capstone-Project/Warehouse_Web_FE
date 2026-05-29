@@ -22,7 +22,7 @@ const navItems: NavItem[] = [
     icon: 'people',
     key: 'accounts',
     href: '/admin/accounts',
-    roles: ['SYSTEM_ADMIN'],
+    roles: ['SYSTEM_ADMIN', 'WH_ADMIN'],
   },
   {
     label: 'Quản lý Kho',

@@ -31,8 +31,15 @@ import { InboundDetailPage } from './pages/inbound/InboundDetailPage'
 import { InventoryListPage } from './pages/inventory/InventoryListPage'
 import { TenantContractsPage } from './pages/staff/TenantContractsPage'
 import { TenantRentalRequestsPage } from './pages/staff/TenantRentalRequestsPage'
+import { MyDeliveriesPage } from './pages/transporter/MyDeliveriesPage'
 import { ProtectedRoute } from './auth/ProtectedRoute'
-import { ADMIN_ROLES, getHomePathForRole, STAFF_ROLES, useAuth } from './auth/AuthContext'
+import {
+  ADMIN_ROLES,
+  getHomePathForRole,
+  STAFF_ROLES,
+  TRANSPORTER_ROLES,
+  useAuth,
+} from './auth/AuthContext'
 
 function AdminHomeRedirect() {
   const { user } = useAuth()
@@ -84,6 +91,9 @@ export const Router: React.FC = () => {
               <Route path="/staff/dashboard" element={<StaffDashboard />} />
               <Route path="/staff/contracts" element={<TenantContractsPage />} />
               <Route path="/staff/rental-requests" element={<TenantRentalRequestsPage />} />
+              <Route element={<ProtectedRoute allowedRoles={['TENANT_ADMIN']} />}>
+                <Route path="/staff/accounts" element={<AccountManagement />} />
+              </Route>
               <Route path="/staff/requests" element={<StaffRequestManagement />} />
               <Route path="/staff/products" element={<TenantProductManagement />} />
               <Route path="/staff/import-export" element={<ImportExportManagement />} />
@@ -111,6 +121,25 @@ export const Router: React.FC = () => {
               <Route
                 path="/staff/inventory-ops"
                 element={<InventoryListPage scope="warehouse" />}
+              />
+            </Route>
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={TRANSPORTER_ROLES} />}>
+            <Route element={<StaffLayout />}>
+              <Route
+                path="/staff"
+                element={<Navigate to="/staff/my-deliveries" replace />}
+              />
+              <Route path="/staff/my-deliveries" element={<MyDeliveriesPage />} />
+              <Route
+                path="/staff/my-deliveries/:inboundRequestId"
+                element={
+                  <InboundDetailPage
+                    mode="transporter"
+                    basePath="/staff/my-deliveries"
+                  />
+                }
               />
             </Route>
           </Route>

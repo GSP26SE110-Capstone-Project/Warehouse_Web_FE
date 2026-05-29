@@ -2,6 +2,7 @@ export type UserRole =
   | 'SYSTEM_ADMIN'
   | 'WH_ADMIN'
   | 'WH_STAFF'
+  | 'WH_TRANSPORTER'
   | 'TENANT_ADMIN'
   | 'TENANT_STAFF'
 

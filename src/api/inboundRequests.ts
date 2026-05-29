@@ -55,10 +55,28 @@ export function listInboundRequests(params?: {
   warehouseId?: string
   contractId?: string
   status?: string
+  deliveryMode?: DeliveryMode
+  assignedToMe?: boolean
+  assignedDriverUserId?: string
+  includeDelivery?: boolean
   page?: number
   limit?: number
 }) {
-  return apiPaginated<ApiInboundRequest>(`/inbound-requests${buildQuery(params ?? {})}`)
+  const q: Record<string, string | number | boolean | undefined> = { ...params }
+  if (params?.assignedToMe) {
+    q.assignedToMe = true
+    delete q.assignedDriverUserId
+  }
+  return apiPaginated<ApiInboundRequestWithItems>(
+    `/inbound-requests${buildQuery(q)}`
+  )
+}
+
+export function reportInboundArrival(inboundRequestId: string) {
+  return apiRequest<ApiInboundRequest>(
+    `/inbound-requests/${inboundRequestId}/report-arrival`,
+    { method: 'POST' }
+  )
 }
 
 export interface ApiInboundApprovalReadiness {

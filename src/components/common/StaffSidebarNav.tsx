@@ -14,6 +14,13 @@ type NavItem = {
   href: string
 }
 
+const TENANT_ADMIN_ACCOUNTS: NavItem = {
+  label: 'Quản lý tài khoản',
+  icon: 'people',
+  key: 'accounts',
+  href: '/staff/accounts',
+}
+
 const TENANT_NAV: NavItem[] = [
   { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/staff/dashboard' },
   { label: 'Hợp đồng', icon: 'description', key: 'contracts', href: '/staff/contracts' },
@@ -40,8 +47,21 @@ const WH_STAFF_NAV: NavItem[] = [
   { label: 'Quản lý vận chuyển', icon: 'local_shipping', key: 'requests', href: '/staff/requests' },
 ]
 
+const WH_TRANSPORTER_NAV: NavItem[] = [
+  {
+    label: 'Chuyến của tôi',
+    icon: 'local_shipping',
+    key: 'my-deliveries',
+    href: '/staff/my-deliveries',
+  },
+]
+
 function navItemsForRole(role?: ApiUser['role']) {
-  if (role === 'TENANT_ADMIN' || role === 'TENANT_STAFF') return TENANT_NAV
+  if (role === 'TENANT_ADMIN') {
+    return [TENANT_NAV[0], TENANT_ADMIN_ACCOUNTS, ...TENANT_NAV.slice(1)]
+  }
+  if (role === 'TENANT_STAFF') return TENANT_NAV
+  if (role === 'WH_TRANSPORTER') return WH_TRANSPORTER_NAV
   return WH_STAFF_NAV
 }
 
@@ -66,6 +86,7 @@ function roleSubtitle(role?: ApiUser['role']) {
   if (role === 'TENANT_ADMIN') return 'Quản trị tenant'
   if (role === 'TENANT_STAFF') return 'Nhân viên tenant'
   if (role === 'WH_STAFF') return 'Nhân viên kho'
+  if (role === 'WH_TRANSPORTER') return 'Tài xế kho'
   return 'Staff'
 }
 

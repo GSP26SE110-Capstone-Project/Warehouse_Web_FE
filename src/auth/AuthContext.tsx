@@ -98,6 +98,7 @@ export function useAuth() {
 }
 
 export function getHomePathForRole(role: ApiUser['role']) {
+  if (role === 'WH_TRANSPORTER') return '/staff/my-deliveries'
   if (role === 'WH_STAFF' || role === 'TENANT_STAFF') return '/staff/dashboard'
   if (role === 'TENANT_ADMIN') return '/staff/products'
   if (role === 'SYSTEM_ADMIN') return '/admin/requests'
@@ -110,3 +111,4 @@ export const STAFF_ROLES: ApiUser['role'][] = [
   'TENANT_ADMIN',
   'TENANT_STAFF',
 ]
+export const TRANSPORTER_ROLES: ApiUser['role'][] = ['WH_TRANSPORTER']
