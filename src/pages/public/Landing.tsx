@@ -230,7 +230,7 @@ export const Landing: React.FC = () => {
               id="rack"
               icon="shelves"
               title="Thuê Rack & Rack Level"
-              subtitle="Đơn giá tham chiếu — hóa đơn tổng hợp theo tháng/năm"
+              subtitle="Đơn giá theo rack/ngày và level/ngày — tổng phí kỳ = đơn giá × số ngày sử dụng; hóa đơn tổng hợp theo tháng/năm"
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
               {RACK_PRICING.map((tier) => (
@@ -252,7 +252,7 @@ export const Landing: React.FC = () => {
               id="bin"
               icon="package_2"
               title="Thuê Bin (Box)"
-              subtitle="Kho chia sẻ — trả theo mức sử dụng trong kỳ (tháng/năm), không snapshot từng ngày"
+              subtitle="Đơn giá theo box/ngày (BOX_DAY) — tổng phí kỳ = đơn giá × số box-day; hóa đơn tổng hợp theo tháng/năm"
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {BIN_PRICING.map((tier) => (
