@@ -1,8 +1,11 @@
+import type { UserRole } from '../api/types'
+
 export interface Account {
-   id: string
+  id: string
   name: string
   email: string
-  role: 'Admin' | 'Manager' | 'Staff'
+  role: string
+  apiRole?: UserRole
   roleClassName: string
   status: 'Active' | 'Inactive' | 'Suspended'
   statusClassName: string

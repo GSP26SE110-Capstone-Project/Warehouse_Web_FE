@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { fetchLocationTree, type LocationCity } from '../../../api/locations'
 import { listUsers } from '../../../api/users'
 import type { ApiUser, WarehouseStatus } from '../../../api/types'
+import type { WarehouseWhAdmin } from '../../../types/Warehouse'
 import { SearchableSelect } from '../SearchableSelect'
 
 type Mode = 'create' | 'edit' | 'view'
@@ -31,6 +32,7 @@ export type WarehouseFormPayload = {
 
 type WarehouseModalData = Partial<WarehouseFormPayload> & {
   warehouseId?: string
+  whAdmin?: WarehouseWhAdmin | null
 }
 
 type Props = {
@@ -92,7 +94,10 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
   const [cities, setCities] = useState<LocationCity[]>([])
   const [locationsLoading, setLocationsLoading] = useState(true)
 
-  const [assignWhAdmin, setAssignWhAdmin] = useState(mode === 'create')
+  const currentWhAdmin = data?.whAdmin ?? null
+  const [assignWhAdmin, setAssignWhAdmin] = useState(
+    mode === 'create' || (mode === 'edit' && !currentWhAdmin)
+  )
   const [whAdminMode, setWhAdminMode] = useState<'create' | 'existing'>('create')
   const [whAdminUserId, setWhAdminUserId] = useState('')
   const [whAdminFullName, setWhAdminFullName] = useState('')
@@ -128,7 +133,20 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
   }, [])
 
   useEffect(() => {
-    if (mode !== 'create' || !assignWhAdmin || whAdminMode !== 'existing') return
+    setAssignWhAdmin(mode === 'create' || (mode === 'edit' && !currentWhAdmin))
+    setWhAdminUserId('')
+    setWhAdminFullName('')
+    setWhAdminEmail('')
+    setWhAdminPassword('')
+    setWhAdminPasswordConfirm('')
+    setWhAdminPhone('')
+    setWhAdminMode('create')
+  }, [data?.warehouseId, mode, data?.whAdmin?.userId])
+
+  useEffect(() => {
+    const needsList =
+      (mode === 'create' || mode === 'edit') && assignWhAdmin && whAdminMode === 'existing'
+    if (!needsList) return
     let cancelled = false
     ;(async () => {
       setWhAdminsLoading(true)
@@ -181,7 +199,7 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
     }
 
     let warehouseAdmin: WarehouseAdminAssignment = { mode: 'skip' }
-    if (mode === 'create' && assignWhAdmin) {
+    if ((mode === 'create' || mode === 'edit') && assignWhAdmin) {
       if (whAdminMode === 'existing') {
         if (!whAdminUserId) {
           setValidationError('Chọn Warehouse Admin để gán vào kho')
@@ -380,27 +398,55 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
               </div>
             </div>
 
-            {mode === 'create' && (
+            {(mode === 'view' || mode === 'create' || mode === 'edit') && (
               <div className="space-y-4 rounded-lg border border-cyan-400/20 bg-cyan-400/5 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-semibold text-cyan-300">Warehouse Admin</h3>
                     <p className="mt-1 text-xs text-slate-400">
-                      Gán tài khoản <strong>WH_ADMIN</strong> quản lý kho này (có thể tạo sau tại Quản lý tài khoản).
+                      Tài khoản <strong>WH_ADMIN</strong> quản lý kho này.
                     </p>
                   </div>
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
-                    <input
-                      type="checkbox"
-                      checked={assignWhAdmin}
-                      onChange={(e) => setAssignWhAdmin(e.target.checked)}
-                      className="rounded border-white/20"
-                    />
-                    Gán ngay
-                  </label>
+                  {(mode === 'create' || mode === 'edit') && (
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={assignWhAdmin}
+                        onChange={(e) => setAssignWhAdmin(e.target.checked)}
+                        className="rounded border-white/20"
+                      />
+                      {currentWhAdmin ? 'Đổi admin' : 'Gán admin'}
+                    </label>
+                  )}
                 </div>
 
-                {assignWhAdmin && (
+                {mode === 'view' && (
+                  <div className="rounded-lg border border-white/10 bg-[#1a2333]/80 p-4">
+                    {currentWhAdmin ? (
+                      <div className="space-y-1 text-sm">
+                        <p className="font-medium text-white">{currentWhAdmin.fullName}</p>
+                        <p className="text-slate-400">{currentWhAdmin.email}</p>
+                        {currentWhAdmin.phone && (
+                          <p className="text-slate-500">{currentWhAdmin.phone}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="flex items-center gap-2 text-sm text-amber-300">
+                        <span className="material-symbols-outlined text-lg">warning</span>
+                        Kho chưa có Warehouse Admin
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {mode === 'edit' && currentWhAdmin && !assignWhAdmin && (
+                  <div className="rounded-lg border border-white/10 bg-[#1a2333]/80 p-4 text-sm">
+                    <p className="font-medium text-white">{currentWhAdmin.fullName}</p>
+                    <p className="text-slate-400">{currentWhAdmin.email}</p>
+                  </div>
+                )}
+
+                {(mode === 'create' || mode === 'edit') && assignWhAdmin && (
                   <>
                     <div className="flex gap-2">
                       <button

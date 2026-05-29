@@ -9,6 +9,14 @@ export function login(payload: LoginPayload) {
   })
 }
 
+export function resetPasswordWithToken(body: { token: string; newPassword: string }) {
+  return apiRequest<{ changedAt: string }>('/auth/reset-password', {
+    method: 'POST',
+    body,
+    auth: false,
+  })
+}
+
 export function healthCheck() {
   return apiRequest<{ status: string; database: string; timestamp: string }>('/health', {
     auth: false,

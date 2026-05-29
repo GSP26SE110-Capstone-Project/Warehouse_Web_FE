@@ -32,6 +32,15 @@ export interface Zone {
     racks: Rack[]
 }
 
+import type { WarehouseStatus } from '../api/types'
+
+export interface WarehouseWhAdmin {
+    userId: string
+    fullName: string
+    email: string
+    phone?: string | null
+}
+
 export interface Warehouse {
     warehouseId: string
     warehouseCode?: string
@@ -41,8 +50,9 @@ export interface Warehouse {
     district?: string
     totalAreaM2?: number | null
     usableAreaM2?: number | null
-    status?: string
+    status?: WarehouseStatus
     lastUpdated: string
+    whAdmin?: WarehouseWhAdmin | null
     zones: Zone[]
 }
 

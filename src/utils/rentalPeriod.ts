@@ -41,3 +41,12 @@ export function meetsMinimumRentalMonths(startDate: string, endDate: string): bo
   const diffDays = Math.ceil((end.getTime() - start.getTime()) / 86400000)
   return diffDays >= MIN_RENTAL_DAYS
 }
+
+/** Số ngày thuê (làm tròn lên) từ khoảng ngày guest chọn. */
+export function estimateRentalDays(startDate: string, endDate: string): number {
+  const start = parseDateOnly(startDate)
+  const end = parseDateOnly(endDate)
+  if (!start || !end) return 0
+  const diffDays = Math.ceil((end.getTime() - start.getTime()) / 86400000)
+  return diffDays > 0 ? diffDays : 0
+}

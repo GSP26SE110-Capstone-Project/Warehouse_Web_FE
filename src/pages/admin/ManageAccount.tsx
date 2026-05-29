@@ -7,7 +7,7 @@ import { Pagination } from '../../components/ui/Pagination'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { ApiError } from '../../api/client'
 import * as usersApi from '../../api/users'
-import { statusToApiStatus, userToAccount } from '../../mappers'
+import { statusToApiStatus, USER_ROLE_LABEL, userToAccount } from '../../mappers'
 import { useAuth } from '../../auth/AuthContext'
 import type { AccountFormValues } from '../../components/ui/modal/AccountModal'
 import type { UserRole } from '../../api/types'
@@ -18,7 +18,8 @@ export const AccountManagement: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'manager' | 'staff'>('all')
+  type AccountRoleFilter = UserRole | 'all'
+  const [roleFilter, setRoleFilter] = useState<AccountRoleFilter>('all')
 
   const [modal, setModal] = useState<{
     open: boolean
@@ -37,14 +38,16 @@ export const AccountManagement: React.FC = () => {
     setLoading(true)
     setError('')
     try {
-      const { items } = await usersApi.listUsers({ limit: 100 })
+      const params: Parameters<typeof usersApi.listUsers>[0] = { limit: 100 }
+      if (roleFilter !== 'all') params.role = roleFilter
+      const { items } = await usersApi.listUsers(params)
       setAccounts(items.map((u, i) => userToAccount(u, i)))
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không tải được danh sách tài khoản')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [roleFilter])
 
   useEffect(() => {
     loadAccounts()
@@ -71,8 +74,12 @@ export const AccountManagement: React.FC = () => {
           body.tenantId = currentUser.tenantId ?? undefined
         }
 
-        await usersApi.createUser(body)
-        setAlert({ open: true, type: 'success', message: 'Tạo tài khoản thành công' })
+        const created = await usersApi.createUser(body)
+        setAlert({
+          open: true,
+          type: 'success',
+          message: `Tạo tài khoản thành công.${usersApi.welcomeEmailMessage(created.welcomeEmail)}`,
+        })
       }
 
       if (modal.mode === 'edit' && modal.data) {
@@ -101,16 +108,7 @@ export const AccountManagement: React.FC = () => {
         acc.email.toLowerCase().includes(search.toLowerCase()) ||
         acc.id.toLowerCase().includes(search.toLowerCase())
 
-      const matchRole =
-        roleFilter === 'all'
-          ? true
-          : roleFilter === 'admin'
-            ? acc.role === 'Admin'
-            : roleFilter === 'manager'
-              ? acc.role === 'Manager'
-              : acc.role === 'Staff'
-
-      return matchSearch && matchRole
+      return matchSearch
     })
   }, [search, roleFilter, accounts])
 
@@ -186,13 +184,15 @@ export const AccountManagement: React.FC = () => {
 
                   <select
                     value={roleFilter}
-                    onChange={(e) => setRoleFilter(e.target.value as any)}
+                    onChange={(e) => setRoleFilter(e.target.value as AccountRoleFilter)}
                     className="px-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
                   >
                     <option value="all">Tất cả vai trò</option>
-                    <option value="admin">Admin</option>
-                    <option value="manager">Manager</option>
-                    <option value="staff">Staff</option>
+                    <option value="WH_ADMIN">{USER_ROLE_LABEL.WH_ADMIN}</option>
+                    <option value="TENANT_ADMIN">{USER_ROLE_LABEL.TENANT_ADMIN}</option>
+                    <option value="WH_STAFF">{USER_ROLE_LABEL.WH_STAFF}</option>
+                    <option value="TENANT_STAFF">{USER_ROLE_LABEL.TENANT_STAFF}</option>
+                    <option value="SYSTEM_ADMIN">{USER_ROLE_LABEL.SYSTEM_ADMIN}</option>
                   </select>
                   <button
                     onClick={() => setModal({ open: true, mode: 'create' })}
@@ -241,8 +241,18 @@ export const AccountManagement: React.FC = () => {
                           <td className="px-6 py-4 text-right">
                             <div className="flex justify-end gap-2 opacity-60 group-hover:opacity-100">
                               <button
+                                type="button"
+                                title="Xem chi tiết"
+                                onClick={() => setModal({ open: true, mode: 'view', data: acc })}
+                                className="rounded p-1.5 hover:bg-white/10"
+                              >
+                                <span className="material-symbols-outlined text-lg">visibility</span>
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => setModal({ open: true, mode: 'edit', data: acc })}
-                                className="p-1.5 hover:bg-white/10 rounded">
+                                className="rounded p-1.5 hover:bg-white/10"
+                              >
                                 <span className="material-symbols-outlined text-lg">edit</span>
                               </button>
                             </div>

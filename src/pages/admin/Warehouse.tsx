@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
 import { Pagination } from '../../components/ui/Pagination'
-import { useNavigate } from 'react-router-dom'
 import type { Warehouse } from '../../types/Warehouse'
 import {
   WarehouseModal,
@@ -12,7 +11,7 @@ import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { ApiError } from '../../api/client'
 import * as warehousesApi from '../../api/warehouses'
 import * as usersApi from '../../api/users'
-import { warehouseToRow } from '../../mappers'
+import { warehouseToRow, whAdminFromUser } from '../../mappers'
 import { useAuth } from '../../auth/AuthContext'
 
 function formatArea(m2?: number | null) {
@@ -21,11 +20,11 @@ function formatArea(m2?: number | null) {
 }
 
 export const WarehouseManagement: React.FC = () => {
-  const navigate = useNavigate()
   const { user } = useAuth()
   const isWhAdmin = user?.role === 'WH_ADMIN'
   const fixedWarehouseId = isWhAdmin ? user?.warehouseId ?? '' : ''
   const [search, setSearch] = useState('')
+  const [onlyMissingAdmin, setOnlyMissingAdmin] = useState(false)
   const [warehouse, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -47,13 +46,28 @@ export const WarehouseManagement: React.FC = () => {
     setLoading(true)
     setError('')
     try {
+      let rows: Warehouse[] = []
       if (isWhAdmin && fixedWarehouseId) {
         const w = await warehousesApi.getWarehouse(fixedWarehouseId)
-        setWarehouses([warehouseToRow(w)])
+        rows = [warehouseToRow(w)]
+      } else if (!isWhAdmin) {
+        const [{ items }, { items: adminUsers }] = await Promise.all([
+          warehousesApi.listWarehouses({ limit: 100 }),
+          usersApi.listUsers({ role: 'WH_ADMIN', limit: 200 }),
+        ])
+        const adminByWarehouse = new Map(
+          adminUsers
+            .filter((u) => u.warehouseId)
+            .map((u) => [u.warehouseId as string, whAdminFromUser(u)])
+        )
+        rows = items.map((w) => {
+          const row = warehouseToRow(w)
+          return { ...row, whAdmin: adminByWarehouse.get(w.warehouseId) ?? null }
+        })
       } else {
-        const { items } = await warehousesApi.listWarehouses({ limit: 100 })
-        setWarehouses(items.map(warehouseToRow))
+        rows = []
       }
+      setWarehouses(rows)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không tải được danh sách kho')
     } finally {
@@ -64,6 +78,40 @@ export const WarehouseManagement: React.FC = () => {
   useEffect(() => {
     loadWarehouses()
   }, [loadWarehouses])
+
+  const assignWarehouseAdmin = async (
+    warehouseId: string,
+    admin: WarehouseFormPayload['warehouseAdmin'],
+    currentAdmin?: Warehouse['whAdmin']
+  ) => {
+    if (admin.mode === 'skip') return ''
+
+    if (admin.mode === 'existing') {
+      if (currentAdmin && currentAdmin.userId !== admin.userId) {
+        await usersApi.updateUser(currentAdmin.userId, { warehouseId: null })
+      }
+      await usersApi.updateUser(admin.userId, { warehouseId })
+      return ' Đã gán Warehouse Admin cho kho.'
+    }
+
+    if (admin.mode === 'create') {
+      if (currentAdmin) {
+        await usersApi.updateUser(currentAdmin.userId, { warehouseId: null })
+      }
+      const createdAdmin = await usersApi.createUser({
+        fullName: admin.fullName,
+        email: admin.email,
+        password: admin.password,
+        phone: admin.phone || undefined,
+        role: 'WH_ADMIN',
+        warehouseId,
+        status: 'ACTIVE',
+      })
+      return ` Đã tạo WH Admin: ${admin.email}.${usersApi.welcomeEmailMessage(createdAdmin.welcomeEmail)}`
+    }
+
+    return ''
+  }
 
   const handleSubmit = async (form: WarehouseFormPayload) => {
     try {
@@ -80,32 +128,15 @@ export const WarehouseManagement: React.FC = () => {
         })
 
         let adminMessage = ''
-        const admin = form.warehouseAdmin
         try {
-          if (admin.mode === 'create') {
-            await usersApi.createUser({
-              fullName: admin.fullName,
-              email: admin.email,
-              password: admin.password,
-              phone: admin.phone || undefined,
-              role: 'WH_ADMIN',
-              warehouseId: created.warehouseId,
-              status: 'ACTIVE',
-            })
-            adminMessage = ` Đã tạo WH Admin: ${admin.email}.`
-          } else if (admin.mode === 'existing') {
-            await usersApi.updateUser(admin.userId, {
-              warehouseId: created.warehouseId,
-            })
-            adminMessage = ' Đã gán Warehouse Admin cho kho.'
-          }
+          adminMessage = await assignWarehouseAdmin(created.warehouseId, form.warehouseAdmin)
         } catch (adminErr) {
           const detail =
             adminErr instanceof ApiError ? adminErr.message : 'Gán admin thất bại'
           setAlert({
             open: true,
             type: 'success',
-            message: `Tạo kho thành công nhưng ${detail}. Gán lại tại Quản lý tài khoản.`,
+            message: `Tạo kho thành công nhưng ${detail}. Gán lại khi chỉnh sửa kho.`,
           })
           await loadWarehouses()
           return
@@ -128,7 +159,33 @@ export const WarehouseManagement: React.FC = () => {
           usableAreaM2: form.usableAreaM2 ?? undefined,
           status: form.status,
         })
-        setAlert({ open: true, type: 'success', message: 'Cập nhật thành công' })
+
+        let adminMessage = ''
+        if (form.warehouseAdmin.mode !== 'skip') {
+          try {
+            adminMessage = await assignWarehouseAdmin(
+              modal.data.warehouseId,
+              form.warehouseAdmin,
+              modal.data.whAdmin ?? undefined
+            )
+          } catch (adminErr) {
+            const detail =
+              adminErr instanceof ApiError ? adminErr.message : 'Gán admin thất bại'
+            setAlert({
+              open: true,
+              type: 'success',
+              message: `Cập nhật kho thành công nhưng ${detail}.`,
+            })
+            await loadWarehouses()
+            return
+          }
+        }
+
+        setAlert({
+          open: true,
+          type: 'success',
+          message: `Cập nhật thành công.${adminMessage}`,
+        })
       }
 
       await loadWarehouses()
@@ -157,17 +214,23 @@ export const WarehouseManagement: React.FC = () => {
   }
 
   const activeCount = warehouse.filter((w) => w.status === 'ACTIVE').length
+  const missingAdminCount = warehouse.filter((w) => !w.whAdmin).length
 
   const searchWarehouse = useMemo(() => {
     const q = search.toLowerCase()
-    return warehouse.filter(
-      (w) =>
+    return warehouse.filter((w) => {
+      const matchSearch =
         w.warehouseName.toLowerCase().includes(q) ||
         w.address.toLowerCase().includes(q) ||
         (w.warehouseCode ?? '').toLowerCase().includes(q) ||
-        `${w.district} ${w.city}`.toLowerCase().includes(q)
-    )
-  }, [warehouse, search])
+        `${w.district} ${w.city}`.toLowerCase().includes(q) ||
+        (w.whAdmin?.fullName ?? '').toLowerCase().includes(q) ||
+        (w.whAdmin?.email ?? '').toLowerCase().includes(q)
+
+      const matchMissing = !onlyMissingAdmin || !w.whAdmin
+      return matchSearch && matchMissing
+    })
+  }, [warehouse, search, onlyMissingAdmin])
 
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 4
@@ -182,7 +245,7 @@ export const WarehouseManagement: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchWarehouse.length])
+  }, [searchWarehouse.length, onlyMissingAdmin])
 
   if (isWhAdmin && !fixedWarehouseId) {
     return (
@@ -204,7 +267,7 @@ export const WarehouseManagement: React.FC = () => {
                 {error}
               </p>
             )}
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               <StatsCard title="Số lượng kho" value={warehouse.length} icon="group" accentColor="emerald" />
               <StatsCard
                 title="Kho đang hoạt động"
@@ -212,23 +275,42 @@ export const WarehouseManagement: React.FC = () => {
                 icon="verified_user"
                 accentColor="primary"
               />
+              {!isWhAdmin && (
+                <StatsCard
+                  title="Chưa có WH Admin"
+                  value={missingAdminCount}
+                  icon="person_off"
+                  accentColor="orange"
+                />
+              )}
             </div>
             <section className="glass-panel flex flex-col overflow-hidden rounded-xl border border-white/5">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 bg-white/[0.02] px-6 py-5">
                 <h3 className="text-2xl font-bold tracking-wide text-white">QUẢN LÝ KHO</h3>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                       search
                     </span>
                     <input
                       type="text"
-                      placeholder="Tìm mã, tên, khu vực..."
+                      placeholder="Tìm mã, tên, admin..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       className="rounded-lg border border-white/10 bg-[#1a2333] py-2 pl-10 pr-4 text-sm text-white focus:border-cyan-400 focus:outline-none"
                     />
                   </div>
+                  {!isWhAdmin && (
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-400/5 px-3 py-2 text-xs text-amber-200">
+                      <input
+                        type="checkbox"
+                        checked={onlyMissingAdmin}
+                        onChange={(e) => setOnlyMissingAdmin(e.target.checked)}
+                        className="rounded border-white/20"
+                      />
+                      Chưa có WH Admin
+                    </label>
+                  )}
                   {!isWhAdmin && (
                     <button
                       type="button"
@@ -248,6 +330,9 @@ export const WarehouseManagement: React.FC = () => {
                     <tr className="border-b border-white/5 bg-[#131b29] text-xs uppercase tracking-wider text-slate-400">
                       <th className="px-6 py-4 font-medium">Mã kho</th>
                       <th className="px-6 py-4 font-medium">Tên kho</th>
+                      {!isWhAdmin && (
+                        <th className="px-6 py-4 font-medium">Warehouse Admin</th>
+                      )}
                       <th className="px-6 py-4 font-medium">Khu vực</th>
                       <th className="px-6 py-4 font-medium">Địa chỉ</th>
                       <th className="px-6 py-4 text-center font-medium">DT sử dụng (m²)</th>
@@ -258,11 +343,31 @@ export const WarehouseManagement: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-white/5 text-sm">
                     {paginatedWarehouses.map((item) => (
-                      <tr key={item.warehouseId} className="group transition-colors hover:bg-white/5">
+                      <tr
+                        key={item.warehouseId}
+                        className={`group transition-colors hover:bg-white/5 ${
+                          !isWhAdmin && !item.whAdmin ? 'bg-amber-400/[0.03]' : ''
+                        }`}
+                      >
                         <td className="px-6 py-4 font-mono text-xs text-cyan-400">
                           {item.warehouseCode ?? item.warehouseId.slice(0, 8)}
                         </td>
                         <td className="px-6 py-4 font-medium text-white">{item.warehouseName}</td>
+                        {!isWhAdmin && (
+                          <td className="px-6 py-4">
+                            {item.whAdmin ? (
+                              <div>
+                                <p className="font-medium text-white">{item.whAdmin.fullName}</p>
+                                <p className="text-xs text-slate-400">{item.whAdmin.email}</p>
+                              </div>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/10 px-2 py-0.5 text-xs font-medium text-amber-300 ring-1 ring-amber-400/30">
+                                <span className="material-symbols-outlined text-sm">warning</span>
+                                Chưa gán
+                              </span>
+                            )}
+                          </td>
+                        )}
                         <td className="px-6 py-4 text-slate-300">
                           {item.district && item.city
                             ? `${item.district}, ${item.city}`
@@ -288,7 +393,8 @@ export const WarehouseManagement: React.FC = () => {
                           <div className="flex items-center justify-end gap-3 opacity-60 group-hover:opacity-100">
                             <button
                               type="button"
-                              onClick={() => navigate(`/warehouses/${item.warehouseId}`, { state: item })}
+                              title="Xem chi tiết"
+                              onClick={() => setModal({ open: true, mode: 'view', data: item })}
                               className="rounded p-1.5 hover:bg-white/10"
                             >
                               <span className="material-symbols-outlined text-lg">visibility</span>

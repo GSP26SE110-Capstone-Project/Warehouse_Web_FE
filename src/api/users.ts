@@ -1,6 +1,28 @@
 import { apiRequest, apiPaginated, buildQuery } from './client'
 import type { ApiUser, UserRole, UserStatus } from './types'
 
+export interface WelcomeEmailResult {
+  sent: boolean
+  to?: string
+  error?: string
+}
+
+export interface CreateUserResult {
+  user: ApiUser
+  welcomeEmail?: WelcomeEmailResult
+}
+
+export function welcomeEmailMessage(result?: WelcomeEmailResult): string {
+  if (!result) return ''
+  if (result.sent) {
+    return ` Email chào mừng đã gửi tới ${result.to}.`
+  }
+  if (result.error) {
+    return ` Không gửi được email: ${result.error}.`
+  }
+  return ''
+}
+
 export function getMe() {
   return apiRequest<ApiUser>('/users/me')
 }
@@ -24,7 +46,7 @@ export function createUser(body: {
   tenantId?: string
   status?: UserStatus
 }) {
-  return apiRequest<ApiUser>('/users', { method: 'POST', body })
+  return apiRequest<CreateUserResult>('/users', { method: 'POST', body })
 }
 
 export function updateUser(
@@ -33,8 +55,8 @@ export function updateUser(
     fullName?: string
     phone?: string
     status?: UserStatus
-    warehouseId?: string
-    tenantId?: string
+    warehouseId?: string | null
+    tenantId?: string | null
   }
 ) {
   return apiRequest<ApiUser>(`/users/${userId}`, { method: 'PATCH', body })

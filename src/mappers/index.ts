@@ -1,21 +1,24 @@
-import type { ApiContract, ApiRentalRequest, ApiUser, ApiWarehouse } from '../api/types'
+import type { ApiContract, ApiRentalRequest, ApiUser, ApiWarehouse, UserRole } from '../api/types'
+import type { WarehouseWhAdmin } from '../types/Warehouse'
 import type { ApiTenant } from '../api/tenants'
 import type { Account } from '../types/Account'
 import type { Contract } from '../types/Contract'
 import type { Warehouse } from '../types/Warehouse'
 
-const ROLE_LABEL: Record<string, Account['role']> = {
-  SYSTEM_ADMIN: 'Admin',
-  WH_ADMIN: 'Admin',
-  TENANT_ADMIN: 'Manager',
-  WH_STAFF: 'Staff',
-  TENANT_STAFF: 'Staff',
+export const USER_ROLE_LABEL: Record<UserRole, string> = {
+  SYSTEM_ADMIN: 'System Admin',
+  WH_ADMIN: 'Warehouse Admin',
+  TENANT_ADMIN: 'Tenant Admin',
+  WH_STAFF: 'Warehouse Staff',
+  TENANT_STAFF: 'Tenant Staff',
 }
 
-const ROLE_CLASS: Record<string, string> = {
-  Admin: 'bg-red-400/10 text-red-400 ring-red-400/20',
-  Manager: 'bg-blue-400/10 text-blue-400 ring-blue-400/20',
-  Staff: 'bg-slate-400/10 text-slate-300 ring-slate-400/20',
+const ROLE_CLASS: Record<UserRole, string> = {
+  SYSTEM_ADMIN: 'bg-purple-400/10 text-purple-300 ring-purple-400/20',
+  WH_ADMIN: 'bg-cyan-400/10 text-cyan-300 ring-cyan-400/20',
+  TENANT_ADMIN: 'bg-blue-400/10 text-blue-300 ring-blue-400/20',
+  WH_STAFF: 'bg-emerald-400/10 text-emerald-300 ring-emerald-400/20',
+  TENANT_STAFF: 'bg-amber-400/10 text-amber-300 ring-amber-400/20',
 }
 
 const STATUS_FE: Record<string, Account['status']> = {
@@ -50,19 +53,30 @@ export function formatDate(iso?: string | null) {
 }
 
 export function userToAccount(u: ApiUser, index = 0): Account {
-  const role = ROLE_LABEL[u.role] ?? 'Staff'
+  const apiRole = u.role
+  const role = USER_ROLE_LABEL[apiRole] ?? apiRole
   const status = STATUS_FE[u.status] ?? 'Inactive'
   return {
     id: u.userId,
     name: u.fullName,
     email: u.email,
     role,
-    roleClassName: ROLE_CLASS[role],
+    apiRole,
+    roleClassName: ROLE_CLASS[apiRole] ?? 'bg-slate-400/10 text-slate-300 ring-slate-400/20',
     status,
     statusClassName: STATUS_CLASS[status],
     lastLogin: '—',
     createdAt: formatDate(u.createdAt),
     striped: index % 2 === 0,
+  }
+}
+
+export function whAdminFromUser(u: ApiUser): WarehouseWhAdmin {
+  return {
+    userId: u.userId,
+    fullName: u.fullName,
+    email: u.email,
+    phone: u.phone,
   }
 }
 

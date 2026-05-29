@@ -146,3 +146,7 @@ export const SURCHARGES = [
 export function formatVnd(amount: number): string {
   return `${amount.toLocaleString('vi-VN')} ₫`
 }
+
+export function getBinDayPrice(boxType: 'SMALL' | 'MEDIUM' | 'LARGE' | 'EXTRA'): number {
+  return BIN_PRICING.find((tier) => tier.name === boxType)?.price ?? 0
+}

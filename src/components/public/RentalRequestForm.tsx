@@ -4,11 +4,14 @@ import {
   GUEST_BOX_TYPE_HINTS,
   suggestGuestBoxTypesFromPieces,
 } from '../../utils/rentalBoxEstimate'
+import { formatVnd } from '../../data/pricing'
 import {
   estimateMonthCount,
+  estimateRentalDays,
   meetsMinimumRentalMonths,
   minRentalEndDate,
 } from '../../utils/rentalPeriod'
+import { buildGuestBoxStorageEstimates } from '../../utils/rentalStorageEstimate'
 import { ApiError } from '../../api/client'
 import {
   fetchLocationTree,
@@ -28,6 +31,7 @@ import {
   type ContractTypeValue,
 } from '../../data/contractTypes'
 import { LoadingOverlay } from '../ui/LoadingOverlay'
+import { DatePickerField } from '../ui/DatePickerField'
 import { SearchableSelect } from '../ui/SearchableSelect'
 
 const ZONE_TYPES = [
@@ -195,6 +199,16 @@ export function RentalRequestForm({
     if (boxesPerMonthForSubmit == null || estimatedMonthCount <= 0) return null
     return Math.round(boxesPerMonthForSubmit * estimatedMonthCount)
   }, [boxesPerMonthForSubmit, estimatedMonthCount])
+
+  const rentalDays = useMemo(
+    () => estimateRentalDays(expectedStartDate, expectedEndDate),
+    [expectedStartDate, expectedEndDate]
+  )
+
+  const boxStorageEstimates = useMemo(() => {
+    if (boxesPerMonthForSubmit == null || rentalDays <= 0) return null
+    return buildGuestBoxStorageEstimates(boxesPerMonthForSubmit, rentalDays)
+  }, [boxesPerMonthForSubmit, rentalDays])
 
   const minEndDate = useMemo(
     () => minRentalEndDate(expectedStartDate),
@@ -619,22 +633,18 @@ export function RentalRequestForm({
             </div>
             <div className="flex flex-col gap-2">
               <FieldLabel htmlFor="expectedStartDate">Ngày bắt đầu dự kiến *</FieldLabel>
-              <div className="input-glow relative rounded-lg" style={inputWrapStyle}>
-                <input
-                  id="expectedStartDate"
-                  type="date"
-                  required
-                  title="Ngày bắt đầu dự kiến"
-                  value={expectedStartDate}
-                  onChange={(e) => {
-                    setExpectedStartDate(e.target.value)
-                    if (expectedEndDate && e.target.value >= expectedEndDate) {
-                      setExpectedEndDate('')
-                    }
-                  }}
-                  className="block w-full px-4 py-3 bg-transparent border-0 text-white focus:outline-none text-base [color-scheme:dark]"
-                />
-              </div>
+              <DatePickerField
+                id="expectedStartDate"
+                required
+                value={expectedStartDate}
+                onChange={(next) => {
+                  setExpectedStartDate(next)
+                  if (expectedEndDate && next >= expectedEndDate) {
+                    setExpectedEndDate('')
+                  }
+                }}
+                placeholder="Chọn ngày bắt đầu"
+              />
             </div>
             <div className="flex flex-col gap-2">
               <FieldLabel
@@ -643,18 +653,15 @@ export function RentalRequestForm({
               >
                 Ngày kết thúc dự kiến *
               </FieldLabel>
-              <div className="input-glow relative rounded-lg" style={inputWrapStyle}>
-                <input
-                  id="expectedEndDate"
-                  type="date"
-                  required
-                  min={(minEndDate ?? expectedStartDate) || undefined}
-                  title="Ngày kết thúc dự kiến"
-                  value={expectedEndDate}
-                  onChange={(e) => setExpectedEndDate(e.target.value)}
-                  className="block w-full px-4 py-3 bg-transparent border-0 text-white focus:outline-none text-base [color-scheme:dark]"
-                />
-              </div>
+              <DatePickerField
+                id="expectedEndDate"
+                required
+                value={expectedEndDate}
+                min={(minEndDate ?? expectedStartDate) || undefined}
+                onChange={setExpectedEndDate}
+                placeholder="Chọn ngày kết thúc"
+                disabled={!expectedStartDate}
+              />
             </div>
 
             <div className="sm:col-span-2">
@@ -772,6 +779,27 @@ export function RentalRequestForm({
                         cho toàn kỳ{' '}
                         <span className="text-[#9bb9bb] text-xs">(tham khảo)</span>
                       </p>
+                      {boxStorageEstimates && (
+                        <div className="mt-3 pt-3 border-t border-[#06edf9]/25 space-y-2">
+                          <p className="text-xs text-[#9bb9bb]">
+                            Ước tính phí lưu trữ (đơn giá box/ngày — tham khảo, chưa gồm phí xử
+                            lý):
+                          </p>
+                          {boxStorageEstimates.map((row) => (
+                            <p key={row.boxType} className="text-sm leading-relaxed">
+                              <span className="font-medium text-white">{row.label}</span>
+                              <span className="text-[#9bb9bb]">
+                                {' '}
+                                ({formatVnd(row.pricePerBoxDay)}/box/ngày):
+                              </span>{' '}
+                              ~<strong className="text-white">{formatVnd(row.feePerMonth)}</strong>
+                              /tháng · ~<strong className="text-white">{formatVnd(row.feeFullPeriod)}</strong>{' '}
+                              toàn kỳ
+                              <span className="text-[#9bb9bb] text-xs"> ({rentalDays} ngày)</span>
+                            </p>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
