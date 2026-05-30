@@ -31,6 +31,7 @@ export function DatePickerField({
   max,
   placeholder = 'Chọn ngày',
   disabled = false,
+  compact = false,
 }: {
   id: string
   value: string
@@ -40,6 +41,7 @@ export function DatePickerField({
   max?: string
   placeholder?: string
   disabled?: boolean
+  compact?: boolean
 }) {
   const listId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
@@ -111,10 +113,22 @@ export function DatePickerField({
           aria-controls={listId}
           disabled={disabled}
           onClick={openPicker}
-          className="flex w-full items-center gap-3 px-4 py-3 bg-transparent border-0 text-left cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+          className={`flex w-full items-center gap-2 bg-transparent border-0 text-left cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+            compact ? 'px-3 py-2' : 'gap-3 px-4 py-3'
+          }`}
         >
-          <span className="material-symbols-outlined text-[#06edf9] text-xl shrink-0">calendar_month</span>
-          <span className={`flex-1 text-base ${displayValue ? 'text-white' : 'text-[#7a9496]'}`}>
+          <span
+            className={`material-symbols-outlined text-[#06edf9] shrink-0 ${
+              compact ? 'text-lg' : 'text-xl'
+            }`}
+          >
+            calendar_month
+          </span>
+          <span
+            className={`flex-1 truncate ${compact ? 'text-sm' : 'text-base'} ${
+              displayValue ? 'text-white' : 'text-[#7a9496]'
+            }`}
+          >
             {displayValue || placeholder}
           </span>
           <span className="material-symbols-outlined text-[#9bb9bb] text-lg shrink-0">

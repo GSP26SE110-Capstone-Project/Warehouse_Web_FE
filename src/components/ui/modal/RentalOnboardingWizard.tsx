@@ -1,3 +1,5 @@
+import { InlineAlert } from '../FeedbackAlert'
+import { AlertModal } from './AlertModal'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ApiError } from '../../../api/client'
 import * as binsApi from '../../../api/bins'
@@ -90,6 +92,12 @@ export function RentalOnboardingWizard({
   const [step, setStep] = useState(() => initialStep(row))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [apiAlert, setApiAlert] = useState<{
+    open: boolean
+    message: string
+    type: 'error' | 'warning'
+    title?: string
+  }>({ open: false, message: '', type: 'error' })
 
   const [rejectionReason, setRejectionReason] = useState('')
   const [warehouseId, setWarehouseId] = useState(
@@ -467,10 +475,48 @@ export function RentalOnboardingWizard({
     try {
       await fn()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Thao tác thất bại')
+      if (err instanceof ApiError) {
+        const isConflict = err.status === 409
+        setApiAlert({
+          open: true,
+          type: isConflict ? 'warning' : 'error',
+          title: isConflict ? 'Không thể cấp chỗ lưu trữ' : 'Có lỗi xảy ra',
+          message: err.message,
+        })
+      } else {
+        setError('Thao tác thất bại')
+      }
     } finally {
       setBusy(false)
     }
+  }
+
+  const finishOnboarding = async () => {
+    await rentalRequestsApi.updateRentalRequest(row.rentalRequestId, { status: 'CONVERTED' })
+    onComplete()
+    onClose()
+  }
+
+  const tryRecoverFromReservationConflict = async (): Promise<boolean> => {
+    if (!contractId) return false
+    const { items } = await storageReservationsApi.listStorageReservations({
+      contractId,
+      status: 'ACTIVE',
+      limit: 50,
+    })
+    if (items.length === 0) return false
+
+    if (storagePlan.storageLevel === 'ZONE' && selectedZoneIds.length > 0) {
+      const allZonesCovered = selectedZoneIds.every((zId) =>
+        items.some((r) => r.zoneId === zId)
+      )
+      if (!allZonesCovered) return false
+    } else if (storagePlan.storageLevel === 'BIN' && binId) {
+      if (!items.some((r) => r.binId === binId)) return false
+    }
+
+    await finishOnboarding()
+    return true
   }
 
   const handleApprove = () =>
@@ -619,8 +665,19 @@ export function RentalOnboardingWizard({
 
       const wh = whId || resolveWarehouseId(row)
 
+      const createReservation = async (body: Parameters<typeof storageReservationsApi.createStorageReservation>[0]) => {
+        try {
+          await storageReservationsApi.createStorageReservation(body)
+        } catch (err) {
+          if (err instanceof ApiError && err.status === 409 && (await tryRecoverFromReservationConflict())) {
+            return
+          }
+          throw err
+        }
+      }
+
       if (storagePlan.storageLevel === 'WAREHOUSE') {
-        await storageReservationsApi.createStorageReservation({
+        await createReservation({
           contractId,
           reservationType: storagePlan.reservationType,
           storageLevel: storagePlan.storageLevel,
@@ -639,7 +696,7 @@ export function RentalOnboardingWizard({
 
         for (const zId of selectedZoneIds) {
           const share = capacitySplit.get(zId)
-          await storageReservationsApi.createStorageReservation({
+          await createReservation({
             contractId,
             reservationType: storagePlan.reservationType,
             storageLevel: storagePlan.storageLevel,
@@ -652,7 +709,7 @@ export function RentalOnboardingWizard({
           })
         }
       } else {
-        await storageReservationsApi.createStorageReservation({
+        await createReservation({
           contractId,
           reservationType: storagePlan.reservationType,
           storageLevel: storagePlan.storageLevel,
@@ -667,9 +724,7 @@ export function RentalOnboardingWizard({
           ...(reservedCapacityNum ? { reservedCapacity: reservedCapacityNum } : {}),
         })
       }
-      await rentalRequestsApi.updateRentalRequest(row.rentalRequestId, { status: 'CONVERTED' })
-      onComplete()
-      onClose()
+      await finishOnboarding()
     })
 
   const stepDone = row.apiStatus === 'CONVERTED'
@@ -711,13 +766,13 @@ export function RentalOnboardingWizard({
           </div>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto p-6">
-          {error && (
-            <p className="rounded-lg border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-300">
-              {error}
-            </p>
-          )}
+        {(error && !apiAlert.open) && (
+          <div className="shrink-0 border-b border-red-400/20 bg-red-500/[0.06] px-6 py-3">
+            <InlineAlert message={error} onDismiss={() => setError('')} />
+          </div>
+        )}
 
+        <div className="flex-1 space-y-4 overflow-y-auto p-6">
           {step === 0 && (
             <div className="space-y-4">
               <SummaryBlock row={row} whName={whName} tenantContractType={tenantContractType} />
@@ -774,10 +829,15 @@ export function RentalOnboardingWizard({
                       Kho nhận yêu cầu (claim) — {row.district}, {row.city}
                     </label>
                     {claimedByOther ? (
-                      <p className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-200">
-                        Yêu cầu đã được <strong>kho khác</strong> trong khu vực duyệt trước. Bạn không thể
-                        claim lại.
-                      </p>
+                      <InlineAlert
+                        variant="error"
+                        message={
+                          <>
+                            Yêu cầu đã được <strong>kho khác</strong> trong khu vực duyệt trước. Bạn không thể
+                            claim lại.
+                          </>
+                        }
+                      />
                     ) : isWhOperator ? (
                       <div className="space-y-2">
                         <input
@@ -1294,6 +1354,15 @@ export function RentalOnboardingWizard({
           </div>
         </div>
       </div>
+
+      {apiAlert.open && (
+        <AlertModal
+          title={apiAlert.title}
+          type={apiAlert.type}
+          message={apiAlert.message}
+          onClose={() => setApiAlert({ open: false, message: '', type: 'error' })}
+        />
+      )}
     </div>
   )
 }
@@ -1986,7 +2055,6 @@ function SummaryBlock({
   const estimatedLpn = row.estimatedBoxCount ?? null
   const estimatedAreaM2 = estimateAreaFromLpnCount(estimatedLpn)
   const rentalMonths = estimateMonthCount(row.expectedStartDate ?? '', row.expectedEndDate ?? '')
-  const totalEstimatedLpn = estimatedLpn != null && rentalMonths > 0 ? estimatedLpn * rentalMonths : null
   const totalEstimatedAreaM2 =
     estimatedAreaM2 != null && rentalMonths > 0 ? estimatedAreaM2 * rentalMonths : null
   return (
@@ -2037,11 +2105,9 @@ function SummaryBlock({
                 Diện tích ước tính: ~{fmtM2(estimatedAreaM2)} m² (tham chiếu: ~
                 {ESTIMATE_DEFAULT_BIN_MAX_LPN_COUNT} thùng/bin, {ESTIMATE_BIN_SLOT_FOOTPRINT_M2} m²/bin)
               </p>
-              {rentalMonths > 0 && totalEstimatedLpn != null && totalEstimatedAreaM2 != null && (
+              {rentalMonths > 0 && totalEstimatedAreaM2 != null && (
                 <p className="mt-1 text-[11px] text-amber-200/90">
-                  Quy đổi theo thời hạn thuê: ~{estimatedLpn.toLocaleString('vi-VN')} thùng/tháng x{' '}
-                  {rentalMonths} tháng ≈ {totalEstimatedLpn.toLocaleString('vi-VN')} thùng cho toàn kỳ
-                  (diện tích tham chiếu ~{fmtM2(totalEstimatedAreaM2)} m²).
+                  Diện tích tham chiếu toàn kỳ: ~{fmtM2(totalEstimatedAreaM2)} m².
                 </p>
               )}
             </div>

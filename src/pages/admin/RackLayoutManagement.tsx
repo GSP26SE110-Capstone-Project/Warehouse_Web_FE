@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { RackModal, type RackFormPayload } from '../../components/ui/modal/RackModal'
@@ -635,12 +636,7 @@ export const RackLayoutManagement = () => {
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-300">
-          {error}
-          <button type="button" className="ml-3 underline" onClick={() => setError('')}>
-            Đóng
-          </button>
-        </div>
+        <InlineAlert message={error} onDismiss={() => setError('')} />
       )}
 
       <section className="glass-panel overflow-x-auto rounded-xl border border-white/5 p-6">

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
 import { SystemLogs } from '../../components/ui/SystemLogs'
 import { ZoneUtilization } from '../../components/ui/ZoneUtilization'
+import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { ApiError } from '../../api/client'
 import * as contractsApi from '../../api/contracts'
@@ -110,9 +111,7 @@ export const Dashboard: React.FC = () => {
       <LoadingOverlay show={loading} text="Đang tải dashboard..." />
       <div className="max-w-[1600px] mx-auto flex flex-col gap-6">
         {error && (
-          <p className="rounded-lg border border-red-400/20 bg-red-400/10 px-4 py-2 text-sm text-red-300">
-            {error}
-          </p>
+          <InlineAlert message={error} onDismiss={() => setError('')} />
         )}
         
         {/* Page Title */}

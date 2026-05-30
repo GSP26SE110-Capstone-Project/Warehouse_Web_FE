@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import logo from '../../assets/logo.png'
 import { ApiError } from '../../api/client'
 import { resetPasswordWithToken } from '../../api/auth'
@@ -139,7 +140,9 @@ export const ResetPassword: React.FC = () => {
                   </button>
                 </div>
 
-                {error && <p className="text-red-400 text-sm">{error}</p>}
+                {error && (
+                  <InlineAlert compact hideTitle message={error} onDismiss={() => setError('')} />
+                )}
 
                 <button
                   type="button"

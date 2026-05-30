@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { InlineAlert } from '../FeedbackAlert'
 import type { ApiSku } from '../../../api/skus'
 import type { ApiCategory } from '../../../api/categories'
 import type { ApiCollection } from '../../../api/collections'
@@ -273,7 +274,9 @@ export function SkuModal({
             </select>
           </div>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && (
+            <InlineAlert compact hideTitle message={error} onDismiss={() => setError('')} />
+          )}
 
           {!isView && (
             <div className="flex justify-end gap-3 pt-2">

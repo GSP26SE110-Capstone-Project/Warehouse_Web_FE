@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ApiError } from '../../api/client'
 import * as usersApi from '../../api/users'
 import { useAuth } from '../../auth/AuthContext'
+import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 
 const ROLE_LABEL: Record<string, string> = {
@@ -85,16 +86,11 @@ export const Profile: React.FC = () => {
               </div>
             </div>
 
-            {(error || message) && (
-              <p
-                className={`text-sm rounded-lg px-4 py-2 ${
-                  error
-                    ? 'text-red-400 bg-red-400/10 border border-red-400/20'
-                    : 'text-emerald-400 bg-emerald-400/10 border border-emerald-400/20'
-                }`}
-              >
-                {error || message}
-              </p>
+            {error && (
+              <InlineAlert message={error} onDismiss={() => setError('')} />
+            )}
+            {!error && message && (
+              <InlineAlert variant="success" message={message} onDismiss={() => setMessage('')} />
             )}
 
             <section className="glass-panel rounded-xl border border-white/5 p-6 flex flex-col gap-6">

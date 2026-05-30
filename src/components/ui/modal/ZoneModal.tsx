@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { InlineAlert } from '../FeedbackAlert'
 import type { ApiZone } from '../../../api/zones'
 import * as warehousesApi from '../../../api/warehouses'
 import type { ApiWarehouseZonePlanning } from '../../../api/warehouses'
@@ -211,9 +212,7 @@ export function ZoneModal({
 
         <div className="space-y-4 overflow-y-auto p-6">
           {error && (
-            <p className="rounded-lg border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-300">
-              {error}
-            </p>
+            <InlineAlert compact hideTitle message={error} onDismiss={() => setError('')} />
           )}
 
           <div>

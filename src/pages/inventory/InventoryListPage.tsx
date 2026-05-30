@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { Pagination } from '../../components/ui/Pagination'
 import { StatsCard } from '../../components/ui/StatCard'
@@ -176,9 +177,7 @@ export function InventoryListPage({ scope }: Props) {
         )}
 
         {error && (
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            {error}
-          </div>
+          <InlineAlert message={error} onDismiss={() => setError('')} />
         )}
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

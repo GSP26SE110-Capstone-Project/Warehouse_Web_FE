@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { InlineAlert } from '../FeedbackAlert'
 import { fetchLocationTree, type LocationCity } from '../../../api/locations'
 import { listUsers } from '../../../api/users'
 import type { ApiUser, WarehouseStatus } from '../../../api/types'
@@ -278,9 +279,7 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
 
         <div className="flex-1 space-y-6 overflow-y-auto p-6">
           {validationError && (
-            <p className="rounded-lg border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-300">
-              {validationError}
-            </p>
+            <InlineAlert compact hideTitle message={validationError} onDismiss={() => setValidationError('')} />
           )}
 
           <div className="space-y-4 rounded-lg border border-white/5 bg-white/[0.02] p-4">

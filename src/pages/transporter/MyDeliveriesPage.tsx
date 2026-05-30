@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { InboundStatusBadge } from '../../components/inbound/InboundStatusBadge'
 import * as inboundApi from '../../api/inboundRequests'
@@ -42,9 +43,7 @@ export function MyDeliveriesPage() {
       </p>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          {error}
-        </div>
+        <InlineAlert className="mb-4" message={error} onDismiss={() => setError('')} />
       )}
 
       {!loading && items.length === 0 && (

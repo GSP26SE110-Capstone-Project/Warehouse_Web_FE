@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { InlineAlert } from '../FeedbackAlert'
 import type { ApiWarehouseZonePlanning } from '../../../api/warehouses'
 import { ZONE_TYPE_OPTIONS } from '../../../data/zoneTypes'
 
@@ -121,9 +122,7 @@ export function BulkZoneModal({
           )}
 
           {error && (
-            <p className="rounded-lg border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-300">
-              {error}
-            </p>
+            <InlineAlert compact hideTitle message={error} onDismiss={() => setError('')} />
           )}
 
           <div>

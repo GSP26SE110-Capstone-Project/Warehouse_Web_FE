@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { InboundApprovalPanel } from '../../components/inbound/InboundApprovalPanel'
@@ -75,7 +76,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
     open: boolean
     message: string
     title?: string
-    type?: 'success' | 'confirm'
+    type?: 'success' | 'error' | 'confirm'
     onConfirm?: () => void
   }>({
     open: false,
@@ -191,11 +192,13 @@ export function InboundDetailPage({ mode, basePath }: Props) {
     setBusy(true)
     try {
       await fn()
-      if (successMsg) setAlert({ open: true, message: successMsg })
+      if (successMsg) setAlert({ open: true, type: 'success', message: successMsg })
       await load()
     } catch (err) {
       setAlert({
         open: true,
+        type: 'error',
+        title: 'Có lỗi xảy ra',
         message: err instanceof ApiError ? err.message : 'Thao tác thất bại',
       })
     } finally {
@@ -464,9 +467,11 @@ export function InboundDetailPage({ mode, basePath }: Props) {
           </button>
 
           {error && (
-            <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-              {error}
-            </div>
+            <InlineAlert
+              className="mb-4"
+              message={error}
+              onDismiss={() => setError('')}
+            />
           )}
 
           {inbound && (

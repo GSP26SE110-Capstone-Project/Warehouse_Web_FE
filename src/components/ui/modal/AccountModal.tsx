@@ -1,3 +1,4 @@
+import { InlineAlert } from '../FeedbackAlert'
 import { useState, useEffect } from 'react'
 import type { ApiUser, UserRole } from '../../../api/types'
 import * as warehousesApi from '../../../api/warehouses'
@@ -399,10 +400,18 @@ export const AccountModal: React.FC<Props> = ({
                   Mỗi kho chỉ được gán một Warehouse Admin
                 </p>
                 {existingWhAdmin && (
-                  <p className="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
-                    Kho đã có WH Admin: <strong>{existingWhAdmin.fullName}</strong> (
-                    {existingWhAdmin.email}). Chọn kho khác hoặc dùng tài khoản hiện có.
-                  </p>
+                  <InlineAlert
+                    compact
+                    variant="warning"
+                    hideTitle
+                    className="mt-2"
+                    message={
+                      <>
+                        Kho đã có WH Admin: <strong>{existingWhAdmin.fullName}</strong> (
+                        {existingWhAdmin.email}). Chọn kho khác hoặc dùng tài khoản hiện có.
+                      </>
+                    }
+                  />
                 )}
               </div>
             )}

@@ -3,6 +3,7 @@ import { StatsCard } from '../../components/ui/StatCard'
 import { Pagination } from '../../components/ui/Pagination'
 import { RequestDetailModal } from '../../components/ui/modal/RequestDetailModal'
 import { RentalOnboardingWizard } from '../../components/ui/modal/RentalOnboardingWizard'
+import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { ApiError } from '../../api/client'
@@ -29,7 +30,10 @@ export const RequestManagement = () => {
 
   const [modal, setModal] = useState<{ open: boolean; data?: RentalRequestRow }>({ open: false })
   const [wizard, setWizard] = useState<{ open: boolean; data?: RentalRequestRow }>({ open: false })
-  const [alert, setAlert] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+  const [alert, setAlert] = useState<{ open: boolean; message: string; type?: 'success' | 'error' | 'warning' }>({
+    open: false,
+    message: '',
+  })
 
   const operator: OnboardingOperator = useMemo(
     () => ({
@@ -153,9 +157,7 @@ export const RequestManagement = () => {
         <div className="relative z-10 p-8">
           <div className="max-w-[1400px] mx-auto flex flex-col gap-8">
             {error && (
-              <p className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg px-4 py-2">
-                {error}
-              </p>
+              <InlineAlert message={error} onDismiss={() => setError('')} />
             )}
             {currentUser?.role === 'WH_ADMIN' && currentUser.warehouseId && (
               <p className="rounded-lg border border-cyan-400/20 bg-cyan-400/5 px-4 py-2 text-sm text-cyan-200">
@@ -301,13 +303,18 @@ export const RequestManagement = () => {
           onClose={() => setWizard({ open: false })}
           onComplete={async () => {
             await loadRequests()
-            setAlert({ open: true, message: 'Hoàn tất onboarding tenant!' })
+            setAlert({ open: true, type: 'success', message: 'Hoàn tất onboarding tenant!' })
           }}
         />
       )}
 
       {alert.open && (
-        <AlertModal title="Thông báo" message={alert.message} onClose={() => setAlert({ open: false, message: '' })} />
+        <AlertModal
+          title="Thông báo"
+          type={alert.type ?? 'success'}
+          message={alert.message}
+          onClose={() => setAlert({ open: false, message: '' })}
+        />
       )}
     </div>
   )

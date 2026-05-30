@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
+import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { useAuth } from '../../auth/AuthContext'
 import { ApiError } from '../../api/client'
 import * as inboundApi from '../../api/inboundRequests'
@@ -45,7 +46,11 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
   const [deliveryForm, setDeliveryForm] = useState<DeliveryFormState>(emptyDeliveryForm())
   const [lines, setLines] = useState<LineDraft[]>([{ skuId: '', expectedQuantity: 1 }])
 
-  const [alert, setAlert] = useState<{ open: boolean; message: string }>({
+  const [alert, setAlert] = useState<{
+    open: boolean
+    type?: 'success' | 'error' | 'warning'
+    message: string
+  }>({
     open: false,
     message: '',
   })
@@ -85,12 +90,12 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!tenantId || !contractId || !selectedContract) {
-      setAlert({ open: true, message: 'Chọn hợp đồng ACTIVE' })
+      setAlert({ open: true, type: 'warning', message: 'Chọn hợp đồng ACTIVE' })
       return
     }
     const validLines = lines.filter((l) => l.skuId && l.expectedQuantity > 0)
     if (validLines.length === 0) {
-      setAlert({ open: true, message: 'Thêm ít nhất một dòng SKU' })
+      setAlert({ open: true, type: 'warning', message: 'Thêm ít nhất một dòng SKU' })
       return
     }
 
@@ -100,6 +105,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
     ) {
       setAlert({
         open: true,
+        type: 'warning',
         message: `Ngày dự kiến đến kho không được trước ngày bắt đầu hợp đồng (${formatContractDateLabel(selectedContract.startDate)}).`,
       })
       return
@@ -141,6 +147,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
     } catch (err) {
       setAlert({
         open: true,
+        type: 'error',
         message: err instanceof ApiError ? err.message : 'Tạo yêu cầu thất bại',
       })
     } finally {
@@ -164,9 +171,12 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
           <h1 className="mb-6 text-2xl font-bold">Tạo yêu cầu nhập kho</h1>
 
           {error && (
-            <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-              {error}
-            </div>
+            <InlineAlert
+              variant="error"
+              message={error}
+              onDismiss={() => setError('')}
+              className="mb-4"
+            />
           )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-xl border border-white/10 bg-white/5 p-6">
@@ -401,8 +411,9 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
 
       {alert.open && (
         <AlertModal
-          title="Thông báo"
+          title={alert.type === 'error' ? 'Có lỗi xảy ra' : alert.type === 'warning' ? 'Lưu ý' : 'Thông báo'}
           message={alert.message}
+          type={alert.type ?? 'success'}
           onClose={() => setAlert({ open: false, message: '' })}
         />
       )}

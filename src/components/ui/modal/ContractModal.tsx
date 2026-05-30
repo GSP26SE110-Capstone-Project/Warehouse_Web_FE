@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { InlineAlert } from '../FeedbackAlert'
 import { ApiError } from '../../../api/client'
 import * as contractsApi from '../../../api/contracts'
 import * as tenantsApi from '../../../api/tenants'
@@ -175,9 +176,7 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
             <p className="text-center text-sm text-slate-400">Đang tải hợp đồng...</p>
           )}
           {error && (
-            <p className="rounded-lg border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-300">
-              {error}
-            </p>
+            <InlineAlert message={error} onDismiss={() => setError('')} />
           )}
 
           {!loading && !error && (

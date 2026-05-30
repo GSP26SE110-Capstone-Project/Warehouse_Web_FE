@@ -4,6 +4,7 @@ import {
   ContractModal,
   type ContractFormPayload,
 } from '../../components/ui/modal/ContractModal'
+import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import type { Contract } from '../../types/Contract'
 import { Pagination } from '../../components/ui/Pagination'
@@ -28,8 +29,9 @@ export const ContractManagement: React.FC = () => {
 
   const [alert, setAlert] = useState<{
     open: boolean
-    type: 'success' | 'confirm'
+    type: 'success' | 'error' | 'warning' | 'confirm'
     message: string
+    title?: string
   }>({ open: false, type: 'success', message: '' })
 
   const loadContracts = useCallback(async () => {
@@ -69,7 +71,8 @@ export const ContractManagement: React.FC = () => {
     } catch (err) {
       setAlert({
         open: true,
-        type: 'success',
+        type: 'error',
+        title: 'Có lỗi xảy ra',
         message: err instanceof ApiError ? err.message : 'Cập nhật thất bại',
       })
       throw err
@@ -119,9 +122,7 @@ export const ContractManagement: React.FC = () => {
         <div className="relative z-10 p-8">
           <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
             {error && (
-              <p className="rounded-lg border border-red-400/20 bg-red-400/10 px-4 py-2 text-sm text-red-400">
-                {error}
-              </p>
+              <InlineAlert message={error} onDismiss={() => setError('')} />
             )}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
               <StatsCard title="Tổng hợp đồng" value={contracts.length} icon="description" accentColor="emerald" />
@@ -257,7 +258,7 @@ export const ContractManagement: React.FC = () => {
 
       {alert.open && (
         <AlertModal
-          title="Thông báo"
+          title={alert.title ?? 'Thông báo'}
           message={alert.message}
           type={alert.type}
           onClose={() => setAlert((a) => ({ ...a, open: false, message: '' }))}

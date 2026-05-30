@@ -5,6 +5,7 @@ import { Pagination } from '../../components/ui/Pagination'
 import { ZoneModal, type ZoneFormPayload } from '../../components/ui/modal/ZoneModal'
 import { BulkZoneModal } from '../../components/ui/modal/BulkZoneModal'
 import type { ApiWarehouseZonePlanning } from '../../api/warehouses'
+import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { ApiError } from '../../api/client'
@@ -42,8 +43,9 @@ export const ZoneManagement = () => {
 
   const [alert, setAlert] = useState<{
     open: boolean
-    type: 'success' | 'confirm'
+    type: 'success' | 'error' | 'warning' | 'confirm'
     message: string
+    title?: string
     onConfirm?: () => void
   }>({ open: false, type: 'success', message: '' })
 
@@ -163,7 +165,8 @@ export const ZoneManagement = () => {
     } catch (err) {
       setAlert({
         open: true,
-        type: 'success',
+        type: 'error',
+        title: 'Có lỗi xảy ra',
         message: err instanceof ApiError ? err.message : 'Thao tác thất bại',
       })
       throw err
@@ -179,7 +182,8 @@ export const ZoneManagement = () => {
     } catch (err) {
       setAlert({
         open: true,
-        type: 'success',
+        type: 'error',
+        title: 'Có lỗi xảy ra',
         message: err instanceof ApiError ? err.message : 'Xóa thất bại',
       })
     }
@@ -226,9 +230,7 @@ export const ZoneManagement = () => {
         <div className="relative z-10 flex-1 p-8">
           <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
             {error && (
-              <p className="rounded-lg border border-red-400/20 bg-red-400/10 px-4 py-2 text-sm text-red-400">
-                {error}
-              </p>
+              <InlineAlert message={error} onDismiss={() => setError('')} />
             )}
 
             <div className="flex flex-wrap items-end justify-between gap-4">

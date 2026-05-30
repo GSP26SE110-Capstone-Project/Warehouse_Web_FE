@@ -1,3 +1,4 @@
+import { InlineAlert } from '../ui/FeedbackAlert'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   estimateBoxesPerMonthFromPieces,
@@ -11,7 +12,7 @@ import {
   meetsMinimumRentalMonths,
   minRentalEndDate,
 } from '../../utils/rentalPeriod'
-import { buildGuestBoxStorageEstimates } from '../../utils/rentalStorageEstimate'
+import { buildGuestBoxStorageEstimates, estimateExtraBoxesFromMediumCount } from '../../utils/rentalStorageEstimate'
 import { ApiError } from '../../api/client'
 import {
   fetchLocationTree,
@@ -184,10 +185,6 @@ export function RentalRequestForm({
     onContractTypeChange(value)
   }
 
-  const estimatedMonthCount = useMemo(
-    () => estimateMonthCount(expectedStartDate, expectedEndDate),
-    [expectedStartDate, expectedEndDate]
-  )
   const boxesPerMonthForSubmit = useMemo(() => {
     const manual = Number(estimatedBoxCount)
     if (Number.isFinite(manual) && manual > 0) return manual
@@ -195,30 +192,43 @@ export function RentalRequestForm({
     return estimateBoxesPerMonthFromPieces(pieces)
   }, [estimatedBoxCount, estimatedTotalPieces])
 
-  const estimatedBoxCountTotal = useMemo(() => {
-    if (boxesPerMonthForSubmit == null || estimatedMonthCount <= 0) return null
-    return Math.round(boxesPerMonthForSubmit * estimatedMonthCount)
-  }, [boxesPerMonthForSubmit, estimatedMonthCount])
-
   const rentalDays = useMemo(
     () => estimateRentalDays(expectedStartDate, expectedEndDate),
     [expectedStartDate, expectedEndDate]
   )
-
-  const boxStorageEstimates = useMemo(() => {
-    if (boxesPerMonthForSubmit == null || rentalDays <= 0) return null
-    return buildGuestBoxStorageEstimates(boxesPerMonthForSubmit, rentalDays)
-  }, [boxesPerMonthForSubmit, rentalDays])
-
-  const minEndDate = useMemo(
-    () => minRentalEndDate(expectedStartDate),
-    [expectedStartDate]
+  const rentalMonths = useMemo(
+    () => estimateMonthCount(expectedStartDate, expectedEndDate),
+    [expectedStartDate, expectedEndDate]
   )
 
   const boxTypeSuggestion = useMemo(() => {
     const pieces = Number(estimatedTotalPieces)
     return suggestGuestBoxTypesFromPieces(pieces)
   }, [estimatedTotalPieces])
+
+  const boxStorageEstimates = useMemo(() => {
+    if (rentalDays <= 0) return null
+
+    let medium: number | null = null
+    let extra: number | null = null
+
+    if (boxTypeSuggestion) {
+      medium = boxTypeSuggestion.mediumPerMonth
+      extra = boxTypeSuggestion.extraPerMonth
+    } else if (boxesPerMonthForSubmit != null && boxesPerMonthForSubmit > 0) {
+      medium = boxesPerMonthForSubmit
+      extra = estimateExtraBoxesFromMediumCount(boxesPerMonthForSubmit)
+    }
+
+    if (medium == null || medium <= 0 || extra == null || extra <= 0) return null
+
+    return buildGuestBoxStorageEstimates({ MEDIUM: medium, EXTRA: extra }, rentalDays)
+  }, [boxTypeSuggestion, boxesPerMonthForSubmit, rentalDays])
+
+  const minEndDate = useMemo(
+    () => minRentalEndDate(expectedStartDate),
+    [expectedStartDate]
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -353,7 +363,7 @@ export function RentalRequestForm({
         contractType,
         pricingModel: defaultPricingModel(contractType),
         billingCycle,
-        estimatedBoxCount: estimatedBoxCountTotal ?? undefined,
+        estimatedBoxCount: boxesPerMonthForSubmit ?? undefined,
         estimatedSkuCount: estimatedSkuCount ? Number(estimatedSkuCount) : undefined,
         estimatedInboundPerWeek: estimatedInboundPerWeek
           ? Number(estimatedInboundPerWeek)
@@ -426,9 +436,7 @@ export function RentalRequestForm({
       <LoadingOverlay show={loading} text="Đang gửi yêu cầu..." />
       <form onSubmit={handleSubmit} className="glass-panel rounded-2xl p-6 sm:p-8 space-y-8">
         {error && (
-          <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-4 py-2">
-            {error}
-          </p>
+          <InlineAlert message={error} onDismiss={() => setError('')} />
         )}
 
         <div>
@@ -649,7 +657,11 @@ export function RentalRequestForm({
             <div className="flex flex-col gap-2">
               <FieldLabel
                 htmlFor="expectedEndDate"
-                hint="Tối thiểu 1 tháng kể từ ngày bắt đầu — kho sẽ căn cứ khi lập hợp đồng"
+                hint={
+                  rentalDays >= 30
+                    ? `Thời hạn ước tính ~${rentalMonths} tháng (${rentalDays} ngày)`
+                    : 'Tối thiểu 1 tháng kể từ ngày bắt đầu — kho sẽ căn cứ khi lập hợp đồng'
+                }
               >
                 Ngày kết thúc dự kiến *
               </FieldLabel>
@@ -706,9 +718,7 @@ export function RentalRequestForm({
                             ? boxTypeSuggestion.mediumPerMonth
                             : boxTypeSuggestion.extraPerMonth
                         const forPeriod =
-                          estimatedMonthCount > 0
-                            ? perMonth * estimatedMonthCount
-                            : null
+                          rentalMonths > 0 ? perMonth * rentalMonths : null
                         return (
                           <div
                             key={hint.type}
@@ -732,7 +742,13 @@ export function RentalRequestForm({
                                   <span className="text-[#06edf9]">
                                     {forPeriod.toLocaleString('vi-VN')} {hint.title}
                                   </span>{' '}
-                                  cho {estimatedMonthCount} tháng
+                                  cho {rentalMonths} tháng
+                                  {rentalDays > 0 && (
+                                    <span className="text-[#9bb9bb] font-normal text-xs">
+                                      {' '}
+                                      ({rentalDays} ngày)
+                                    </span>
+                                  )}
                                 </>
                               )}
                             </p>
@@ -761,7 +777,7 @@ export function RentalRequestForm({
                     onChange={setEstimatedBoxCount}
                     placeholder="40"
                   />
-                  {estimatedBoxCountTotal != null && boxesPerMonthForSubmit != null && (
+                  {boxesPerMonthForSubmit != null && boxStorageEstimates && (
                     <div
                       className="mt-2 rounded-lg border border-[#06edf9]/50 bg-[#06edf9]/15 px-4 py-3 text-sm text-[#06edf9] ring-1 ring-[#06edf9]/30"
                       role="status"
@@ -770,17 +786,7 @@ export function RentalRequestForm({
                         <span className="material-symbols-outlined text-base">calculate</span>
                         Quy đổi theo thời hạn thuê
                       </p>
-                      <p>
-                        ~{boxesPerMonthForSubmit.toLocaleString('vi-VN')} thùng/tháng ×{' '}
-                        {estimatedMonthCount} tháng ≈{' '}
-                        <strong className="text-white text-base">
-                          {estimatedBoxCountTotal.toLocaleString('vi-VN')} thùng
-                        </strong>{' '}
-                        cho toàn kỳ{' '}
-                        <span className="text-[#9bb9bb] text-xs">(tham khảo)</span>
-                      </p>
-                      {boxStorageEstimates && (
-                        <div className="mt-3 pt-3 border-t border-[#06edf9]/25 space-y-2">
+                      <div className="space-y-2">
                           <p className="text-xs text-[#9bb9bb]">
                             Ước tính phí lưu trữ (đơn giá box/ngày — tham khảo, chưa gồm phí xử
                             lý):
@@ -798,8 +804,7 @@ export function RentalRequestForm({
                               <span className="text-[#9bb9bb] text-xs"> ({rentalDays} ngày)</span>
                             </p>
                           ))}
-                        </div>
-                      )}
+                      </div>
                     </div>
                   )}
                 </div>

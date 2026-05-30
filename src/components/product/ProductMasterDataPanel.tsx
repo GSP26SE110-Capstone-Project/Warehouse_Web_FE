@@ -34,7 +34,12 @@ export function ProductMasterDataPanel({
   const [nameInput, setNameInput] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [alert, setAlert] = useState<{ open: boolean; message: string; type: 'success' | 'confirm'; onConfirm?: () => void }>({
+  const [alert, setAlert] = useState<{
+    open: boolean
+    message: string
+    type: 'success' | 'error' | 'warning' | 'confirm'
+    onConfirm?: () => void
+  }>({
     open: false,
     message: '',
     type: 'success',
@@ -56,7 +61,7 @@ export function ProductMasterDataPanel({
       setAlert({
         open: true,
         message: err instanceof ApiError ? err.message : 'Thao tác thất bại',
-        type: 'success',
+        type: 'error',
       })
     } finally {
       setBusy(false)

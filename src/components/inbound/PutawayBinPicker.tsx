@@ -1,3 +1,4 @@
+import { InlineAlert } from '../ui/FeedbackAlert'
 import { useEffect, useMemo, useState } from 'react'
 import { ApiError } from '../../api/client'
 import * as inboundApi from '../../api/inboundRequests'
@@ -364,9 +365,11 @@ export function PutawayBinPicker({
       )}
 
       {zoneId && !selectedZoneAllowed && (
-        <p className="rounded border border-red-500/30 bg-red-500/10 px-2 py-1.5 text-xs text-red-300">
-          Zone này không nằm trong hợp đồng. Chọn zone được cấp trên HĐ.
-        </p>
+        <InlineAlert
+          compact
+          hideTitle
+          message="Zone này không nằm trong hợp đồng. Chọn zone được cấp trên HĐ."
+        />
       )}
 
       <div className="grid grid-cols-2 gap-2">
@@ -497,7 +500,7 @@ export function PutawayBinPicker({
         <div className="space-y-2 border-t border-white/10 pt-3">
           <p className="text-xs font-medium text-emerald-300">Putaway hàng loạt</p>
           {autoError && (
-            <p className="text-xs text-red-300">{autoError}</p>
+            <InlineAlert compact hideTitle message={autoError} onDismiss={() => setAutoError('')} />
           )}
           <div className="flex flex-col gap-2 sm:flex-row">
             <button

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
 import { Pagination } from '../../components/ui/Pagination'
+import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { SkuModal, type SkuFormPayload } from '../../components/ui/modal/SkuModal'
@@ -207,9 +208,7 @@ export const TenantProductManagement = () => {
         </div>
 
         {error && (
-          <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-300">
-            {error}
-          </p>
+          <InlineAlert message={error} onDismiss={() => setError('')} />
         )}
 
         {pageTab === 'master' ? (

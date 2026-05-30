@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { InlineAlert } from '../FeedbackAlert'
 import type { ApiRack } from '../../../api/racks'
 import { RACK_FIXED_LEVEL_COUNT, RACK_STATUS_OPTIONS } from '../../../data/rackStructure'
 
@@ -111,7 +112,9 @@ export function RackModal({ mode, zoneLabel, suggestedCode, data, onClose, onSub
             </select>
           </div>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && (
+            <InlineAlert compact hideTitle message={error} onDismiss={() => setError('')} />
+          )}
 
           <div className="flex justify-end gap-3 pt-2">
             <button

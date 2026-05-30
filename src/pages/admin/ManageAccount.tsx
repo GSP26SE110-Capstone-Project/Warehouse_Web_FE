@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
+import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { AccountModal } from '../../components/ui/modal/AccountModal'
 import type { Account } from '../../types/Account'
 import { Pagination } from '../../components/ui/Pagination'
@@ -73,7 +74,7 @@ export const AccountManagement: React.FC = () => {
 
   const [alert, setAlert] = useState<{
     open: boolean
-    type: 'success' | 'confirm'
+    type: 'success' | 'error' | 'warning' | 'confirm'
     message: string
     onConfirm?: () => void
   }>({ open: false, type: 'success', message: '' })
@@ -145,7 +146,7 @@ export const AccountManagement: React.FC = () => {
     } catch (err) {
       setAlert({
         open: true,
-        type: 'success',
+        type: 'error',
         message: err instanceof ApiError ? err.message : 'Thao tác thất bại',
       })
     }
@@ -191,9 +192,7 @@ export const AccountManagement: React.FC = () => {
         <div className="relative z-10 flex-1 p-8">
           <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
             {error && (
-              <p className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg px-4 py-2">
-                {error}
-              </p>
+              <InlineAlert variant="error" message={error} onDismiss={() => setError('')} />
             )}
             <div className="mb-2">
               <p className="text-sm text-slate-400">{pageSubtitleFor(currentUser?.role)}</p>

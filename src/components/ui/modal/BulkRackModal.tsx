@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { InlineAlert } from '../FeedbackAlert'
 import { RACK_FIXED_LEVEL_COUNT } from '../../../data/rackStructure'
 
 type Props = {
@@ -69,9 +70,7 @@ export function BulkRackModal({
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
           <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
             {error && (
-              <p className="rounded-lg border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-300">
-                {error}
-              </p>
+              <InlineAlert compact hideTitle message={error} onDismiss={() => setError('')} />
             )}
 
             {emptySlotCodes.length === 0 ? (

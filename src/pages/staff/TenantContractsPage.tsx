@@ -10,6 +10,7 @@ import * as warehousesApi from '../../api/warehouses'
 
 import { TenantContractSignModal } from '../../components/contracts/TenantContractSignModal'
 import { TenantStorageAllocationPanel } from '../../components/contracts/TenantStorageAllocationPanel'
+import { InlineAlert } from '../../components/ui/FeedbackAlert'
 
 import { useAuth } from '../../auth/AuthContext'
 
@@ -167,13 +168,7 @@ export function TenantContractsPage() {
         <h2 className="text-2xl font-bold text-white">Hợp đồng & vị trí đã cấp</h2>
 
         {error && (
-
-          <p className="rounded-lg border border-red-400/20 bg-red-400/10 px-4 py-2 text-sm text-red-300">
-
-            {error}
-
-          </p>
-
+          <InlineAlert message={error} onDismiss={() => setError('')} />
         )}
 
 

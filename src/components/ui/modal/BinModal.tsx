@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { InlineAlert } from '../FeedbackAlert'
 import type { ApiBin } from '../../../api/bins'
 import { getDefaultBinCapacity } from '../../../data/binCapacityDefaults'
 import { formatBinOccupancy, isBinAtCapacity, isBinEmpty } from '../../../utils/binOccupancy'
@@ -198,7 +199,9 @@ export function BinModal({
             </label>
           )}
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && (
+            <InlineAlert compact hideTitle message={error} onDismiss={() => setError('')} />
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
             <button

@@ -1,5 +1,6 @@
 import type { ApiErrorBody, ApiPaginated, ApiSuccess } from './types'
 import { getAccessToken, clearSession } from '../auth/storage'
+import { translateApiErrorMessage } from '../utils/apiErrorMessages'
 
 const API_PREFIX = '/api'
 
@@ -67,7 +68,7 @@ export async function apiRequest<T>(
     }
     const err = payload as ApiErrorBody
     throw new ApiError(
-      err.message || res.statusText || 'Request failed',
+      translateApiErrorMessage(err.message || res.statusText || 'Request failed', err.code),
       res.status,
       err.code
     )
@@ -75,7 +76,7 @@ export async function apiRequest<T>(
 
   if (payload && typeof payload === 'object' && 'success' in payload && payload.success === false) {
     const err = payload as ApiErrorBody
-    throw new ApiError(err.message || 'Request failed', res.status, err.code)
+    throw new ApiError(translateApiErrorMessage(err.message || 'Request failed', err.code), res.status, err.code)
   }
 
   return (payload as ApiSuccess<T>).data
@@ -104,7 +105,11 @@ export async function apiPaginated<T>(
 
   if (!res.ok || (payload && 'success' in payload && payload.success === false)) {
     const err = payload as ApiErrorBody
-    throw new ApiError(err.message || res.statusText, res.status, err.code)
+    throw new ApiError(
+      translateApiErrorMessage(err.message || res.statusText || 'Request failed'),
+      res.status,
+      err.code
+    )
   }
 
   const ok = payload as ApiPaginated<T>

@@ -1,3 +1,4 @@
+import { InlineAlert } from '../ui/FeedbackAlert'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError } from '../../api/client'
@@ -339,7 +340,7 @@ export function TenantStorageAllocationPanel({
               )}
             </div>
             {binError && (
-              <p className="mb-3 text-sm text-red-300">{binError}</p>
+              <InlineAlert className="mb-3" message={binError} onDismiss={() => setBinError('')} />
             )}
             {binLoading && <p className="text-sm text-slate-500">Đang tải tồn kho...</p>}
             {!binLoading && filteredBins.length === 0 && (

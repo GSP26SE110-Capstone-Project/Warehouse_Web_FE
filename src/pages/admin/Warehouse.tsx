@@ -6,6 +6,7 @@ import {
   WarehouseModal,
   type WarehouseFormPayload,
 } from '../../components/ui/modal/WarehouseModal'
+import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { ApiError } from '../../api/client'
@@ -37,8 +38,9 @@ export const WarehouseManagement: React.FC = () => {
 
   const [alert, setAlert] = useState<{
     open: boolean
-    type: 'success' | 'confirm'
+    type: 'success' | 'error' | 'warning' | 'confirm'
     message: string
+    title?: string
     onConfirm?: () => void
   }>({ open: false, type: 'success', message: '' })
 
@@ -135,7 +137,8 @@ export const WarehouseManagement: React.FC = () => {
             adminErr instanceof ApiError ? adminErr.message : 'Gán admin thất bại'
           setAlert({
             open: true,
-            type: 'success',
+            type: 'warning',
+            title: 'Lưu ý',
             message: `Tạo kho thành công nhưng ${detail}. Gán lại khi chỉnh sửa kho.`,
           })
           await loadWarehouses()
@@ -173,7 +176,8 @@ export const WarehouseManagement: React.FC = () => {
               adminErr instanceof ApiError ? adminErr.message : 'Gán admin thất bại'
             setAlert({
               open: true,
-              type: 'success',
+              type: 'warning',
+              title: 'Lưu ý',
               message: `Cập nhật kho thành công nhưng ${detail}.`,
             })
             await loadWarehouses()
@@ -192,7 +196,8 @@ export const WarehouseManagement: React.FC = () => {
     } catch (err) {
       setAlert({
         open: true,
-        type: 'success',
+        type: 'error',
+        title: 'Có lỗi xảy ra',
         message: err instanceof ApiError ? err.message : 'Thao tác thất bại',
       })
       throw err
@@ -207,7 +212,8 @@ export const WarehouseManagement: React.FC = () => {
     } catch (err) {
       setAlert({
         open: true,
-        type: 'success',
+        type: 'error',
+        title: 'Có lỗi xảy ra',
         message: err instanceof ApiError ? err.message : 'Xóa thất bại',
       })
     }
@@ -263,9 +269,7 @@ export const WarehouseManagement: React.FC = () => {
         <div className="relative z-10 flex-1 p-8">
           <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
             {error && (
-              <p className="rounded-lg border border-red-400/20 bg-red-400/10 px-4 py-2 text-sm text-red-400">
-                {error}
-              </p>
+              <InlineAlert message={error} onDismiss={() => setError('')} />
             )}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               <StatsCard title="Số lượng kho" value={warehouse.length} icon="group" accentColor="emerald" />
@@ -451,7 +455,7 @@ export const WarehouseManagement: React.FC = () => {
       )}
       {alert.open && (
         <AlertModal
-          title="Thông báo"
+          title={alert.title ?? 'Thông báo'}
           message={alert.message}
           type={alert.type}
           onConfirm={alert.onConfirm}
