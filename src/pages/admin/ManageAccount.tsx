@@ -11,9 +11,10 @@ import * as usersApi from '../../api/users'
 import { statusToApiStatus, USER_ROLE_LABEL, userToAccount } from '../../mappers'
 import { useAuth } from '../../auth/AuthContext'
 import type { AccountFormValues } from '../../components/ui/modal/AccountModal'
-import type { UserRole } from '../../api/types'
+import type { UserRole, UserStatus } from '../../api/types'
 
 type AccountRoleFilter = UserRole | 'all'
+type AccountStatusFilter = UserStatus | 'all'
 
 function roleFilterOptionsFor(creatorRole?: UserRole): { value: AccountRoleFilter; label: string }[] {
   const all = { value: 'all' as const, label: 'Tất cả vai trò' }
@@ -50,7 +51,21 @@ function pageSubtitleFor(creatorRole?: UserRole): string {
   if (creatorRole === 'TENANT_ADMIN') {
     return 'Tạo và quản lý nhân viên tenant (TENANT_STAFF) trong brand của bạn.'
   }
-  return 'Quản lý tài khoản hệ thống, warehouse admin và tenant admin.'
+  return 'Quản lý tài khoản hệ thống — dùng nút kích hoạt/vô hiệu hóa hoặc chỉnh sửa chi tiết.'
+}
+
+const STATUS_FILTER_OPTIONS: { value: AccountStatusFilter; label: string }[] = [
+  { value: 'all', label: 'Tất cả trạng thái' },
+  { value: 'ACTIVE', label: 'Đang hoạt động' },
+  { value: 'INACTIVE', label: 'Vô hiệu hóa' },
+  { value: 'SUSPENDED', label: 'Tạm ngưng' },
+  { value: 'BLOCKED', label: 'Bị khóa' },
+]
+
+function accountStatusLabel(status: Account['status']) {
+  if (status === 'Active') return 'Đang hoạt động'
+  if (status === 'Suspended') return 'Tạm ngưng'
+  return 'Vô hiệu hóa'
 }
 
 export const AccountManagement: React.FC = () => {
@@ -60,7 +75,9 @@ export const AccountManagement: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [roleFilter, setRoleFilter] = useState<AccountRoleFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<AccountStatusFilter>('all')
   const roleFilterOptions = roleFilterOptionsFor(currentUser?.role)
+  const isSystemAdmin = currentUser?.role === 'SYSTEM_ADMIN'
   const canManageAccounts =
     currentUser?.role === 'SYSTEM_ADMIN' ||
     currentUser?.role === 'WH_ADMIN' ||
@@ -76,8 +93,11 @@ export const AccountManagement: React.FC = () => {
     open: boolean
     type: 'success' | 'error' | 'warning' | 'confirm'
     message: string
+    title?: string
     onConfirm?: () => void
   }>({ open: false, type: 'success', message: '' })
+
+  const [toggleBusyId, setToggleBusyId] = useState<string | null>(null)
 
   const loadAccounts = useCallback(async () => {
     setLoading(true)
@@ -85,6 +105,7 @@ export const AccountManagement: React.FC = () => {
     try {
       const params: Parameters<typeof usersApi.listUsers>[0] = { limit: 100 }
       if (roleFilter !== 'all') params.role = roleFilter
+      if (statusFilter !== 'all') params.status = statusFilter
       const { items } = await usersApi.listUsers(params)
       setAccounts(items.map((u, i) => userToAccount(u, i)))
     } catch (err) {
@@ -92,7 +113,7 @@ export const AccountManagement: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [roleFilter])
+  }, [roleFilter, statusFilter])
 
   useEffect(() => {
     loadAccounts()
@@ -152,6 +173,55 @@ export const AccountManagement: React.FC = () => {
     }
   }
 
+  const handleToggleActive = (acc: Account) => {
+    if (!isSystemAdmin) return
+    if (acc.id === currentUser?.userId) {
+      setAlert({
+        open: true,
+        type: 'warning',
+        title: 'Không thể thực hiện',
+        message: 'Bạn không thể tự vô hiệu hóa tài khoản của chính mình.',
+      })
+      return
+    }
+
+    const isActive = acc.apiStatus === 'ACTIVE'
+    const nextActive = !isActive
+    const actionLabel = nextActive ? 'kích hoạt' : 'vô hiệu hóa'
+
+    setAlert({
+      open: true,
+      type: 'confirm',
+      title: nextActive ? 'Kích hoạt tài khoản' : 'Vô hiệu hóa tài khoản',
+      message: `Bạn có chắc muốn ${actionLabel} tài khoản "${acc.name}" (${acc.email})?${
+        nextActive ? '' : ' Người dùng sẽ không đăng nhập được cho đến khi được kích hoạt lại.'
+      }`,
+      onConfirm: async () => {
+        setToggleBusyId(acc.id)
+        try {
+          await usersApi.setUserAccountActive(acc.id, nextActive)
+          setAlert({
+            open: true,
+            type: 'success',
+            message: nextActive
+              ? `Đã kích hoạt tài khoản ${acc.name}.`
+              : `Đã vô hiệu hóa tài khoản ${acc.name}.`,
+          })
+          await loadAccounts()
+        } catch (err) {
+          setAlert({
+            open: true,
+            type: 'error',
+            title: 'Có lỗi xảy ra',
+            message: err instanceof ApiError ? err.message : 'Cập nhật trạng thái thất bại',
+          })
+        } finally {
+          setToggleBusyId(null)
+        }
+      },
+    })
+  }
+
   const filteredAccounts = useMemo(() => {
     return accounts.filter(acc => {
       const matchSearch =
@@ -180,8 +250,8 @@ export const AccountManagement: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, roleFilter])
-  const activeCount = accounts.filter((a) => a.status === 'Active').length
+  }, [search, roleFilter, statusFilter])
+  const activeCount = accounts.filter((a) => a.apiStatus === 'ACTIVE').length
 
   return (
     <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
@@ -246,6 +316,20 @@ export const AccountManagement: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                  {isSystemAdmin && (
+                    <select
+                      aria-label="Lọc theo trạng thái"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value as AccountStatusFilter)}
+                      className="px-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
+                    >
+                      {STATUS_FILTER_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   {canManageAccounts && (
                     <button
                       type="button"
@@ -286,13 +370,34 @@ export const AccountManagement: React.FC = () => {
                           </td>
 
                           <td className="px-6 py-4 ">
-                            <span className={`flex items-center justify-center  gap-1 px-2 py-1 text-xs rounded-full ring-1 ${acc.statusClassName}`}>
-                              {acc.status}
+                            <span className={`flex items-center justify-center gap-1 px-2 py-1 text-xs rounded-full ring-1 ${acc.statusClassName}`}>
+                              {accountStatusLabel(acc.status)}
                             </span>
                           </td>
 
                           <td className="px-6 py-4 text-right">
-                            <div className="flex justify-end gap-2 opacity-60 group-hover:opacity-100">
+                            <div className="flex justify-end gap-2">
+                              {isSystemAdmin && acc.id !== currentUser?.userId && (
+                                <button
+                                  type="button"
+                                  title={
+                                    acc.apiStatus === 'ACTIVE'
+                                      ? 'Vô hiệu hóa tài khoản'
+                                      : 'Kích hoạt tài khoản'
+                                  }
+                                  disabled={toggleBusyId === acc.id}
+                                  onClick={() => handleToggleActive(acc)}
+                                  className={`rounded p-1.5 hover:bg-white/10 disabled:opacity-40 ${
+                                    acc.apiStatus === 'ACTIVE'
+                                      ? 'text-orange-400'
+                                      : 'text-emerald-400'
+                                  }`}
+                                >
+                                  <span className="material-symbols-outlined text-lg">
+                                    {acc.apiStatus === 'ACTIVE' ? 'person_off' : 'how_to_reg'}
+                                  </span>
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 title="Xem chi tiết"
@@ -301,13 +406,16 @@ export const AccountManagement: React.FC = () => {
                               >
                                 <span className="material-symbols-outlined text-lg">visibility</span>
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => setModal({ open: true, mode: 'edit', data: acc })}
-                                className="rounded p-1.5 hover:bg-white/10"
-                              >
-                                <span className="material-symbols-outlined text-lg">edit</span>
-                              </button>
+                              {canManageAccounts && (
+                                <button
+                                  type="button"
+                                  title="Chỉnh sửa"
+                                  onClick={() => setModal({ open: true, mode: 'edit', data: acc })}
+                                  className="rounded p-1.5 hover:bg-white/10"
+                                >
+                                  <span className="material-symbols-outlined text-lg">edit</span>
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -359,7 +467,7 @@ export const AccountManagement: React.FC = () => {
       {/* Alert */}
       {alert.open && (
         <AlertModal
-          title="Thông báo"
+          title={alert.title ?? 'Thông báo'}
           message={alert.message}
           type={alert.type}
           onConfirm={alert.onConfirm}

@@ -61,3 +61,8 @@ export function updateUser(
 ) {
   return apiRequest<ApiUser>(`/users/${userId}`, { method: 'PATCH', body })
 }
+
+/** System Admin — bật/tắt tài khoản nhanh */
+export function setUserAccountActive(userId: string, active: boolean) {
+  return updateUser(userId, { status: active ? 'ACTIVE' : 'INACTIVE' })
+}

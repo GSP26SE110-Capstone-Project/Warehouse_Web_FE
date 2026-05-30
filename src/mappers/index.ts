@@ -64,6 +64,7 @@ export function userToAccount(u: ApiUser, index = 0): Account {
     email: u.email,
     role,
     apiRole,
+    apiStatus: u.status,
     roleClassName: ROLE_CLASS[apiRole] ?? 'bg-slate-400/10 text-slate-300 ring-slate-400/20',
     status,
     statusClassName: STATUS_CLASS[status],

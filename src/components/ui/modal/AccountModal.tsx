@@ -60,6 +60,12 @@ const ROLE_OPTIONS_TENANT_ADMIN: { value: UserRole; label: string }[] = [
   { value: 'TENANT_STAFF', label: 'Tenant Staff (Nhân viên tenant)' },
 ]
 
+function statusBadgeClass(status: string) {
+  if (status === 'Active') return 'text-emerald-400 bg-emerald-400/10 ring-emerald-400/20'
+  if (status === 'Suspended') return 'text-orange-400 bg-orange-400/10 ring-orange-400/20'
+  return 'text-gray-400 bg-gray-400/10 ring-gray-400/20'
+}
+
 function displayRole(role?: string) {
   const map: Record<string, string> = {
     WH_ADMIN: 'Warehouse Admin',
@@ -355,8 +361,14 @@ export const AccountModal: React.FC<Props> = ({
               <div>
                 <label className={labelStyle}>Trạng thái</label>
                 {isView ? (
-                  <span className="inline-flex px-3 py-1 rounded-full text-xs font-bold text-emerald-400 bg-emerald-400/10 ring-1 ring-emerald-400/20">
-                    {form.status}
+                  <span
+                    className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ring-1 ${statusBadgeClass(form.status)}`}
+                  >
+                    {form.status === 'Active'
+                      ? 'Đang hoạt động'
+                      : form.status === 'Suspended'
+                        ? 'Tạm ngưng'
+                        : 'Vô hiệu hóa'}
                   </span>
                 ) : (
                   <select
@@ -365,9 +377,11 @@ export const AccountModal: React.FC<Props> = ({
                     value={form.status}
                     onChange={(e) => setForm({ ...form, status: e.target.value })}
                   >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                    <option value="Suspended">Suspended</option>
+                    <option value="Active">Đang hoạt động</option>
+                    <option value="Inactive">Vô hiệu hóa</option>
+                    {creatorRole === 'SYSTEM_ADMIN' && (
+                      <option value="Suspended">Tạm ngưng</option>
+                    )}
                   </select>
                 )}
               </div>

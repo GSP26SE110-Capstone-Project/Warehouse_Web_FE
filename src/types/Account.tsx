@@ -1,4 +1,4 @@
-import type { UserRole } from '../api/types'
+import type { UserRole, UserStatus } from '../api/types'
 
 export interface Account {
   id: string
@@ -6,6 +6,7 @@ export interface Account {
   email: string
   role: string
   apiRole?: UserRole
+  apiStatus?: UserStatus
   roleClassName: string
   status: 'Active' | 'Inactive' | 'Suspended'
   statusClassName: string
