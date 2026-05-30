@@ -23,7 +23,7 @@ import {
   type BillableContractTypeValue,
   type ContractTypeValue,
 } from '../../../data/contractTypes'
-import type { UserRole } from '../../../api/types'
+import type { ApiContract, UserRole } from '../../../api/types'
 import type { RentalRequestRow } from '../../../mappers'
 import { getOnboardingStoragePlan } from '../../../utils/onboardingStorage'
 import {
@@ -77,6 +77,24 @@ function initialStep(row: RentalRequestRow): number {
   return 0
 }
 
+function pickLinkedContract(items: ApiContract[]): ApiContract | null {
+  if (items.length === 0) return null
+  return (
+    items.find((c) => c.status === 'ACTIVE') ??
+    items.find((c) => c.status === 'PENDING_APPROVAL') ??
+    items.find((c) => c.status === 'DRAFT') ??
+    items[0]
+  )
+}
+
+function contractReadyForStorage(contract: ApiContract): boolean {
+  return (
+    contract.status === 'ACTIVE' ||
+    contract.status === 'PENDING_APPROVAL' ||
+    Boolean(String(contract.warehouseSignature ?? '').trim())
+  )
+}
+
 export function RentalOnboardingWizard({
   row,
   warehouses,
@@ -125,6 +143,8 @@ export function RentalOnboardingWizard({
     setPricingModel(defaultPricingModel(contractType))
   }, [contractType])
   const [contractId, setContractId] = useState<string | null>(null)
+  const [linkedContract, setLinkedContract] = useState<ApiContract | null>(null)
+  const [contractLoading, setContractLoading] = useState(false)
   const contractStart = toDateInput(row.expectedStartDate)
   const contractEnd = toDateInput(row.expectedEndDate)
   const [estimatedAmount, setEstimatedAmount] = useState('')
@@ -409,28 +429,81 @@ export function RentalOnboardingWizard({
     }
   }, [rackLevelId, storagePlan.needsBin])
 
-  const loadExistingContract = useCallback(async () => {
-    const { items } = await contractsApi.listContracts({
-      rentalRequestId: row.rentalRequestId,
-      limit: 5,
-    })
-    const active = items.find((c) => c.status === 'ACTIVE') ?? items[0]
-    if (active) {
-      setContractId(active.contractId)
-      if (active.estimatedTotalAmount != null) {
-        setEstimatedAmount(String(active.estimatedTotalAmount))
-      }
-      if (active.status === 'ACTIVE' && row.apiStatus !== 'CONVERTED') {
-        setStep(2)
-      }
+  const applyLinkedContract = useCallback((pick: ApiContract) => {
+    setContractId(pick.contractId)
+    setLinkedContract(pick)
+    if (pick.estimatedTotalAmount != null) {
+      setEstimatedAmount(String(pick.estimatedTotalAmount))
     }
-  }, [row.rentalRequestId, row.apiStatus])
+  }, [])
+
+  const resolveLinkedContract = useCallback(
+    async (wh: string): Promise<ApiContract | null> => {
+      const byRr = await contractsApi.listContracts({
+        rentalRequestId: row.rentalRequestId,
+        limit: 10,
+      })
+      let pick = pickLinkedContract(byRr.items)
+      if (pick) return pick
+
+      if (row.tenantId && wh) {
+        const byTenantWh = await contractsApi.listContracts({
+          tenantId: row.tenantId,
+          warehouseId: wh,
+          limit: 50,
+        })
+        pick = pickLinkedContract(
+          byTenantWh.items.filter(
+            (c) => !c.rentalRequestId || c.rentalRequestId === row.rentalRequestId
+          )
+        )
+        if (pick) return pick
+      }
+
+      if (row.tenantId) {
+        const byTenant = await contractsApi.listContracts({
+          tenantId: row.tenantId,
+          limit: 50,
+        })
+        pick = pickLinkedContract(
+          byTenant.items.filter(
+            (c) => !c.rentalRequestId || c.rentalRequestId === row.rentalRequestId
+          )
+        )
+        if (pick) return pick
+      }
+
+      return null
+    },
+    [row.rentalRequestId, row.tenantId]
+  )
+
+  const loadExistingContract = useCallback(async (): Promise<ApiContract | null> => {
+    const wh = whId || resolveWarehouseId(row)
+    const pick = await resolveLinkedContract(wh)
+    if (!pick) {
+      setLinkedContract(null)
+      return null
+    }
+    applyLinkedContract(pick)
+    return pick
+  }, [whId, row, resolveWarehouseId, resolveLinkedContract, applyLinkedContract])
 
   useEffect(() => {
-    if (row.apiStatus === 'APPROVED' || row.apiStatus === 'CONVERTED') {
-      loadExistingContract().catch(() => {})
+    if (step < 1) return
+    let cancelled = false
+    setContractLoading(true)
+    loadExistingContract()
+      .catch(() => {
+        if (!cancelled) setLinkedContract(null)
+      })
+      .finally(() => {
+        if (!cancelled) setContractLoading(false)
+      })
+    return () => {
+      cancelled = true
     }
-  }, [row.apiStatus, loadExistingContract])
+  }, [step, loadExistingContract])
 
   useEffect(() => {
     if (step !== 1) return
@@ -477,10 +550,15 @@ export function RentalOnboardingWizard({
     } catch (err) {
       if (err instanceof ApiError) {
         const isConflict = err.status === 409
+        const isContractDuplicate = err.code === 'CONTRACT_ALREADY_LINKED'
         setApiAlert({
           open: true,
           type: isConflict ? 'warning' : 'error',
-          title: isConflict ? 'Không thể cấp chỗ lưu trữ' : 'Có lỗi xảy ra',
+          title: isContractDuplicate
+            ? 'Hợp đồng đã tồn tại'
+            : isConflict
+              ? 'Không thể hoàn tất'
+              : 'Có lỗi xảy ra',
           message: err.message,
         })
       } else {
@@ -515,6 +593,7 @@ export function RentalOnboardingWizard({
       if (!items.some((r) => r.binId === binId)) return false
     }
 
+    await contractsApi.updateContract(contractId, { status: 'PENDING_APPROVAL' })
     await finishOnboarding()
     return true
   }
@@ -570,6 +649,28 @@ export function RentalOnboardingWizard({
       onClose()
     })
 
+  const handleContinueToStorageStep = () => {
+    run(async () => {
+      setApiAlert({ open: false, message: '', type: 'error' })
+      const wh = whId || resolveWarehouseId(row)
+      let existing = linkedContract
+
+      if (!existing && contractId) {
+        existing = await contractsApi.getContract(contractId).catch(() => null)
+      }
+      if (!existing) {
+        existing = await resolveLinkedContract(wh)
+      }
+      if (!existing) {
+        setError('Không tìm thấy hợp đồng cho yêu cầu này.')
+        return
+      }
+
+      applyLinkedContract(existing)
+      setStep(2)
+    })
+  }
+
   const handleCreateContract = () =>
     run(async () => {
       if (!contractStart || !contractEnd) {
@@ -579,9 +680,31 @@ export function RentalOnboardingWizard({
         return
       }
       const wh = whId || resolveWarehouseId(row)
-      let cId = contractId
 
-      if (!cId) {
+      let existing = linkedContract
+      if (!existing && contractId) {
+        existing = await contractsApi.getContract(contractId).catch(() => null)
+      }
+      if (!existing) {
+        existing = await resolveLinkedContract(wh)
+      }
+
+      if (existing) {
+        applyLinkedContract(existing)
+        if (!contractReadyForStorage(existing)) {
+          const updated = await contractsApi.updateContract(existing.contractId, {
+            warehouseSignature: 'SIGNED_WH_ONBOARDING',
+            startDate: contractStart,
+            endDate: contractEnd,
+            estimatedTotalAmount: estimatedAmount ? Number(estimatedAmount) : undefined,
+          })
+          applyLinkedContract(updated)
+        }
+        setStep(2)
+        return
+      }
+
+      try {
         const draft = await contractsApi.createContract({
           tenantId: row.tenantId,
           warehouseId: wh,
@@ -595,18 +718,26 @@ export function RentalOnboardingWizard({
           estimatedTotalAmount: estimatedAmount ? Number(estimatedAmount) : undefined,
           status: 'DRAFT',
         })
-        cId = draft.contractId
-        setContractId(cId)
+        applyLinkedContract(draft)
+        const updated = await contractsApi.updateContract(draft.contractId, {
+          warehouseSignature: 'SIGNED_WH_ONBOARDING',
+          startDate: contractStart,
+          endDate: contractEnd,
+          estimatedTotalAmount: estimatedAmount ? Number(estimatedAmount) : undefined,
+        })
+        applyLinkedContract(updated)
+        setStep(2)
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 409) {
+          const recovered = await resolveLinkedContract(wh)
+          if (recovered) {
+            applyLinkedContract(recovered)
+            setStep(2)
+            return
+          }
+        }
+        throw err
       }
-
-      await contractsApi.updateContract(cId, {
-        status: 'PENDING_APPROVAL',
-        warehouseSignature: 'SIGNED_WH_ONBOARDING',
-        startDate: contractStart,
-        endDate: contractEnd,
-        estimatedTotalAmount: estimatedAmount ? Number(estimatedAmount) : undefined,
-      })
-      setStep(2)
     })
 
   const handleAssignStorage = () =>
@@ -724,6 +855,7 @@ export function RentalOnboardingWizard({
           ...(reservedCapacityNum ? { reservedCapacity: reservedCapacityNum } : {}),
         })
       }
+      await contractsApi.updateContract(contractId, { status: 'PENDING_APPROVAL' })
       await finishOnboarding()
     })
 
@@ -978,6 +1110,23 @@ export function RentalOnboardingWizard({
           {step === 1 && (
             <div className="space-y-4">
               <SummaryBlock row={row} whName={whName} compact />
+              {linkedContract && (
+                <InlineAlert
+                  variant="success"
+                  title="Hợp đồng đã có"
+                  message={
+                    <>
+                      Mã <strong>{linkedContract.contractCode}</strong> · trạng thái{' '}
+                      <strong>{linkedContract.status}</strong>. Bấm{' '}
+                      <strong>Tiếp — Cấp bin / zone</strong> bên dưới để cấp chỗ lưu trữ — không
+                      tạo hợp đồng mới.
+                    </>
+                  }
+                />
+              )}
+              {contractLoading && !linkedContract && (
+                <p className="text-sm text-slate-400">Đang kiểm tra hợp đồng hiện có...</p>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelStyle}>Loại HĐ</label>
@@ -1086,9 +1235,10 @@ export function RentalOnboardingWizard({
               </div>
               <p className="text-xs text-slate-500">
                 Thời hạn hợp đồng lấy từ yêu cầu thuê của khách ({row.startDate || '—'} →{' '}
-                {row.endDate || '—'}). Kho ký và gửi trạng thái{' '}
-                <strong className="text-slate-300">Chờ tenant ký</strong>; Tenant Admin ký trên
-                portal rồi HĐ mới ACTIVE. Sau đó cấp chỗ lưu trữ (bước 3).
+                {row.endDate || '—'}). Kho ký trước; sau khi{' '}
+                <strong className="text-slate-300">cấp bin/zone (bước 3)</strong> hợp đồng chuyển{' '}
+                <strong className="text-slate-300">Chờ tenant ký</strong> — Tenant Admin ký trên portal
+                rồi HĐ mới ACTIVE.
               </p>
             </div>
           )}
@@ -1322,16 +1472,31 @@ export function RentalOnboardingWizard({
                 Tiếp — Hợp đồng
               </button>
             )}
-            {step === 1 && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={handleCreateContract}
-                className="rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-2 text-sm font-bold text-black disabled:opacity-50"
-              >
-                Kích hoạt HĐ & tiếp
-              </button>
-            )}
+            {step === 1 &&
+              (contractLoading ? (
+                <span className="text-sm text-slate-400">Đang kiểm tra hợp đồng...</span>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={handleContinueToStorageStep}
+                    className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-bold text-black disabled:opacity-50"
+                  >
+                    Tiếp — Cấp bin / zone
+                  </button>
+                  {!linkedContract && !contractId && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={handleCreateContract}
+                      className="rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-2 text-sm font-bold text-black disabled:opacity-50"
+                    >
+                      Kích hoạt HĐ & tiếp
+                    </button>
+                  )}
+                </>
+              ))}
             {step === 2 && !stepDone && (
               <button
                 type="button"

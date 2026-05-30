@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { InlineAlert } from '../ui/FeedbackAlert'
 import { ApiError } from '../../api/client'
 import * as contractsApi from '../../api/contracts'
+import * as storageReservationsApi from '../../api/storageReservations'
 import * as warehousesApi from '../../api/warehouses'
 import type { ApiContract } from '../../api/types'
 import {
@@ -30,6 +31,7 @@ export function TenantContractSignModal({ contractId, onClose, onSigned }: Props
   const [error, setError] = useState('')
   const [contract, setContract] = useState<ApiContract | null>(null)
   const [warehouseLabel, setWarehouseLabel] = useState('')
+  const [storageSummary, setStorageSummary] = useState<string[]>([])
   const [signature, setSignature] = useState<string | null>(null)
   const [agreed, setAgreed] = useState(false)
 
@@ -40,12 +42,32 @@ export function TenantContractSignModal({ contractId, onClose, onSigned }: Props
       setError('')
       try {
         const c = await contractsApi.getContract(contractId)
-        const wh = await warehousesApi.getWarehouse(c.warehouseId)
+        const [wh, reservationRes] = await Promise.all([
+          warehousesApi.getWarehouse(c.warehouseId),
+          storageReservationsApi.listStorageReservations({
+            contractId,
+            status: 'ACTIVE',
+            limit: 50,
+          }),
+        ])
         if (cancelled) return
         setContract(c)
         setWarehouseLabel(
           `${wh.warehouseName} (${wh.warehouseCode}) — ${wh.district}, ${wh.city}`
         )
+        const lines = reservationRes.items.map((r) => {
+          if (r.storageLevel === 'WAREHOUSE') return `Toàn kho ${wh.warehouseCode}`
+          if (r.zoneCode) {
+            const cap =
+              r.reservedCapacity != null && Number(r.reservedCapacity) > 0
+                ? ` (~${Number(r.reservedCapacity).toLocaleString('vi-VN')} thùng)`
+                : ''
+            return `Zone ${r.zoneCode}${cap}`
+          }
+          if (r.binCode) return `Bin ${r.binCode}`
+          return r.storageLevel
+        })
+        setStorageSummary([...new Set(lines)])
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof ApiError ? err.message : 'Không tải được hợp đồng')
@@ -155,6 +177,24 @@ export function TenantContractSignModal({ contractId, onClose, onSigned }: Props
                   </p>
                 </div>
               </div>
+
+              {storageSummary.length > 0 && (
+                <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4 text-sm">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                    Vị trí đã cấp
+                  </p>
+                  <ul className="mt-2 space-y-1 text-slate-300">
+                    {storageSummary.map((line) => (
+                      <li key={line} className="flex items-center gap-2 text-xs">
+                        <span className="material-symbols-outlined text-sm text-cyan-400/80">
+                          inventory_2
+                        </span>
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <p className="text-xs text-slate-500">
                 Kho đã ký trước. Sau khi bạn ký, hợp đồng chuyển sang{' '}

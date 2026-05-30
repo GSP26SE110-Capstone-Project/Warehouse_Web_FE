@@ -9,6 +9,7 @@ import * as storageReservationsApi from '../../api/storageReservations'
 import * as warehousesApi from '../../api/warehouses'
 
 import { TenantContractSignModal } from '../../components/contracts/TenantContractSignModal'
+import { TenantContractDetailModal } from '../../components/contracts/TenantContractDetailModal'
 import { TenantStorageAllocationPanel } from '../../components/contracts/TenantStorageAllocationPanel'
 import { InlineAlert } from '../../components/ui/FeedbackAlert'
 
@@ -29,6 +30,8 @@ import {
   needsTenantSignature,
 
   parseContractAmount,
+
+  waitingForStorageAssignment,
 
 } from '../../utils/contractSigning'
 
@@ -81,6 +84,7 @@ export function TenantContractsPage() {
   const [warehouseNames, setWarehouseNames] = useState<Map<string, string>>(new Map())
 
   const [signContractId, setSignContractId] = useState<string | null>(null)
+  const [detailContractId, setDetailContractId] = useState<string | null>(null)
 
 
 
@@ -149,12 +153,32 @@ export function TenantContractsPage() {
 
 
 
+  const activeReservationByContract = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const r of reservations) {
+      if (r.status !== 'ACTIVE') continue
+      map.set(r.contractId, (map.get(r.contractId) ?? 0) + 1)
+    }
+    return map
+  }, [reservations])
+
+  const signingContextFor = useCallback(
+    (contractId: string) => ({
+      hasStorageReservation: (activeReservationByContract.get(contractId) ?? 0) > 0,
+    }),
+    [activeReservationByContract]
+  )
+
   const pendingSignContracts = useMemo(
+    () =>
+      contracts.filter((c) => needsTenantSignature(c, signingContextFor(c.contractId))),
+    [contracts, signingContextFor]
+  )
 
-    () => contracts.filter((c) => needsTenantSignature(c)),
-
-    [contracts]
-
+  const waitingStorageContracts = useMemo(
+    () =>
+      contracts.filter((c) => waitingForStorageAssignment(c, signingContextFor(c.contractId))),
+    [contracts, signingContextFor]
   )
 
 
@@ -172,6 +196,20 @@ export function TenantContractsPage() {
         )}
 
 
+
+        {!loading && waitingStorageContracts.length > 0 && (
+          <div className="rounded-xl border border-slate-500/30 bg-slate-500/10 px-5 py-4">
+            <p className="flex items-start gap-2 text-sm text-slate-200">
+              <span className="material-symbols-outlined shrink-0 text-lg text-slate-400">
+                inventory_2
+              </span>
+              <span>
+                Kho đã ký <strong>{waitingStorageContracts.length}</strong> hợp đồng nhưng chưa cấp
+                vị trí lưu trữ. Bạn chỉ ký được sau khi kho hoàn tất bước cấp bin/zone.
+              </span>
+            </p>
+          </div>
+        )}
 
         {!loading && pendingSignContracts.length > 0 && (
 
@@ -247,7 +285,8 @@ export function TenantContractsPage() {
 
                   const amount = parseContractAmount(c.estimatedTotalAmount)
 
-                  const canSign = needsTenantSignature(c)
+                  const signCtx = signingContextFor(c.contractId)
+                  const canSign = needsTenantSignature(c, signCtx)
 
                   return (
 
@@ -299,34 +338,29 @@ export function TenantContractsPage() {
 
                       <td className="px-6 py-3 text-xs text-slate-400">
 
-                        {contractSigningStepLabel(c)}
+                        {contractSigningStepLabel(c, signCtx)}
 
                       </td>
 
                       <td className="px-6 py-3 text-right">
-
-                        {canSign ? (
-
+                        <div className="flex justify-end gap-2">
                           <button
-
                             type="button"
-
-                            onClick={() => setSignContractId(c.contractId)}
-
-                            className="rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-cyan-400"
-
+                            onClick={() => setDetailContractId(c.contractId)}
+                            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5"
                           >
-
-                            Ký hợp đồng
-
+                            Chi tiết
                           </button>
-
-                        ) : (
-
-                          <span className="text-xs text-slate-600">—</span>
-
-                        )}
-
+                          {canSign ? (
+                            <button
+                              type="button"
+                              onClick={() => setSignContractId(c.contractId)}
+                              className="rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-cyan-400"
+                            >
+                              Ký HĐ
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
 
                     </tr>
@@ -368,6 +402,16 @@ export function TenantContractsPage() {
       </div>
 
 
+
+      {detailContractId && (
+        <TenantContractDetailModal
+          contractId={detailContractId}
+          reservations={reservations}
+          signingContext={signingContextFor(detailContractId)}
+          onClose={() => setDetailContractId(null)}
+          onSign={() => setSignContractId(detailContractId)}
+        />
+      )}
 
       {signContractId && (
 

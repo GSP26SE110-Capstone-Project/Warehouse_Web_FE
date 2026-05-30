@@ -8,14 +8,20 @@ const EXACT: Record<string, string> = {
   'Authentication required': 'Yêu cầu đăng nhập',
   'Invalid email or password': 'Email hoặc mật khẩu không đúng',
   'Account is not active': 'Tài khoản chưa được kích hoạt',
+  'Rental request is already linked to another contract':
+    'Yêu cầu thuê đã có hợp đồng — tiếp tục với hợp đồng hiện có.',
 }
 
 const CODE_MESSAGES: Record<string, string> = {
-  RESERVATION_CONFLICT:
-    'Vị trí lưu trữ đã được cấp cho tenant khác trong khoảng thời gian này. Chọn zone/bin khác hoặc điều chỉnh thời hạn hợp đồng.',
   ZONE_ALREADY_ASSIGNED:
-    'Zone này đã được cấp cho tenant khác. Chọn zone khác hoặc điều chỉnh loại thuê (SHARED/DEDICATED).',
+    'Zone này đã được cấp riêng hoặc đang bị khóa DEDICATED — chọn zone khác.',
+  RESERVATION_CONFLICT:
+    'Vị trí lưu trữ không khả dụng trong khoảng thời gian này — chọn vị trí khác hoặc điều chỉnh thời hạn.',
   DUPLICATE: 'Dữ liệu đã tồn tại trong hệ thống.',
+  CONTRACT_ALREADY_LINKED:
+    'Yêu cầu thuê đã có hợp đồng — tiếp tục với hợp đồng hiện có.',
+  STORAGE_NOT_ASSIGNED:
+    'Kho chưa cấp vị trí lưu trữ — bạn chỉ ký sau khi kho hoàn tất cấp bin/zone.',
   ALREADY_CLAIMED: 'Yêu cầu đã được kho khác duyệt trước.',
 }
 

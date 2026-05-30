@@ -14,13 +14,30 @@ export function hasTenantSignature(contract: Pick<ApiContract, 'tenantSignature'
   return Boolean(String(contract.tenantSignature ?? '').trim())
 }
 
-/** Tenant admin — bước ký cuối, sau khi kho đã ký. */
+export type ContractSigningContext = {
+  /** Ít nhất một storage reservation ACTIVE cho HĐ này */
+  hasStorageReservation?: boolean
+}
+
+/** Tenant admin — ký sau khi kho đã ký và đã cấp bin/zone. */
 export function needsTenantSignature(
-  contract: Pick<ApiContract, 'status' | 'tenantSignature' | 'warehouseSignature'>
+  contract: Pick<ApiContract, 'status' | 'tenantSignature' | 'warehouseSignature'>,
+  context?: ContractSigningContext
 ): boolean {
   if (hasTenantSignature(contract)) return false
   if (!hasWarehouseSignature(contract)) return false
-  return contract.status === 'PENDING_APPROVAL' || contract.status === 'DRAFT'
+  if (context?.hasStorageReservation === false) return false
+  return contract.status === 'PENDING_APPROVAL'
+}
+
+/** Kho đã ký nhưng chưa cấp chỗ — tenant chưa được ký. */
+export function waitingForStorageAssignment(
+  contract: Pick<ApiContract, 'status' | 'tenantSignature' | 'warehouseSignature'>,
+  context?: ContractSigningContext
+): boolean {
+  if (hasTenantSignature(contract)) return false
+  if (!hasWarehouseSignature(contract)) return false
+  return context?.hasStorageReservation === false
 }
 
 const STATUS_LABELS: Record<ContractStatus, string> = {
@@ -37,12 +54,16 @@ export function contractStatusLabel(status: ContractStatus): string {
 }
 
 export function contractSigningStepLabel(
-  contract: Pick<ApiContract, 'status' | 'tenantSignature' | 'warehouseSignature'>
+  contract: Pick<ApiContract, 'status' | 'tenantSignature' | 'warehouseSignature'>,
+  context?: ContractSigningContext
 ): string {
   if (contract.status === 'ACTIVE' && hasTenantSignature(contract)) {
     return 'Đã ký đủ hai bên'
   }
-  if (needsTenantSignature(contract)) {
+  if (waitingForStorageAssignment(contract, context)) {
+    return 'Chờ kho cấp vị trí lưu trữ'
+  }
+  if (needsTenantSignature(contract, context)) {
     return 'Chờ Tenant Admin ký'
   }
   if (!hasWarehouseSignature(contract)) {
