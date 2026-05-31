@@ -19,7 +19,7 @@ export const AdminLayout: React.FC = () => {
             <div className={`flex-1 flex flex-col transition-all duration-300 
                 }`}>
                 {/* Top Header */}
-                <div className=" fixed top-0 right-0 left-0 z-20" style={{
+                <div className="fixed top-0 right-0 left-0 z-20 overflow-visible" style={{
                     marginLeft: sidebarCollapsed ? '4rem' : '16rem'
                 }}>
                     <AdminHeader />
