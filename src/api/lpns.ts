@@ -37,6 +37,8 @@ export function listLpns(params?: {
   tenantId?: string
   batchId?: string
   status?: string
+  boxType?: BoxType
+  currentBinId?: string
   page?: number
   limit?: number
 }) {

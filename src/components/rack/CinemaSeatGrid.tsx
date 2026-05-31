@@ -73,7 +73,11 @@ export function CinemaSeatGrid({
     : 'min-w-11 min-h-11 w-11 h-auto sm:min-w-12 sm:min-h-12 sm:w-12 py-1 text-[9px] sm:text-[10px]'
 
   return (
-    <div className={perspective ? 'cinema-floor mx-auto max-w-full' : 'mx-auto max-w-full'}>
+    // Wrapper KHÔNG có perspective — chứa screen, floor, và legend ở các container riêng.
+    // Lý do: `cinema-floor` dùng CSS perspective transform → mọi thứ bên trong bị tilt và
+    // z-stack lung tung. Trước đây legend nằm trong cùng container → bị seat đè lên khi
+    // có nhiều rack. Tách legend ra ngoài đảm bảo hiển thị phẳng phía dưới.
+    <div className="mx-auto max-w-full">
       {screenLabel && (
         <div className="mb-6 flex flex-col items-center">
           <div className="cinema-screen mb-2 w-full max-w-2xl rounded-t-[50%] border border-cyan-500/20 bg-gradient-to-b from-cyan-500/20 to-transparent px-8 py-3 text-center text-xs font-bold uppercase tracking-[0.35em] text-cyan-300/90 shadow-[0_8px_32px_rgba(6,237,249,0.15)]">
@@ -83,54 +87,56 @@ export function CinemaSeatGrid({
         </div>
       )}
 
-      <div
-        className={`cinema-grid inline-block rounded-xl border border-white/5 bg-[#0d1420]/80 p-4 sm:p-6 ${
-          perspective ? '' : ''
-        }`}
-      >
-        <div className="flex flex-col gap-1.5 sm:gap-2">
-          {cells.map((row, rowIndex) => (
-            <div key={rowIndex} className="flex items-center gap-2">
-              <span className="w-6 shrink-0 text-center text-xs font-bold text-cyan-400/80">
-                {rowLabels?.[rowIndex] ?? rowLabel(rowIndex)}
-              </span>
-              <div className="flex flex-wrap gap-1 sm:gap-1.5">
-                {row.map((seat, colIndex) => {
-                  const isSelected = seat.id != null && seat.id === selectedId
-                  const status = isSelected ? 'selected' : seat.status
-                  return (
-                    <button
-                      key={`${rowIndex}-${colIndex}-${seat.id ?? 'e'}`}
-                      type="button"
-                      disabled={seat.disabled}
-                      title={seat.hint ?? seat.label}
-                      onClick={() => onSeatClick?.(seat, rowIndex, colIndex)}
-                      className={`cinema-seat flex ${seatSize} flex-col items-center justify-center rounded-md border font-mono font-bold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-40 ${STATUS_CLASS[status]}`}
-                    >
-                      <span className="leading-none">{seat.label}</span>
-                      {seat.subLabel && (
-                        <span className="mt-0.5 text-[8px] font-normal leading-none opacity-90">
-                          {seat.subLabel}
-                        </span>
-                      )}
-                    </button>
-                  )
-                })}
+      <div className={perspective ? 'cinema-floor' : ''}>
+        <div className="cinema-grid inline-block rounded-xl border border-white/5 bg-[#0d1420]/80 p-4 sm:p-6">
+          <div className="flex flex-col gap-1.5 sm:gap-2">
+            {cells.map((row, rowIndex) => (
+              <div key={rowIndex} className="flex items-center gap-2">
+                <span className="w-6 shrink-0 text-center text-xs font-bold text-cyan-400/80">
+                  {rowLabels?.[rowIndex] ?? rowLabel(rowIndex)}
+                </span>
+                <div className="flex flex-wrap gap-1 sm:gap-1.5">
+                  {row.map((seat, colIndex) => {
+                    const isSelected = seat.id != null && seat.id === selectedId
+                    const status = isSelected ? 'selected' : seat.status
+                    return (
+                      <button
+                        key={`${rowIndex}-${colIndex}-${seat.id ?? 'e'}`}
+                        type="button"
+                        disabled={seat.disabled}
+                        title={seat.hint ?? seat.label}
+                        onClick={() => onSeatClick?.(seat, rowIndex, colIndex)}
+                        className={`cinema-seat flex ${seatSize} flex-col items-center justify-center rounded-md border font-mono font-bold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-40 ${STATUS_CLASS[status]}`}
+                      >
+                        <span className="leading-none">{seat.label}</span>
+                        {seat.subLabel && (
+                          <span className="mt-0.5 text-[8px] font-normal leading-none opacity-90">
+                            {seat.subLabel}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        <div className="mt-4 flex justify-center gap-1">
-          {Array.from({ length: cells[0]?.length ?? 0 }).map((_, i) => (
-            <span key={i} className="w-9 text-center text-[10px] text-slate-500 sm:w-12">
-              {i + 1}
-            </span>
-          ))}
+          <div className="mt-4 flex justify-center gap-1">
+            {Array.from({ length: cells[0]?.length ?? 0 }).map((_, i) => (
+              <span key={i} className="w-9 text-center text-[10px] text-slate-500 sm:w-12">
+                {i + 1}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
 
-      {legend && <div className="mt-4 flex flex-wrap justify-center gap-3 text-xs">{legend}</div>}
+      {legend && (
+        <div className="relative z-10 mt-8 flex flex-wrap justify-center gap-3 rounded-lg border border-white/5 bg-[#0d1420]/70 px-4 py-3 text-xs">
+          {legend}
+        </div>
+      )}
     </div>
   )
 }
