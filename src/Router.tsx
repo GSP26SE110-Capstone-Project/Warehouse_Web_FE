@@ -33,6 +33,7 @@ import { TenantContractsPage } from './pages/staff/TenantContractsPage'
 import { TenantRentalRequestsPage } from './pages/staff/TenantRentalRequestsPage'
 import { MyDeliveriesPage } from './pages/transporter/MyDeliveriesPage'
 import { ProtectedRoute } from './auth/ProtectedRoute'
+import { RoleLayout } from './components/common/layout/RoleLayout'
 import {
   ADMIN_ROLES,
   getHomePathForRole,
@@ -57,6 +58,13 @@ export const Router: React.FC = () => {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
+          {/* Profile — route dùng chung, tránh trùng /profile trong admin vs staff */}
+          <Route element={<ProtectedRoute />}>
+            <Route element={<RoleLayout />}>
+              <Route path="/profile" element={<Profile />} />
+            </Route>
+          </Route>
+
           <Route element={<ProtectedRoute allowedRoles={ADMIN_ROLES} />}>
             <Route element={<AdminLayout />}>
               <Route path="/admin" element={<AdminHomeRedirect />} />
@@ -72,7 +80,6 @@ export const Router: React.FC = () => {
               <Route path="/admin/transportation" element={<TransportationManagement />} />
               <Route path="/admin/reports" element={<Reports />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
-              <Route path="/profile" element={<Profile />} />
               <Route path="/admin/requests" element={<RequestManagement />} />
               <Route
                 path="/admin/inbound"

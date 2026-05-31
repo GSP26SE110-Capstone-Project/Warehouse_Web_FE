@@ -1,49 +1,21 @@
 import type { ChangeEvent } from 'react'
-import { navigationService } from '../../../utils/NavigationService'
-import { useAuth } from '../../../auth/AuthContext'
-import type { ApiUser } from '../../../api/types'
+import { UserAvatarMenu } from './UserAvatarMenu'
 
 type StaffHeaderProps = {
   title?: string
   onSearchChange?: (value: string) => void
 }
 
-const ROLE_LABEL: Record<ApiUser['role'], string> = {
-  SYSTEM_ADMIN: 'System Admin',
-  WH_ADMIN: 'Warehouse Admin',
-  WH_STAFF: 'Warehouse Staff',
-  WH_TRANSPORTER: 'Tài xế kho',
-  TENANT_ADMIN: 'Tenant Admin',
-  TENANT_STAFF: 'Tenant Staff',
-}
-
-function userInitials(fullName: string) {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return '?'
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-}
-
 export const StaffHeader: React.FC<StaffHeaderProps> = ({
   title = 'Staff Dashboard',
   onSearchChange,
 }) => {
-  const { user, logout } = useAuth()
-
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     onSearchChange?.(event.target.value)
   }
 
-  const handleLogout = () => {
-    logout()
-    navigationService.goTo('/login')
-  }
-
-  const displayName = user?.fullName?.trim() || 'User'
-  const roleLine = user?.role ? (ROLE_LABEL[user.role] ?? user.role) : ''
-
   return (
-    <header className="relative z-10 flex items-center justify-between border-b border-white/5 bg-[#0b101a]/40 px-8 py-5 backdrop-blur-md">
+    <header className="relative z-20 flex items-center justify-between overflow-visible border-b border-white/5 bg-[#0b101a]/40 px-8 py-5 backdrop-blur-md">
       <div className="flex flex-col">
         <h2 className="text-xl font-bold tracking-tight text-white">{title}</h2>
         <p className="mt-1 flex items-center gap-2 font-mono text-xs text-slate-400">
@@ -78,29 +50,7 @@ export const StaffHeader: React.FC<StaffHeaderProps> = ({
           <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-[#06edf9] shadow-[0_0_8px_rgba(6,237,249,0.8)]" />
         </button>
 
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="px-2 text-xs text-slate-400 transition-colors hover:text-red-400"
-        >
-          Đăng xuất
-        </button>
-
-        <button
-          type="button"
-          onClick={() => navigationService.goTo('/profile')}
-          className="flex cursor-pointer items-center gap-3 border-l border-white/10 pl-6 text-left"
-        >
-          <div className="min-w-0 text-right">
-            <p className="truncate text-sm font-medium text-white">{displayName}</p>
-            <p className="truncate text-xs text-slate-400">{roleLine}</p>
-          </div>
-          <div className="size-10 shrink-0 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 p-[1px]">
-            <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-slate-900 text-sm font-bold text-cyan-300">
-              {userInitials(displayName)}
-            </div>
-          </div>
-        </button>
+        <UserAvatarMenu />
       </div>
     </header>
   )

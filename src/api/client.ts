@@ -19,6 +19,8 @@ export class ApiError extends Error {
 type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: unknown
   auth?: boolean
+  /** Khi true, 401 không tự xóa session / redirect (dùng cho đổi mật khẩu, v.v.) */
+  keepSessionOn401?: boolean
 }
 
 async function parseJson<T>(res: Response): Promise<T> {
@@ -35,7 +37,7 @@ export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { body, auth = true, headers: initHeaders, ...rest } = options
+  const { body, auth = true, keepSessionOn401 = false, headers: initHeaders, ...rest } = options
 
   const headers = new Headers(initHeaders)
   if (body !== undefined && !(body instanceof FormData)) {
@@ -60,13 +62,20 @@ export async function apiRequest<T>(
   const payload = await parseJson<ApiSuccess<T> | ApiErrorBody>(res)
 
   if (!res.ok) {
-    if (res.status === 401 && auth) {
+    const err = payload as ApiErrorBody
+    const shouldLogout =
+      res.status === 401 &&
+      auth &&
+      !keepSessionOn401 &&
+      err.code !== 'INVALID_CREDENTIALS' &&
+      err.code !== 'INVALID_CURRENT_PASSWORD'
+
+    if (shouldLogout) {
       clearSession()
       if (typeof window !== 'undefined' && window.location.pathname !== '/') {
         window.location.href = '/'
       }
     }
-    const err = payload as ApiErrorBody
     throw new ApiError(
       translateApiErrorMessage(err.message || res.statusText || 'Request failed', err.code),
       res.status,
