@@ -5,6 +5,7 @@ export interface ApiSku {
   tenantId: string
   skuCode: string
   productName: string
+  productKind?: string | null
   categoryId?: string | null
   collectionId?: string | null
   seasonId?: string | null
@@ -35,7 +36,7 @@ export function createSku(body: {
   tenantId: string
   skuCode: string
   productName: string
-  categoryId?: string
+  productKind: string
   collectionId?: string
   seasonId?: string
   color?: string
@@ -52,6 +53,7 @@ export function updateSku(
   body: {
     skuCode?: string
     productName?: string
+    productKind?: string | null
     categoryId?: string | null
     collectionId?: string | null
     seasonId?: string | null

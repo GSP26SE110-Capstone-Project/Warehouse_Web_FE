@@ -1,18 +1,13 @@
 import { InlineAlert } from '../ui/FeedbackAlert'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
-  estimateBoxesPerMonthFromPieces,
-  GUEST_BOX_TYPE_HINTS,
-  suggestGuestBoxTypesFromPieces,
-} from '../../utils/rentalBoxEstimate'
-import { formatVnd } from '../../data/pricing'
-import {
   estimateMonthCount,
   estimateRentalDays,
+  isRentalStartOnOrAfterToday,
   meetsMinimumRentalMonths,
   minRentalEndDate,
+  minRentalStartDate,
 } from '../../utils/rentalPeriod'
-import { buildGuestBoxStorageEstimates, estimateExtraBoxesFromMediumCount } from '../../utils/rentalStorageEstimate'
 import { ApiError } from '../../api/client'
 import {
   fetchLocationTree,
@@ -26,8 +21,9 @@ import type { ApiProductKindTreeNode, ApiSizeFactor } from '../../api/productCat
 import { createTenant } from '../../api/tenants'
 import {
   BILLING_CYCLE_GUEST_OPTIONS,
-  CONTRACT_TYPE_OPTIONS,
+  GUEST_CONTRACT_TYPE_OPTIONS,
   defaultPricingModel,
+  guestRegionWarehouseCopy,
   requestedAreaFieldHint,
   requestedAreaFieldLabel,
   showsRequestedAreaField,
@@ -42,26 +38,13 @@ import {
   createEmptyProductLine,
   type RentalProductLineDraft,
 } from '../rental/RentalProductLinesEditor'
-
-const ZONE_TYPES = [
-  { value: '', label: '— Chưa rõ / để kho tư vấn —' },
-  { value: 'SHARED', label: 'Khu chia sẻ (Shared)' },
-  { value: 'FAST_MOVING', label: 'Hàng xoay nhanh (Fast moving)' },
-  { value: 'PREMIUM', label: 'Hàng cao cấp (Premium)' },
-  { value: 'RETURN', label: 'Hàng trả (Return)' },
-] as const
-
-const RACK_TYPES = [
-  { value: '', label: '— Chưa rõ / để kho tư vấn —' },
-  { value: 'STANDARD', label: 'Kệ tiêu chuẩn' },
-] as const
+import {
+  countEstimatedSkusFromProductLines,
+  deriveSuggestedZoneType,
+} from '../../utils/rentalRequestGuest'
+import { WarehouseUtilizationBar } from './WarehouseUtilizationBar'
 
 const inputWrapStyle = { border: '1px solid #3a5455', background: 'rgba(11,22,23,0.8)' } as const
-
-function formatAreaM2(value: number | null | undefined) {
-  if (value == null || Number.isNaN(value)) return null
-  return `${value.toLocaleString('vi-VN')} m²`
-}
 
 function FieldLabel({
   htmlFor,
@@ -147,6 +130,84 @@ function SelectInput({
   )
 }
 
+function GuestStorageOption({
+  id,
+  checked,
+  onChange,
+  icon,
+  title,
+  description,
+  zoneHint,
+}: {
+  id: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+  icon: string
+  title: string
+  description: string
+  zoneHint?: string
+}) {
+  return (
+    <label
+      htmlFor={id}
+      className={[
+        'group relative flex cursor-pointer gap-4 rounded-xl border p-4 transition-all',
+        checked
+          ? 'border-[#06edf9]/45 bg-[#06edf9]/10 ring-1 ring-[#06edf9]/25 shadow-[0_0_20px_rgba(6,237,249,0.08)]'
+          : 'border-white/10 bg-white/[0.02] hover:border-[#06edf9]/25 hover:bg-white/[0.04]',
+      ].join(' ')}
+    >
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="peer sr-only"
+      />
+      <span
+        className={[
+          'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors',
+          checked
+            ? 'border-[#06edf9]/50 bg-[#06edf9]/15 text-[#06edf9]'
+            : 'border-white/10 bg-[#0b1617]/80 text-[#7a9496] group-hover:text-[#9bb9bb]',
+        ].join(' ')}
+      >
+        <span className="material-symbols-outlined text-[22px]">{icon}</span>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-start justify-between gap-2">
+          <span className="text-sm font-semibold text-white">{title}</span>
+          <span
+            className={[
+              'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all',
+              checked
+                ? 'border-[#06edf9] bg-[#06edf9] text-[#0f2223]'
+                : 'border-[#3a5455] bg-transparent',
+            ].join(' ')}
+            aria-hidden
+          >
+            {checked && (
+              <span className="material-symbols-outlined text-[14px] font-bold">check</span>
+            )}
+          </span>
+        </span>
+        <span className="mt-1 block text-xs leading-relaxed text-[#9bb9bb]">{description}</span>
+        {zoneHint && (
+          <span
+            className={[
+              'mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide',
+              checked ? 'bg-[#06edf9]/15 text-[#06edf9]' : 'bg-white/5 text-[#6b8586]',
+            ].join(' ')}
+          >
+            <span className="material-symbols-outlined text-xs">location_on</span>
+            {zoneHint}
+          </span>
+        )}
+      </span>
+    </label>
+  )
+}
+
 export function RentalRequestForm({
   contractType,
   onContractTypeChange,
@@ -159,7 +220,6 @@ export function RentalRequestForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState<{ requestCode: string; companyName: string } | null>(null)
-  const [showAdvanced, setShowAdvanced] = useState(false)
 
   const [companyName, setCompanyName] = useState('')
   const [contactName, setContactName] = useState('')
@@ -176,13 +236,6 @@ export function RentalRequestForm({
   const [regionWarehousesLoading, setRegionWarehousesLoading] = useState(false)
   const [billingCycle, setBillingCycle] = useState('MONTHLY')
   const [requestedAreaM2, setRequestedAreaM2] = useState('')
-  const [estimatedTotalPieces, setEstimatedTotalPieces] = useState('')
-  const [estimatedBoxCount, setEstimatedBoxCount] = useState('')
-  const [estimatedSkuCount, setEstimatedSkuCount] = useState('')
-  const [estimatedInboundPerWeek, setEstimatedInboundPerWeek] = useState('')
-  const [estimatedOutboundPerWeek, setEstimatedOutboundPerWeek] = useState('')
-  const [suggestedZoneType, setSuggestedZoneType] = useState('')
-  const [suggestedRackType, setSuggestedRackType] = useState('')
   const [requiresFastPicking, setRequiresFastPicking] = useState(false)
   const [requiresPremiumStorage, setRequiresPremiumStorage] = useState(false)
   const [expectedStartDate, setExpectedStartDate] = useState('')
@@ -198,13 +251,6 @@ export function RentalRequestForm({
     onContractTypeChange(value)
   }
 
-  const boxesPerMonthForSubmit = useMemo(() => {
-    const manual = Number(estimatedBoxCount)
-    if (Number.isFinite(manual) && manual > 0) return manual
-    const pieces = Number(estimatedTotalPieces)
-    return estimateBoxesPerMonthFromPieces(pieces)
-  }, [estimatedBoxCount, estimatedTotalPieces])
-
   const rentalDays = useMemo(
     () => estimateRentalDays(expectedStartDate, expectedEndDate),
     [expectedStartDate, expectedEndDate]
@@ -214,29 +260,7 @@ export function RentalRequestForm({
     [expectedStartDate, expectedEndDate]
   )
 
-  const boxTypeSuggestion = useMemo(() => {
-    const pieces = Number(estimatedTotalPieces)
-    return suggestGuestBoxTypesFromPieces(pieces)
-  }, [estimatedTotalPieces])
-
-  const boxStorageEstimates = useMemo(() => {
-    if (rentalDays <= 0) return null
-
-    let medium: number | null = null
-    let extra: number | null = null
-
-    if (boxTypeSuggestion) {
-      medium = boxTypeSuggestion.mediumPerMonth
-      extra = boxTypeSuggestion.extraPerMonth
-    } else if (boxesPerMonthForSubmit != null && boxesPerMonthForSubmit > 0) {
-      medium = boxesPerMonthForSubmit
-      extra = estimateExtraBoxesFromMediumCount(boxesPerMonthForSubmit)
-    }
-
-    if (medium == null || medium <= 0 || extra == null || extra <= 0) return null
-
-    return buildGuestBoxStorageEstimates({ MEDIUM: medium, EXTRA: extra }, rentalDays)
-  }, [boxTypeSuggestion, boxesPerMonthForSubmit, rentalDays])
+  const minStartDate = useMemo(() => minRentalStartDate(), [])
 
   const minEndDate = useMemo(
     () => minRentalEndDate(expectedStartDate),
@@ -349,6 +373,10 @@ export function RentalRequestForm({
       setError('Vui lòng chọn ngày bắt đầu và ngày kết thúc thuê kho dự kiến')
       return
     }
+    if (!isRentalStartOnOrAfterToday(expectedStartDate)) {
+      setError('Ngày bắt đầu dự kiến không được trước hôm nay')
+      return
+    }
     if (expectedEndDate <= expectedStartDate) {
       setError('Ngày kết thúc phải sau ngày bắt đầu')
       return
@@ -360,14 +388,10 @@ export function RentalRequestForm({
 
     const areaNum = Number(requestedAreaM2)
     const hasArea = Number.isFinite(areaNum) && areaNum > 0
-    const piecesNum = Number(estimatedTotalPieces)
-    const hasPieces = Number.isFinite(piecesNum) && piecesNum > 0
     const productLinesPayload = buildProductLinesPayload(productLines)
     const hasProductLines = productLinesPayload.length > 0
-    if (!hasArea && !hasPieces && !hasProductLines) {
-      setError(
-        'Vui lòng khai báo hàng theo loại + size, hoặc diện tích (m²), hoặc tổng số cái/tháng — ít nhất một cách để kho ước tính sức chứa'
-      )
+    if (!hasArea && !hasProductLines) {
+      setError('Vui lòng khai báo hàng theo loại + size hoặc diện tích (m²) để kho ước tính sức chứa')
       return
     }
 
@@ -382,10 +406,7 @@ export function RentalRequestForm({
         taxCode: taxCode.trim() || undefined,
       })
 
-      const capacityNote = hasPieces
-        ? `Tổng cái/tháng (ước tính): ${piecesNum.toLocaleString('vi-VN')}`
-        : ''
-      const mergedNotes = [notes.trim(), capacityNote].filter(Boolean).join('\n')
+      const mergedNotes = notes.trim() || undefined
 
       const rental = await createRentalRequest({
         tenantId: tenant.tenantId,
@@ -394,22 +415,16 @@ export function RentalRequestForm({
         contractType,
         pricingModel: defaultPricingModel(contractType),
         billingCycle,
-        estimatedBoxCount: hasProductLines ? undefined : (boxesPerMonthForSubmit ?? undefined),
-        estimatedSkuCount: estimatedSkuCount ? Number(estimatedSkuCount) : undefined,
-        estimatedInboundPerWeek: estimatedInboundPerWeek
-          ? Number(estimatedInboundPerWeek)
-          : undefined,
-        estimatedOutboundPerWeek: estimatedOutboundPerWeek
-          ? Number(estimatedOutboundPerWeek)
+        estimatedSkuCount: hasProductLines
+          ? countEstimatedSkusFromProductLines(productLinesPayload)
           : undefined,
         requestedAreaM2: hasArea ? areaNum : undefined,
-        suggestedZoneType: suggestedZoneType || undefined,
-        suggestedRackType: suggestedRackType || undefined,
+        suggestedZoneType: deriveSuggestedZoneType(requiresFastPicking, requiresPremiumStorage),
         requiresFastPicking,
         requiresPremiumStorage,
         expectedStartDate: new Date(expectedStartDate).toISOString(),
         expectedEndDate: new Date(expectedEndDate).toISOString(),
-        notes: mergedNotes || undefined,
+        notes: mergedNotes,
         productLines: hasProductLines ? productLinesPayload : undefined,
       })
 
@@ -458,7 +473,7 @@ export function RentalRequestForm({
     )
   }
 
-  const contractSelectOptions = CONTRACT_TYPE_OPTIONS.map((c) => ({
+  const contractSelectOptions = GUEST_CONTRACT_TYPE_OPTIONS.map((c) => ({
     value: c.value,
     label: c.title,
   }))
@@ -580,33 +595,30 @@ export function RentalRequestForm({
                 ) : regionWarehouses && regionWarehouses.count > 0 ? (
                   <div className="space-y-3">
                     <p className="text-sm text-white font-medium">
-                      Có{' '}
-                      <span className="text-[#06edf9]">{regionWarehouses.count}</span> kho đang phục vụ{' '}
-                      <span className="text-[#06edf9]">
-                        {regionWarehouses.district}, {regionWarehouses.city}
-                      </span>
+                      {guestRegionWarehouseCopy(contractType).listIntro(
+                        regionWarehouses.count,
+                        regionWarehouses.district,
+                        regionWarehouses.city
+                      )}
                     </p>
-                    <ul className="space-y-2">
-                      {regionWarehouses.items.map((wh) => {
-                        const area = formatAreaM2(wh.totalAreaM2)
-                        return (
-                          <li
-                            key={wh.warehouseName}
-                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-sm border-t border-white/5 pt-2 first:border-0 first:pt-0"
-                          >
-                            <span className="text-white flex items-center gap-2">
-                              <span className="material-symbols-outlined text-[#06edf9] text-lg">
-                                warehouse
-                              </span>
-                              {wh.warehouseName}
+                    <ul className="space-y-3">
+                      {regionWarehouses.items.map((wh) => (
+                        <li
+                          key={wh.warehouseName}
+                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm border-t border-white/5 pt-3 first:border-0 first:pt-0"
+                        >
+                          <span className="text-white flex items-center gap-2 shrink-0">
+                            <span className="material-symbols-outlined text-[#06edf9] text-lg">
+                              warehouse
                             </span>
-                            {area && <span className="text-[#9bb9bb] sm:text-right">Diện tích: {area}</span>}
-                          </li>
-                        )
-                      })}
+                            {wh.warehouseName}
+                          </span>
+                          <WarehouseUtilizationBar item={wh} />
+                        </li>
+                      ))}
                     </ul>
                     <p className="text-xs text-[#9bb9bb]">
-                      Bạn không cần chọn kho — kho phù hợp sẽ tiếp nhận yêu cầu khi được duyệt.
+                      {guestRegionWarehouseCopy(contractType).footer}
                     </p>
                   </div>
                 ) : (
@@ -614,11 +626,7 @@ export function RentalRequestForm({
                     <span className="material-symbols-outlined text-base align-middle mr-1 text-amber-400/90">
                       info
                     </span>
-                    Hiện chưa có kho hoạt động tại{' '}
-                    <strong className="text-white">
-                      {district}, {city}
-                    </strong>
-                    . Bạn vẫn có thể gửi yêu cầu — admin sẽ liên hệ khi có phương án phù hợp.
+                    {guestRegionWarehouseCopy(contractType).empty(district, city)}
                   </p>
                 )}
               </div>
@@ -634,15 +642,14 @@ export function RentalRequestForm({
               />
             </div>
             {(showsRequestedAreaField(contractType) ||
-              contractType === 'SHARED_STORAGE' ||
-              contractType === 'RESERVED_STORAGE') && (
+              contractType === 'SHARED_STORAGE') && (
               <div className="flex flex-col gap-2 sm:col-span-2">
                 <FieldLabel
                   htmlFor="requestedAreaM2"
                   hint={
                     showsRequestedAreaField(contractType)
-                      ? `${requestedAreaFieldHint(contractType)} Hoặc nhập tổng số cái/tháng ở mục quy mô hàng bên dưới.`
-                      : 'Không bắt buộc nếu bạn đã nhập tổng số cái/tháng bên dưới.'
+                      ? `${requestedAreaFieldHint(contractType)} Hoặc khai báo loại hàng + size ở mục quy mô hàng bên dưới.`
+                      : 'Không bắt buộc nếu bạn đã khai báo loại hàng + size bên dưới.'
                   }
                 >
                   {showsRequestedAreaField(contractType)
@@ -672,11 +679,14 @@ export function RentalRequestForm({
               />
             </div>
             <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="expectedStartDate">Ngày bắt đầu dự kiến *</FieldLabel>
+              <FieldLabel htmlFor="expectedStartDate" hint="Không chọn ngày trước hôm nay">
+                Ngày bắt đầu dự kiến *
+              </FieldLabel>
               <DatePickerField
                 id="expectedStartDate"
                 required
                 value={expectedStartDate}
+                min={minStartDate}
                 onChange={(next) => {
                   setExpectedStartDate(next)
                   if (expectedEndDate && next >= expectedEndDate) {
@@ -709,255 +719,46 @@ export function RentalRequestForm({
             </div>
 
             <div className="sm:col-span-2">
-              <p className="text-sm font-medium text-gray-200 mb-1">Quy mô hàng hóa</p>
-              <p className="text-xs text-[#9bb9bb] mb-3">
-                <strong className="text-gray-300">Khuyến nghị:</strong> khai báo theo loại hàng + size — hệ thống
-                tính volume units (U) và phân bổ thùng chính xác. Hoặc dùng diện tích (m²) / cái-tháng (cách cũ)
-                bên dưới.
-              </p>
+              <p className="text-sm font-medium text-gray-200 mb-3">Quy mô hàng hóa</p>
 
               {catalogTree.length > 0 && (
-                <div className="mb-6 overflow-visible rounded-xl border border-white/10 bg-white/[0.02] p-4 md:p-5">
+                <div className="overflow-visible rounded-xl border border-white/10 bg-white/[0.02] p-4 md:p-5">
                   <RentalProductLinesEditor
                     lines={productLines}
                     onChange={setProductLines}
                     catalogTree={catalogTree}
                     sizeFactors={sizeFactors}
                     theme="guest"
-                    rentalMonths={rentalMonths > 0 ? rentalMonths : undefined}
                   />
                 </div>
               )}
+            </div>
 
-              <p className="text-xs text-[#9bb9bb] mb-3 border-t border-white/5 pt-4">
-                Cách ước tính khác (tuỳ chọn nếu đã khai báo loại hàng ở trên)
+            <div className="sm:col-span-2 space-y-3">
+              <p className="text-sm font-medium text-gray-200 pl-1">Yêu cầu bố trí kho</p>
+              <p className="text-xs text-[#9bb9bb] pl-1">
+                Chọn nếu cần — kho sẽ ưu tiên khu vực phù hợp khi duyệt yêu cầu.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2 sm:col-span-2">
-                  <FieldLabel
-                    htmlFor="estimatedTotalPieces"
-                    hint="VD: 1.000 áo thun trung bình mỗi tháng. Bỏ trống nếu đã nhập diện tích m²."
-                  >
-                    Tổng số cái / tháng (ước tính)
-                  </FieldLabel>
-                  <TextInput
-                    id="estimatedTotalPieces"
-                    type="number"
-                    min={1}
-                    value={estimatedTotalPieces}
-                    onChange={setEstimatedTotalPieces}
-                    placeholder="1000"
-                  />
-                </div>
-
-                {boxTypeSuggestion && (
-                  <div className="sm:col-span-2 space-y-2">
-                    <p className="text-xs text-[#9bb9bb] pl-1">
-                      Với{' '}
-                      <strong className="text-white">
-                        {boxTypeSuggestion.piecesPerMonth.toLocaleString('vi-VN')} cái/tháng
-                      </strong>{' '}
-                      (ước tính), quy mô tham khảo:
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {GUEST_BOX_TYPE_HINTS.map((hint) => {
-                        const perMonth =
-                          hint.type === 'MEDIUM'
-                            ? boxTypeSuggestion.mediumPerMonth
-                            : boxTypeSuggestion.extraPerMonth
-                        const forPeriod =
-                          rentalMonths > 0 ? perMonth * rentalMonths : null
-                        return (
-                          <div
-                            key={hint.type}
-                            className="rounded-lg border border-[#06edf9]/35 bg-[#06edf9]/10 p-3 text-xs ring-1 ring-[#06edf9]/20"
-                          >
-                            <p className="font-semibold text-[#06edf9] flex items-center gap-1.5">
-                              <span className="material-symbols-outlined text-base">{hint.icon}</span>
-                              {hint.title}
-                            </p>
-                            <p className="text-[#9bb9bb] mt-1 leading-relaxed">{hint.description}</p>
-                            <p className="mt-2 text-sm font-medium text-white">
-                              ≈{' '}
-                              <span className="text-[#06edf9]">
-                                {perMonth.toLocaleString('vi-VN')} {hint.title}
-                              </span>
-                              /tháng
-                              {forPeriod != null && (
-                                <>
-                                  {' '}
-                                  · ≈{' '}
-                                  <span className="text-[#06edf9]">
-                                    {forPeriod.toLocaleString('vi-VN')} {hint.title}
-                                  </span>{' '}
-                                  cho {rentalMonths} tháng
-                                  {rentalDays > 0 && (
-                                    <span className="text-[#9bb9bb] font-normal text-xs">
-                                      {' '}
-                                      ({rentalDays} ngày)
-                                    </span>
-                                  )}
-                                </>
-                              )}
-                            </p>
-                            <p className="text-[10px] text-slate-500 mt-1">
-                              (~{hint.piecesPerBox} cái/thùng {hint.title} — tham khảo)
-                            </p>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-2 sm:col-span-2">
-                  <FieldLabel
-                    htmlFor="estimatedBoxCount"
-                    hint="Tuỳ chọn — chỉ điền nếu bạn quen ước tính theo thùng/LPN. Để trống khi chỉ nhập số cái/tháng."
-                  >
-                    Số thùng hàng / tháng (tuỳ chọn)
-                  </FieldLabel>
-                  <TextInput
-                    id="estimatedBoxCount"
-                    type="number"
-                    min={0}
-                    value={estimatedBoxCount}
-                    onChange={setEstimatedBoxCount}
-                    placeholder="40"
-                  />
-                  {boxesPerMonthForSubmit != null && boxStorageEstimates && (
-                    <div
-                      className="mt-2 rounded-lg border border-[#06edf9]/50 bg-[#06edf9]/15 px-4 py-3 text-sm text-[#06edf9] ring-1 ring-[#06edf9]/30"
-                      role="status"
-                    >
-                      <p className="font-semibold text-white mb-1 flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-base">calculate</span>
-                        Quy đổi theo thời hạn thuê
-                      </p>
-                      <div className="space-y-2">
-                          <p className="text-xs text-[#9bb9bb]">
-                            Ước tính phí lưu trữ (đơn giá box/ngày — tham khảo, chưa gồm phí xử
-                            lý):
-                          </p>
-                          {boxStorageEstimates.map((row) => (
-                            <p key={row.boxType} className="text-sm leading-relaxed">
-                              <span className="font-medium text-white">{row.label}</span>
-                              <span className="text-[#9bb9bb]">
-                                {' '}
-                                ({formatVnd(row.pricePerBoxDay)}/box/ngày):
-                              </span>{' '}
-                              ~<strong className="text-white">{formatVnd(row.feePerMonth)}</strong>
-                              /tháng · ~<strong className="text-white">{formatVnd(row.feeFullPeriod)}</strong>{' '}
-                              toàn kỳ
-                              <span className="text-[#9bb9bb] text-xs"> ({rentalDays} ngày)</span>
-                            </p>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-col gap-2">
-                  <FieldLabel htmlFor="estimatedSkuCount" hint="Số mã sản phẩm khác nhau (VD: 1 loại áo = 1)">
-                    Số mã SKU
-                  </FieldLabel>
-                  <TextInput
-                    id="estimatedSkuCount"
-                    type="number"
-                    min={0}
-                    value={estimatedSkuCount}
-                    onChange={setEstimatedSkuCount}
-                    placeholder="50"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <FieldLabel
-                    htmlFor="estimatedInboundPerWeek"
-                    hint="Lượt hàng nhập kho trung bình mỗi tuần"
-                  >
-                    Lượt nhập kho / tuần
-                  </FieldLabel>
-                  <TextInput
-                    id="estimatedInboundPerWeek"
-                    type="number"
-                    min={0}
-                    value={estimatedInboundPerWeek}
-                    onChange={setEstimatedInboundPerWeek}
-                    placeholder="5"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <FieldLabel
-                    htmlFor="estimatedOutboundPerWeek"
-                    hint="Lượt hàng xuất kho trung bình mỗi tuần"
-                  >
-                    Lượt xuất kho / tuần
-                  </FieldLabel>
-                  <TextInput
-                    id="estimatedOutboundPerWeek"
-                    type="number"
-                    min={0}
-                    value={estimatedOutboundPerWeek}
-                    onChange={setEstimatedOutboundPerWeek}
-                    placeholder="8"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2 sm:col-span-2">
-              <label className="flex items-center gap-3 cursor-pointer text-sm text-[#9bb9bb]">
-                <input
-                  type="checkbox"
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <GuestStorageOption
+                  id="requiresFastPicking"
                   checked={requiresFastPicking}
-                  onChange={(e) => setRequiresFastPicking(e.target.checked)}
-                  className="rounded border-[#3a5455] bg-transparent text-[#06edf9] focus:ring-[#06edf9]"
+                  onChange={setRequiresFastPicking}
+                  icon="local_shipping"
+                  title="Hàng cần lấy nhanh"
+                  description="Xoay vòng cao, cần gần khu xuất — phù hợp fast-moving."
+                  zoneHint="Gợi ý khu Fast moving"
                 />
-                Hàng cần lấy nhanh (gần khu xuất, fast-moving)
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer text-sm text-[#9bb9bb]">
-                <input
-                  type="checkbox"
+                <GuestStorageOption
+                  id="requiresPremiumStorage"
                   checked={requiresPremiumStorage}
-                  onChange={(e) => setRequiresPremiumStorage(e.target.checked)}
-                  className="rounded border-[#3a5455] bg-transparent text-[#06edf9] focus:ring-[#06edf9]"
+                  onChange={setRequiresPremiumStorage}
+                  icon="diamond"
+                  title="Bảo quản cao cấp"
+                  description="Kiểm soát môi trường hoặc bảo mật cao hơn khu thường."
+                  zoneHint="Gợi ý khu Premium"
                 />
-                Yêu cầu bảo quản cao cấp (kiểm soát môi trường / bảo mật)
-              </label>
-            </div>
-
-            <div className="sm:col-span-2">
-              <button
-                type="button"
-                onClick={() => setShowAdvanced((v) => !v)}
-                className="flex items-center gap-2 text-sm text-[#06edf9] hover:text-white transition-colors cursor-pointer bg-transparent border-0 p-0"
-              >
-                <span className="material-symbols-outlined text-lg">
-                  {showAdvanced ? 'expand_less' : 'expand_more'}
-                </span>
-                {showAdvanced ? 'Ẩn tùy chọn bố trí kho' : 'Thêm gợi ý bố trí kho (tuỳ chọn)'}
-              </button>
-              {showAdvanced && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-white/5">
-                  <div className="flex flex-col gap-2">
-                    <FieldLabel htmlFor="suggestedZoneType">Loại khu vực mong muốn</FieldLabel>
-                    <SelectInput
-                      id="suggestedZoneType"
-                      value={suggestedZoneType}
-                      onChange={setSuggestedZoneType}
-                      options={ZONE_TYPES}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <FieldLabel htmlFor="suggestedRackType">Loại kệ mong muốn</FieldLabel>
-                    <SelectInput
-                      id="suggestedRackType"
-                      value={suggestedRackType}
-                      onChange={setSuggestedRackType}
-                      options={RACK_TYPES}
-                    />
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
 
             <div className="flex flex-col gap-2 sm:col-span-2">

@@ -482,7 +482,6 @@ export function TenantRentalRequestsPage() {
                 catalogTree={catalogTree}
                 sizeFactors={sizeFactors}
                 theme="staff"
-                rentalMonths={periodValid ? rentalMonths : undefined}
               />
             </div>
 

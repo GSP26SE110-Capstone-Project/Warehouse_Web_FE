@@ -21,10 +21,10 @@ export const WAREHOUSE_PRICING: PricingTier = {
 export const ZONE_PRICING: PricingTier[] = [
   {
     name: 'SHARED',
-    label: 'Shared Zone',
+    label: 'Khu lưu hàng chung',
     price: 120_000,
     unit: 'm²/tháng',
-    description: 'Khu vực chia sẻ, phù hợp hàng tồn ổn định',
+    description: 'Khu vận hành chung — kho xếp hàng lên kệ/ngăn phù hợp',
     icon: 'grid_view',
   },
   {
@@ -45,12 +45,12 @@ export const ZONE_PRICING: PricingTier[] = [
     icon: 'diamond',
   },
   {
-    name: 'RETURN',
-    label: 'Return Zone',
-    price: 90_000,
+    name: 'PRIVATE',
+    label: 'Private Zone',
+    price: 250_000,
     unit: 'm²/tháng',
-    description: 'Khu xử lý hàng trả, hoàn',
-    icon: 'undo',
+    description: 'Khu riêng dành riêng cho tenant, tách biệt khu chia sẻ',
+    icon: 'lock',
   },
 ]
 

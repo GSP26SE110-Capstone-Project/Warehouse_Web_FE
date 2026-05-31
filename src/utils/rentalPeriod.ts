@@ -1,5 +1,20 @@
 const MIN_RENTAL_DAYS = 30
 
+/** Ngày hôm nay (local) dạng YYYY-MM-DD — dùng làm min cho ngày bắt đầu thuê. */
+export function minRentalStartDate(): string {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+/** So sánh theo chuỗi ISO date (YYYY-MM-DD). */
+export function isRentalStartOnOrAfterToday(startDate: string): boolean {
+  if (!startDate) return false
+  return startDate >= minRentalStartDate()
+}
+
 function parseDateOnly(value: string): Date | null {
   if (!value) return null
   const date = new Date(value)

@@ -4,6 +4,8 @@ import logo from '../../assets/logo.png'
 import { ContractTypeGuide } from '../../components/public/ContractTypeGuide'
 import { RentalRequestForm } from '../../components/public/RentalRequestForm'
 import { RentalRequestLookup } from '../../components/public/RentalRequestLookup'
+import { ScrollToTopButton } from '../../components/common/ScrollToTopButton'
+import { WarehouseStructureExplorer } from '../../components/public/WarehouseStructureExplorer'
 import type { ContractTypeValue } from '../../data/contractTypes'
 import {
   BIN_PRICING,
@@ -21,10 +23,18 @@ const HERO_BG =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuAXarldI6DEHoSyQKxf1Ij69kQAgFbbWOCmHHQXVURcOZC0E6a1dH6LEAyfUU_oE9ExY25IE5kjckyS_qB7w--6UAG7g3dUQqV0gb1mW1sT2HqUNdDtiNFeXbe4NVBgRxHURhim9jCe7WybzvyVwHF-E6tAOpEgfWGFtE5k5hoEHHfHpfW8pHvHQU1gJX3WzbgK3uatQp5u4GQKaAq0LnqXAyCntFjWf63OpUayjGo48M9ntC8x9RLq1Hoze4o28I_jQRyG1r9Ljck'
 
 const BILLING_MODELS = [
-  { name: 'Kho chia sẻ', desc: 'Tính phí theo mức sử dụng thực tế — hóa đơn theo tháng hoặc năm' },
-  { name: 'Giữ chỗ cố định', desc: 'Giữ slot trước — phí cố định theo không gian đã đặt trước' },
-  { name: 'Thuê nguyên zone', desc: 'Phí zone theo diện tích × đơn giá zone/tháng' },
-  { name: 'Thuê nguyên kho', desc: 'Phí kho theo diện tích × 120.000 ₫/m²/tháng' },
+  {
+    name: 'Lưu hàng linh hoạt',
+    desc: 'Kho xếp hàng lên kệ giúp bạn — trả theo lượng hàng thực tế, hóa đơn theo tháng hoặc năm',
+  },
+  {
+    name: 'Thuê khu riêng trong kho',
+    desc: 'Một khu vực tách riêng — phí theo diện tích × đơn giá khu/tháng',
+  },
+  {
+    name: 'Thuê nguyên kho',
+    desc: 'Toàn bộ warehouse — phí theo diện tích × 120.000 ₫/m²/tháng',
+  },
 ]
 
 function PricingCard({ tier }: { tier: PricingTier }) {
@@ -106,6 +116,9 @@ export const Landing: React.FC = () => {
             <span className="text-xl font-black tracking-tight text-white">NEXSPACE</span>
           </Link>
           <nav className="hidden md:flex items-center gap-6 text-sm text-[#9bb9bb]">
+            <a href="#explore" className="hover:text-[#06edf9] transition-colors no-underline">
+              Cấu trúc kho
+            </a>
             <a href="#warehouse" className="hover:text-[#06edf9] transition-colors no-underline">
               Kho
             </a>
@@ -143,8 +156,8 @@ export const Landing: React.FC = () => {
             Giải pháp lưu trữ linh hoạt theo từng cấp độ
           </h1>
           <p className="mt-6 text-lg text-[#9bb9bb] max-w-2xl mx-auto leading-relaxed">
-            Từ thuê nguyên kho, zone riêng đến rack, tầng kệ và từng thùng hàng — bảng giá minh bạch,
-            hóa đơn theo **tháng hoặc năm** (kho chia sẻ: trả theo mức dùng trong kỳ, không tính từng ngày).
+            Từ lưu hàng linh hoạt (kho xếp kệ giúp bạn) đến thuê khu riêng hoặc nguyên kho — bảng giá minh bạch,
+            hóa đơn theo <strong className="text-white font-medium">tháng hoặc năm</strong>.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
@@ -168,6 +181,10 @@ export const Landing: React.FC = () => {
               Truy cập hệ thống
             </Link>
           </div>
+        </section>
+
+        <section id="explore" className="max-w-6xl mx-auto px-4 sm:px-6 pb-20 scroll-mt-24">
+          <WarehouseStructureExplorer />
         </section>
 
         <section id="request" className="max-w-6xl mx-auto px-4 sm:px-6 pb-20 scroll-mt-24">
@@ -215,8 +232,8 @@ export const Landing: React.FC = () => {
             <SectionHeader
               id="zone"
               icon="grid_view"
-              title="Thuê Zone"
-              subtitle="Dedicated zone — giá theo loại zone và diện tích m²/tháng"
+              title="Thuê khu riêng (Zone)"
+              subtitle="Một khu vực tách riêng trong kho — giá theo loại khu và diện tích m²/tháng"
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {ZONE_PRICING.map((tier) => (
@@ -344,6 +361,8 @@ export const Landing: React.FC = () => {
       <footer className="relative z-10 border-t border-white/5 py-8 text-center text-sm text-[#9bb9bb]">
         <p>© {new Date().getFullYear()} NEXSPACE — Next-Gen Warehouse Management</p>
       </footer>
+
+      <ScrollToTopButton />
     </div>
   )
 }

@@ -63,9 +63,8 @@ export function RentalProductLinesEditor({
   catalogTree,
   sizeFactors,
   theme = 'staff',
-  quantityLabel = 'Số lượng (cả kỳ thuê)',
-  quantityHint = 'Tổng cái cam kết trong toàn bộ thời hạn thuê — không phải cái/tháng.',
-  rentalMonths,
+  quantityLabel = 'Số lượng (cái/tháng)',
+  quantityHint = 'Ước tính số cái lưu kho trung bình mỗi tháng — không nhân với số tháng thuê.',
 }: {
   lines: RentalProductLineDraft[]
   onChange: (lines: RentalProductLineDraft[]) => void
@@ -74,7 +73,6 @@ export function RentalProductLinesEditor({
   theme?: Theme
   quantityLabel?: string
   quantityHint?: string
-  rentalMonths?: number
 }) {
   const t = themeClasses(theme)
 
@@ -149,13 +147,8 @@ export function RentalProductLinesEditor({
       <div>
         <p className={t.label}>Hàng hóa theo loại + size</p>
         <p className={`mt-1 ${t.hint}`}>
-          Chọn loại hàng và size — hệ thống tính volume units (U) và gợi ý phân bổ thùng.
-          {rentalMonths != null && rentalMonths > 0 && (
-            <>
-              {' '}
-              Số lượng nhập cho <span className="font-medium text-white/90">cả kỳ ~{rentalMonths} tháng</span>.
-            </>
-          )}
+          Chọn loại hàng và size — hệ thống tính volume units (U) và gợi ý phân bổ thùng theo
+          quy mô <span className="font-medium text-white/90">mỗi tháng</span>.
         </p>
       </div>
 
@@ -223,7 +216,7 @@ export function RentalProductLinesEditor({
                     type="number"
                     min={1}
                     className={t.input}
-                    placeholder="VD: 200"
+                    placeholder="VD: 200/tháng"
                     aria-label={`${quantityLabel} dòng ${index + 1}`}
                     value={line.quantity}
                     onChange={(e) => updateLine(line.id, { quantity: e.target.value })}
@@ -260,27 +253,33 @@ export function RentalProductLinesEditor({
         <div className={`rounded-xl border p-4 ring-1 ${t.summaryBorder}`}>
           <p className={`text-sm font-semibold ${t.summaryAccent} flex items-center gap-1.5`}>
             <span className="material-symbols-outlined text-base">calculate</span>
-            Tổng cam kết (ước tính)
+            Tổng cam kết (ước tính / tháng)
           </p>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[420px] text-left text-xs">
+          <div className="custom-scrollbar mt-3 -mx-1 overflow-x-auto px-1 pb-1">
+            <table className="w-full table-fixed text-left text-xs">
+              <colgroup>
+                <col className="w-[36%]" />
+                <col className="w-[16%]" />
+                <col className="w-[24%]" />
+                <col className="w-[24%]" />
+              </colgroup>
               <thead className="text-slate-500">
                 <tr className="border-b border-white/5">
-                  <th className="pb-2 pr-3 font-medium">Loại · Size</th>
-                  <th className="pb-2 pr-3 font-medium text-right">SL</th>
-                  <th className="pb-2 pr-3 font-medium text-right">U/cái</th>
-                  <th className="pb-2 font-medium text-right">U dòng</th>
+                  <th className="pb-2 pr-2 font-medium">Loại · Size</th>
+                  <th className="pb-2 pr-2 font-medium text-right">SL/tháng</th>
+                  <th className="pb-2 pr-2 font-medium text-right">U/cái</th>
+                  <th className="pb-2 font-medium text-right">U dòng/tháng</th>
                 </tr>
               </thead>
               <tbody className="text-slate-300">
                 {summary.lines.map((line) => (
                   <tr key={`${line.productKind}-${line.size}-${line.quantity}`} className="border-b border-white/5 last:border-0">
-                    <td className="py-2 pr-3">
+                    <td className="max-w-0 truncate py-2 pr-2" title={`${line.displayName}${line.size ? ` · ${line.size}` : ''}`}>
                       <span className="text-white">{line.displayName}</span>
                       {line.size ? <span className="text-slate-500"> · {line.size}</span> : null}
                     </td>
-                    <td className="py-2 pr-3 text-right tabular-nums">{line.quantity.toLocaleString('vi-VN')}</td>
-                    <td className="py-2 pr-3 text-right tabular-nums text-slate-400">
+                    <td className="py-2 pr-2 text-right tabular-nums">{line.quantity.toLocaleString('vi-VN')}</td>
+                    <td className="py-2 pr-2 text-right tabular-nums text-slate-400">
                       {line.finalVolumeUnitsPerPiece}
                     </td>
                     <td className="py-2 text-right tabular-nums font-medium text-white">
@@ -294,7 +293,7 @@ export function RentalProductLinesEditor({
           <p className="mt-3 border-t border-white/5 pt-3 text-sm text-white">
             Tổng{' '}
             <strong className={t.summaryAccent}>
-              {summary.totalCommittedVolumeUnits.toLocaleString('vi-VN')} U
+              {summary.totalCommittedVolumeUnits.toLocaleString('vi-VN')} U/tháng
             </strong>
             <span className="mx-2 text-slate-600">·</span>
             {formatBoxAllocation(summary.boxAllocation)}

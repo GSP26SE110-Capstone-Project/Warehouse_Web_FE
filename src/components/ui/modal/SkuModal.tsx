@@ -1,17 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { InlineAlert } from '../FeedbackAlert'
 import type { ApiSku } from '../../../api/skus'
-import type { ApiCategory } from '../../../api/categories'
+import type { ApiProductKindTreeNode, ApiSizeFactor } from '../../../api/productCatalog'
 import type { ApiCollection } from '../../../api/collections'
 import type { ApiSeason } from '../../../api/seasons'
-import { MOVEMENT_CATEGORY_OPTIONS, SIZE_OPTIONS, SKU_STATUS_OPTIONS } from '../../../data/skuOptions'
+import { DarkDropdownSelect } from '../DarkDropdownSelect'
+import { buildFlatSizeOptions } from '../../../utils/volumeUnits'
+import { MOVEMENT_CATEGORY_OPTIONS, SKU_STATUS_OPTIONS } from '../../../data/skuOptions'
 
 type Mode = 'create' | 'edit' | 'view'
 
 export type SkuFormPayload = {
   skuCode: string
   productName: string
-  categoryId: string
+  productKind: string
   collectionId: string
   seasonId: string
   color: string
@@ -24,7 +26,8 @@ export type SkuFormPayload = {
 type Props = {
   mode: Mode
   data?: ApiSku
-  categories: ApiCategory[]
+  catalogTree: ApiProductKindTreeNode[]
+  sizeFactors: ApiSizeFactor[]
   collections: ApiCollection[]
   seasons: ApiSeason[]
   onClose: () => void
@@ -40,7 +43,7 @@ function toForm(data?: ApiSku): SkuFormPayload {
   return {
     skuCode: data?.skuCode ?? '',
     productName: data?.productName ?? '',
-    categoryId: data?.categoryId ?? '',
+    productKind: data?.productKind ?? '',
     collectionId: data?.collectionId ?? '',
     seasonId: data?.seasonId ?? '',
     color: data?.color ?? '',
@@ -54,7 +57,8 @@ function toForm(data?: ApiSku): SkuFormPayload {
 export function SkuModal({
   mode,
   data,
-  categories,
+  catalogTree,
+  sizeFactors,
   collections,
   seasons,
   onClose,
@@ -65,14 +69,84 @@ export function SkuModal({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const productKindGroups = useMemo(
+    () =>
+      catalogTree.map((group) => ({
+        label: group.displayNameVi,
+        options: (group.productKinds ?? []).map((kind) => ({
+          value: kind.productKind,
+          label: kind.displayName,
+          hint: `${Number(kind.baseVolumeUnitsPerPiece)} U`,
+        })),
+      })),
+    [catalogTree]
+  )
+
+  const catalogByKind = useMemo(() => {
+    const map = new Map<string, (typeof catalogTree)[0]['productKinds'][0]>()
+    for (const group of catalogTree) {
+      for (const kind of group.productKinds ?? []) {
+        map.set(kind.productKind, kind)
+      }
+    }
+    return map
+  }, [catalogTree])
+
+  const selectedKind = form.productKind ? catalogByKind.get(form.productKind) : null
+  const requiresSize = selectedKind?.hasSize !== false
+
+  const sizeOptions = useMemo(() => {
+    const options = buildFlatSizeOptions(sizeFactors).map((opt) => ({
+      value: opt.value,
+      label: opt.value,
+      hint: opt.label.split('(')[1]?.replace(')', '') ?? opt.sizeGroup,
+    }))
+    if (
+      form.size &&
+      !options.some((opt) => opt.value === form.size) &&
+      (mode === 'edit' || mode === 'view')
+    ) {
+      options.unshift({
+        value: form.size,
+        label: form.size,
+        hint: 'legacy',
+      })
+    }
+    return options
+  }, [sizeFactors, form.size, mode])
+
+  const defaultSize = sizeOptions.find((opt) => opt.value === 'M')?.value ?? sizeOptions[0]?.value ?? ''
+
   useEffect(() => {
     setForm(toForm(data))
   }, [data])
+
+  useEffect(() => {
+    if (isView || !requiresSize) return
+    if (!form.size && defaultSize) {
+      setForm((f) => ({ ...f, size: defaultSize }))
+    }
+  }, [requiresSize, defaultSize, form.size, isView])
+
+  useEffect(() => {
+    if (isView || !requiresSize || !form.size) return
+    if (sizeOptions.length > 0 && !sizeOptions.some((opt) => opt.value === form.size)) {
+      setForm((f) => ({ ...f, size: defaultSize }))
+    }
+  }, [form.productKind, requiresSize, sizeOptions, form.size, defaultSize, isView])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.skuCode.trim() || !form.productName.trim()) {
       setError('Mã SKU và tên sản phẩm là bắt buộc')
+      return
+    }
+    if (!form.productKind) {
+      setError('Vui lòng chọn loại hàng (T-Shirt, Jeans, …)')
+      return
+    }
+    if (requiresSize && !form.size.trim()) {
+      setError('Vui lòng chọn size cho loại hàng này')
       return
     }
     setSaving(true)
@@ -82,9 +156,10 @@ export function SkuModal({
         ...form,
         skuCode: form.skuCode.trim(),
         productName: form.productName.trim(),
-        categoryId: form.categoryId || '',
+        productKind: form.productKind,
         collectionId: form.collectionId || '',
         seasonId: form.seasonId || '',
+        size: requiresSize ? form.size : '',
       })
       onClose()
     } catch (err) {
@@ -108,7 +183,7 @@ export function SkuModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto overflow-x-visible p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelStyle} htmlFor="sku-code">
@@ -156,26 +231,37 @@ export function SkuModal({
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className={labelStyle} htmlFor="sku-category">
-                Danh mục
-              </label>
-              <select
-                id="sku-category"
-                className={inputStyle}
-                disabled={isView}
-                value={form.categoryId}
-                onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))}
-              >
-                <option value="">—</option>
-                {categories.map((c) => (
-                  <option key={c.categoryId} value={c.categoryId}>
-                    {c.categoryName}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label className={labelStyle} htmlFor="sku-product-kind">
+              Loại hàng *
+            </label>
+            <p className="mb-2 text-xs text-slate-500">
+              Cùng catalog với yêu cầu thuê — dùng để quy đổi volume units (U) khi nhập kho.
+            </p>
+            {isView ? (
+              <p className="rounded-lg border border-white/10 bg-[#1a2333] px-4 py-2.5 text-sm text-white">
+                {selectedKind?.displayName ?? (form.productKind || '—')}
+                {selectedKind && (
+                  <span className="ml-2 text-slate-500">
+                    ({Number(selectedKind.baseVolumeUnitsPerPiece)} U)
+                  </span>
+                )}
+              </p>
+            ) : (
+              <DarkDropdownSelect
+                id="sku-product-kind"
+                value={form.productKind}
+                onChange={(productKind) => setForm((f) => ({ ...f, productKind }))}
+                groups={productKindGroups}
+                placeholder="Chọn loại hàng…"
+                theme="staff"
+                searchable
+                searchPlaceholder="Tìm T-Shirt, Jeans…"
+              />
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelStyle} htmlFor="sku-collection">
                 Bộ sưu tập
@@ -228,21 +314,32 @@ export function SkuModal({
             </div>
             <div>
               <label className={labelStyle} htmlFor="sku-size">
-                Size
+                Size {requiresSize ? '*' : ''}
               </label>
-              <select
-                id="sku-size"
-                className={inputStyle}
-                disabled={isView}
-                value={form.size}
-                onChange={(e) => setForm((f) => ({ ...f, size: e.target.value }))}
-              >
-                {SIZE_OPTIONS.map((o) => (
-                  <option key={o.value || 'empty'} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+              {isView ? (
+                <p className="rounded-lg border border-white/10 bg-[#1a2333] px-4 py-2.5 text-sm text-white">
+                  {form.size || 'One-size'}
+                </p>
+              ) : (
+                <DarkDropdownSelect
+                  id="sku-size"
+                  value={requiresSize ? form.size : ''}
+                  onChange={(size) => setForm((f) => ({ ...f, size }))}
+                  options={
+                    requiresSize
+                      ? sizeOptions
+                      : [{ value: '', label: 'One-size' }]
+                  }
+                  placeholder={requiresSize ? 'Chọn size…' : 'One-size'}
+                  disabled={!requiresSize}
+                  theme="staff"
+                />
+              )}
+              {requiresSize && (
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Cùng bảng size với yêu cầu thuê (XS–S / M–L / XL–3XL).
+                </p>
+              )}
             </div>
             <div>
               <label className={labelStyle}>Chất liệu</label>

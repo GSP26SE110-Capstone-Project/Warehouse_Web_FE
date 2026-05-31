@@ -22,6 +22,13 @@ export function fetchLocationTree() {
 export interface RegionWarehouseItem {
   warehouseName: string
   totalAreaM2: number | null
+  usableAreaM2: number | null
+  /** Diện tích làm mẫu số % — ưu tiên usable, fallback total */
+  capacityAreaM2: number | null
+  usedAreaM2: number
+  availableAreaM2: number | null
+  /** ~% diện tích đã quy hoạch thành zone (ACTIVE) */
+  utilizationPercent: number | null
 }
 
 export interface RegionWarehousesResult {

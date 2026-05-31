@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { SidebarNav } from '../SidebarNav';
 import { AdminHeader } from '../header/AdminHeader';
+import { ScrollToTopButton } from '../ScrollToTopButton';
 
 export const AdminLayout: React.FC = () => {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const mainRef = useRef<HTMLElement>(null);
 
     const handleToggleSidebar = () => {
         setSidebarCollapsed(!sidebarCollapsed);
@@ -25,9 +27,10 @@ export const AdminLayout: React.FC = () => {
                     <AdminHeader />
                 </div>
                 {/* Main Content */}
-                <main className="flex-1 mt-16 overflow-auto bg-black-500">
+                <main ref={mainRef} className="flex-1 mt-16 overflow-auto bg-black-500">
                     <Outlet />
                 </main>
+                <ScrollToTopButton scrollTargetRef={mainRef} className="bg-[#0b101a]/95" />
             </div>
         </div>
     );

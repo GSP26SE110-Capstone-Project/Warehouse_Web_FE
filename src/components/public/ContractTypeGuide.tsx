@@ -1,5 +1,5 @@
 import {
-  CONTRACT_TYPE_OPTIONS,
+  GUEST_CONTRACT_TYPE_OPTIONS,
   type ContractTypeValue,
 } from '../../data/contractTypes'
 
@@ -18,12 +18,13 @@ export function ContractTypeGuide({
           Chọn loại hình thuê phù hợp
         </h3>
         <p className="text-sm text-[#9bb9bb] mt-1 max-w-3xl">
-          Các hình thức dưới đây mô tả mức độ “riêng tư” không gian kho. Không chắc? Chọn{' '}
-          <strong className="text-[#06edf9]">Chưa rõ / để kho tư vấn</strong> — kho sẽ chốt loại thuê khi duyệt.
+          Chọn hình thức gần với nhu cầu của bạn. Không chắc? Chọn{' '}
+          <strong className="text-[#06edf9]">Chưa rõ / để kho tư vấn</strong> — đội ngũ kho sẽ đề xuất
+          khi duyệt yêu cầu.
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {CONTRACT_TYPE_OPTIONS.map((item) => {
+        {GUEST_CONTRACT_TYPE_OPTIONS.map((item) => {
           const isActive = selected === item.value
           return (
             <button

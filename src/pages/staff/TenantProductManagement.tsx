@@ -10,7 +10,8 @@ import { useAuth } from '../../auth/AuthContext'
 import { ApiError } from '../../api/client'
 import * as skusApi from '../../api/skus'
 import type { ApiSku } from '../../api/skus'
-import * as categoriesApi from '../../api/categories'
+import { fetchProductKindCatalogTree, fetchSizeFactors } from '../../api/productCatalog'
+import type { ApiProductKindTreeNode, ApiSizeFactor } from '../../api/productCatalog'
 import * as collectionsApi from '../../api/collections'
 import * as seasonsApi from '../../api/seasons'
 import { MOVEMENT_LABELS } from '../../data/skuOptions'
@@ -21,9 +22,8 @@ export const TenantProductManagement = () => {
   const canEdit = user?.role === 'TENANT_ADMIN'
 
   const [skus, setSkus] = useState<ApiSku[]>([])
-  const [categories, setCategories] = useState<
-    Awaited<ReturnType<typeof categoriesApi.listCategories>>['items']
-  >([])
+  const [catalogTree, setCatalogTree] = useState<ApiProductKindTreeNode[]>([])
+  const [sizeFactors, setSizeFactors] = useState<ApiSizeFactor[]>([])
   const [collections, setCollections] = useState<
     Awaited<ReturnType<typeof collectionsApi.listCollections>>['items']
   >([])
@@ -53,10 +53,18 @@ export const TenantProductManagement = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 8
 
-  const categoryMap = useMemo(
-    () => new Map(categories.map((c) => [c.categoryId, c.categoryName])),
-    [categories]
-  )
+  const productKindMap = useMemo(() => {
+    const map = new Map<string, { displayName: string; groupName: string }>()
+    for (const group of catalogTree) {
+      for (const kind of group.productKinds ?? []) {
+        map.set(kind.productKind, {
+          displayName: kind.displayName,
+          groupName: group.displayNameVi,
+        })
+      }
+    }
+    return map
+  }, [catalogTree])
   const collectionMap = useMemo(
     () => new Map(collections.map((c) => [c.collectionId, c.collectionName])),
     [collections]
@@ -74,14 +82,16 @@ export const TenantProductManagement = () => {
     setLoading(true)
     setError('')
     try {
-      const [skuRes, catRes, colRes, seasonRes] = await Promise.all([
+      const [skuRes, catalog, sizes, colRes, seasonRes] = await Promise.all([
         skusApi.listSkus({ tenantId, limit: 200 }),
-        categoriesApi.listCategories({ limit: 100 }),
+        fetchProductKindCatalogTree(),
+        fetchSizeFactors(),
         collectionsApi.listCollections({ tenantId, limit: 100 }),
         seasonsApi.listSeasons({ limit: 100 }),
       ])
       setSkus(skuRes.items)
-      setCategories(catRes.items)
+      setCatalogTree(catalog.tree ?? [])
+      setSizeFactors(sizes)
       setCollections(colRes.items)
       setSeasons(seasonRes.items)
     } catch (err) {
@@ -120,7 +130,7 @@ export const TenantProductManagement = () => {
     tenantId,
     skuCode: form.skuCode,
     productName: form.productName,
-    categoryId: form.categoryId || undefined,
+    productKind: form.productKind,
     collectionId: form.collectionId || undefined,
     seasonId: form.seasonId || undefined,
     color: form.color || undefined,
@@ -138,7 +148,7 @@ export const TenantProductManagement = () => {
     } else if (modal.mode === 'edit' && modal.data) {
       await skusApi.updateSku(modal.data.skuId, {
         productName: form.productName,
-        categoryId: form.categoryId || null,
+        productKind: form.productKind || null,
         collectionId: form.collectionId || null,
         seasonId: form.seasonId || null,
         color: form.color || undefined,
@@ -278,7 +288,7 @@ export const TenantProductManagement = () => {
                 <tr className="border-b border-white/5 bg-[#131b29] text-xs uppercase text-slate-400">
                   <th className="px-6 py-4">Mã SKU</th>
                   <th className="px-6 py-4">Tên sản phẩm</th>
-                  <th className="px-6 py-4">Danh mục</th>
+                  <th className="px-6 py-4">Loại hàng</th>
                   <th className="px-6 py-4">Màu / Size</th>
                   <th className="px-6 py-4">Luân chuyển</th>
                   <th className="px-6 py-4 text-center">Trạng thái</th>
@@ -298,9 +308,16 @@ export const TenantProductManagement = () => {
                       <td className="px-6 py-4 font-mono text-cyan-400">{s.skuCode}</td>
                       <td className="px-6 py-4 text-white">{s.productName}</td>
                       <td className="px-6 py-4 text-slate-400 text-xs">
-                        {categoryMap.get(s.categoryId ?? '') ?? '—'}
-                        {s.collectionId && (
+                        {productKindMap.get(s.productKind ?? '')?.displayName ??
+                          s.productKind ??
+                          '—'}
+                        {s.productKind && productKindMap.get(s.productKind)?.groupName && (
                           <span className="block text-slate-500">
+                            {productKindMap.get(s.productKind)?.groupName}
+                          </span>
+                        )}
+                        {s.collectionId && (
+                          <span className="block text-slate-600">
                             {collectionMap.get(s.collectionId) ?? ''}
                           </span>
                         )}
@@ -379,7 +396,8 @@ export const TenantProductManagement = () => {
         <SkuModal
           mode={modal.mode}
           data={modal.data}
-          categories={categories}
+          catalogTree={catalogTree}
+          sizeFactors={sizeFactors}
           collections={collections}
           seasons={seasons}
           onClose={() => setModal({ open: false, mode: 'view' })}

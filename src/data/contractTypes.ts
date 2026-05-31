@@ -22,45 +22,51 @@ export const CONTRACT_TYPE_OPTIONS: ContractTypeInfo[] = [
   {
     value: 'NEEDS_CONSULTATION',
     title: 'Chưa rõ / để kho tư vấn',
-    tagline: 'Kho đề xuất hình thức phù hợp',
+    tagline: 'Kho đề xuất phương án phù hợp',
     description:
-      'Bạn chưa chắc nên thuê zone, giữ chỗ hay kho chia sẻ. Gửi nhu cầu và diện tích ước tính — warehouse admin sẽ chọn loại thuê khi duyệt.',
+      'Bạn chưa chắc quy mô hay hình thức thuê. Gửi nhu cầu và loại hàng — warehouse admin sẽ đề xuất sau khi xem xét.',
     icon: 'support_agent',
     highlight: true,
   },
   {
     value: 'SHARED_STORAGE',
-    title: 'Kho chia sẻ',
-    tagline: 'Không giữ slot cố định',
+    title: 'Lưu hàng linh hoạt',
+    tagline: 'Kho xếp lên kệ giúp bạn',
     description:
-      'Kho xếp hàng giúp bạn — không slot cố định. Trả theo mức dùng trong kỳ; hóa đơn gom theo tháng hoặc năm (không tính phí từng ngày trên đăng ký guest).',
-    icon: 'share',
+      'Phù hợp hầu hết doanh nghiệp: bạn gửi hàng, kho chọn kệ/ngăn và theo dõi tồn. Trả theo lượng hàng thực tế mỗi kỳ (tháng hoặc năm) — không cần đặt trước một ô cố định.',
+    icon: 'inventory_2',
+    highlight: true,
   },
   {
     value: 'RESERVED_STORAGE',
     title: 'Giữ chỗ cố định',
-    tagline: 'Slot riêng, kho vẫn dùng chung',
+    tagline: 'Slot riêng (chỉ WH admin gán)',
     description:
-      'Bạn có một phần không gian được giữ cố định, trong khi warehouse vẫn vận hành chung với tenant khác — cân bằng giữa ổn định và chi phí.',
+      'Một phần không gian bin được giữ cố định cho tenant. Không hiển thị trên form guest — warehouse admin chọn khi duyệt nếu phù hợp.',
     icon: 'bookmark',
   },
   {
     value: 'DEDICATED_ZONE',
-    title: 'Thuê nguyên zone',
-    tagline: 'Một khu riêng trong kho',
+    title: 'Thuê một khu riêng trong kho',
+    tagline: 'Tách riêng luồng hàng của bạn',
     description:
-      'Thuê trọn một zone — không chỉ vài bin lẻ tẻ. Phù hợp khi cần tách luồng hàng, quy trình riêng trong cùng tòa kho.',
+      'Một khu vực trong kho dành riêng cho thương hiệu của bạn (vẫn chung tòa nhà với doanh nghiệp khác). Phù hợp quy mô lớn hoặc quy trình riêng.',
     icon: 'grid_view',
   },
   {
     value: 'DEDICATED_WAREHOUSE',
-    title: 'Thuê nguyên kho',
-    tagline: '100% riêng cho doanh nghiệp',
+    title: 'Thuê nguyên một kho',
+    tagline: 'Toàn bộ tòa kho dành cho bạn',
     description:
-      'Toàn bộ warehouse dành riêng cho bạn — kiểm soát tối đa, phù hợp quy mô lớn hoặc yêu cầu bảo mật / vận hành đặc thù.',
+      'Cả warehouse chỉ phục vụ doanh nghiệp của bạn — phù hợp quy mô rất lớn hoặc yêu cầu bảo mật / vận hành riêng.',
     icon: 'warehouse',
   },
 ]
+
+/** Guest landing / rental form — không hiển thị giữ chỗ cố định (WH chọn khi duyệt). */
+export const GUEST_CONTRACT_TYPE_OPTIONS = CONTRACT_TYPE_OPTIONS.filter(
+  (c) => c.value !== 'RESERVED_STORAGE'
+)
 
 export const WH_ASSIGNABLE_CONTRACT_OPTIONS = CONTRACT_TYPE_OPTIONS.filter(
   (c): c is ContractTypeInfo & { value: BillableContractTypeValue } =>
@@ -110,7 +116,7 @@ export function requestedAreaFieldHint(contractType: ContractTypeValue): string 
     return 'Tham khảo diện tích các kho trong khu vực phía trên. Không bắt buộc chọn đúng một kho.'
   }
   if (contractType === 'NEEDS_CONSULTATION') {
-    return 'Có thể bỏ trống nếu bạn đã nhập tổng số cái/tháng bên dưới. Kho sẽ đề xuất loại thuê sau khi xem xét.'
+    return 'Có thể bỏ trống nếu bạn đã khai báo loại hàng + size bên dưới. Kho sẽ đề xuất loại thuê sau khi xem xét.'
   }
   return 'Ước tính diện tích zone riêng bạn muốn thuê (tính phí theo m²/tháng).'
 }
@@ -128,4 +134,52 @@ export function suggestBillableContractType(
     return 'DEDICATED_ZONE'
   }
   return 'SHARED_STORAGE'
+}
+
+export type GuestRegionWarehouseCopy = {
+  listIntro: (count: number, district: string, city: string) => string
+  footer: string
+  empty: (district: string, city: string) => string
+}
+
+/** Copy khối preview kho theo loại hình thuê guest chọn. */
+export function guestRegionWarehouseCopy(contractType: ContractTypeValue): GuestRegionWarehouseCopy {
+  switch (contractType) {
+    case 'DEDICATED_WAREHOUSE':
+      return {
+        listIntro: (count, district, city) =>
+          `Có ${count} kho tham khảo tại ${district}, ${city}`,
+        footer:
+          'Danh sách chỉ để tham khảo. % quy hoạch = diện tích các khu (zone) đã bố trí / diện tích kho. Thuê nguyên kho cần admin xác nhận kho còn trống toàn bộ.',
+        empty: (district, city) =>
+          `Chưa có kho hoạt động tại ${district}, ${city}. Bạn vẫn có thể gửi yêu cầu — System Admin sẽ liên hệ khi có phương án phù hợp.`,
+      }
+    case 'DEDICATED_ZONE':
+      return {
+        listIntro: (count, district, city) =>
+          `Có ${count} kho tại ${district}, ${city} — tham khảo diện tích trước khi thuê khu riêng`,
+        footer:
+          'Thanh % giúp ước lượng kho còn chỗ cho khu riêng. Warehouse admin chọn kho và zone phù hợp khi duyệt.',
+        empty: (district, city) =>
+          `Chưa có kho tại ${district}, ${city}. Gửi yêu cầu kèm diện tích mong muốn — admin sẽ tư vấn.`,
+      }
+    case 'SHARED_STORAGE':
+      return {
+        listIntro: (count, district, city) =>
+          `Có ${count} kho đang phục vụ ${district}, ${city}`,
+        footer:
+          'Thanh % = mức quy hoạch khu trong kho (tham khảo). Bạn không chọn kho — kho phù hợp sẽ tiếp nhận khi duyệt.',
+        empty: (district, city) =>
+          `Hiện chưa có kho hoạt động tại ${district}, ${city}. Bạn vẫn có thể gửi yêu cầu — admin sẽ liên hệ sau.`,
+      }
+    default:
+      return {
+        listIntro: (count, district, city) =>
+          `Có ${count} kho tham khảo tại ${district}, ${city}`,
+        footer:
+          'Bạn không cần chọn kho — admin sẽ đề xuất hình thức thuê và kho phù hợp khi duyệt.',
+        empty: (district, city) =>
+          `Chưa có kho tại ${district}, ${city}. Bạn vẫn có thể gửi yêu cầu để được tư vấn.`,
+      }
+  }
 }
