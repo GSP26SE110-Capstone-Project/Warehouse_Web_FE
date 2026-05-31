@@ -353,7 +353,7 @@ export const RackLayoutManagement = () => {
         row.push({
           id: bin?.binId ?? null,
           label: bin
-            ? `${bin.binCode.slice(-3)}\n${bin.currentLpnCount ?? 0}/${bin.maxLpnCount ?? '?'}`
+            ? `${bin.binCode.slice(-3)}\n${bin.usedVolumeUnits ?? 0}/${bin.maxVolumeUnits ?? '?'} vol`
             : '+',
           hint: bin
             ? `${bin.binCode} · ${formatBinOccupancy(bin)} · ${
@@ -749,13 +749,13 @@ export const RackLayoutManagement = () => {
           {activeZone && (
             <p className="mt-2 text-center text-xs text-slate-400">
               Mặc định zone {ZONE_TYPE_LABELS[activeZone.zoneType ?? ''] ?? activeZone.zoneType}:{' '}
-              {getDefaultBinCapacity(activeZone.zoneType).maxLpnCount} LPN /{' '}
-              {getDefaultBinCapacity(activeZone.zoneType).maxVolumeUnits} volume
+              {getDefaultBinCapacity(activeZone.zoneType).maxVolumeUnits} volume (LPN cap ={' '}
+              {getDefaultBinCapacity(activeZone.zoneType).maxLpnCount})
             </p>
           )}
           <p className="mt-1 text-center text-[10px] text-slate-500">
-            Nhấn ô &quot;+&quot; hoặc bin để cấu hình maxLpnCount · maxVolumeUnits · tooltip hiển thị
-            LPN/Vol đang dùng
+            Nhãn ô: <strong className="text-slate-400">volume đang dùng / sức chứa</strong>.
+            Bin chỉ chặn bởi volume — LPN cap luôn ≥ volume. Hover để xem chi tiết LPN/Vol.
           </p>
         </section>
       )}

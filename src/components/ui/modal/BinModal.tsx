@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { InlineAlert } from '../FeedbackAlert'
 import type { ApiBin } from '../../../api/bins'
+import { listLpns, type ApiLpn, type BoxType } from '../../../api/lpns'
 import { getDefaultBinCapacity } from '../../../data/binCapacityDefaults'
-import { formatBinOccupancy, isBinAtCapacity, isBinEmpty } from '../../../utils/binOccupancy'
+import { isBinAtCapacity, isBinEmpty } from '../../../utils/binOccupancy'
 import { BIN_STATUS_LABELS, RESERVATION_TYPE_LABELS } from '../../../data/rackStructure'
 import { ZONE_TYPE_LABELS } from '../../../data/zoneTypes'
 
@@ -75,6 +76,42 @@ export function BinModal({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  /** LPN đang nằm trong bin (status=STORED) — chỉ load ở edit mode khi đã có binId. */
+  const binId = (data as ApiBin | undefined)?.binId
+  const [lpns, setLpns] = useState<ApiLpn[]>([])
+  const [lpnsLoading, setLpnsLoading] = useState(false)
+  useEffect(() => {
+    if (mode !== 'edit' || !binId) return
+    let cancelled = false
+    setLpnsLoading(true)
+    listLpns({ currentBinId: binId, status: 'STORED', limit: 100 })
+      .then(({ items }) => {
+        if (!cancelled) setLpns(items)
+      })
+      .catch(() => {
+        if (!cancelled) setLpns([])
+      })
+      .finally(() => {
+        if (!cancelled) setLpnsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [mode, binId])
+
+  const lpnByBoxType = useMemo(() => {
+    const groups: Record<BoxType, number> = { EXTRA: 0, LARGE: 0, MEDIUM: 0, SMALL: 0 }
+    for (const lpn of lpns) {
+      if (lpn.boxType in groups) groups[lpn.boxType] += 1
+    }
+    return groups
+  }, [lpns])
+
+  const totalActualVolume = useMemo(
+    () => lpns.reduce((sum, lpn) => sum + Number(lpn.volumeUnits ?? 0), 0),
+    [lpns]
+  )
+
   useEffect(() => {
     if (mode === 'create') {
       setMaxLpnCount(preset.maxLpnCount)
@@ -138,19 +175,74 @@ export function BinModal({
     mode === 'edit' && data ? (
       <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-300">
         <p className="font-mono text-cyan-300">{data.binCode}</p>
-        <p className="mt-1">{formatBinOccupancy(data)}</p>
-        <p className="mt-1 text-xs text-slate-500">
+
+        {/* Volume usage bar — single source of truth (bin chỉ chặn bởi volume) */}
+        <div className="mt-2">
+          <div className="flex items-baseline justify-between text-xs">
+            <span className="text-slate-400">Sức chứa đã dùng</span>
+            <span className="font-mono text-slate-200">
+              {data.usedVolumeUnits ?? 0}/{data.maxVolumeUnits ?? '?'} vol
+            </span>
+          </div>
+          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
+            <div
+              className={`h-full transition-all ${
+                isBinAtCapacity(data)
+                  ? 'bg-amber-400'
+                  : isBinEmpty(data)
+                  ? 'bg-emerald-400/30'
+                  : 'bg-cyan-400'
+              }`}
+              style={{
+                width: `${Math.min(
+                  100,
+                  ((data.usedVolumeUnits ?? 0) / (data.maxVolumeUnits || 1)) * 100
+                )}%`,
+              }}
+            />
+          </div>
+        </div>
+
+        {/* LPN đang chứa — group theo box type, ẩn dòng "LPN X/Y" */}
+        <div className="mt-2">
+          <p className="text-xs text-slate-500">
+            {lpnsLoading
+              ? 'Đang tải LPN…'
+              : lpns.length === 0
+              ? 'Đang chứa: chưa có LPN nào (bin trống)'
+              : `Đang chứa ${lpns.length} LPN (${totalActualVolume} vol)`}
+          </p>
+          {!lpnsLoading && lpns.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {(['EXTRA', 'LARGE', 'MEDIUM', 'SMALL'] as BoxType[]).map((bt) =>
+                lpnByBoxType[bt] > 0 ? (
+                  <span
+                    key={bt}
+                    className="inline-flex items-center gap-1 rounded border border-cyan-400/30 bg-cyan-400/10 px-2 py-0.5 font-mono text-[11px] text-cyan-200"
+                  >
+                    {lpnByBoxType[bt]} × {bt}
+                  </span>
+                ) : null
+              )}
+            </div>
+          )}
+          {!lpnsLoading &&
+            lpns.length > 0 &&
+            (data.usedVolumeUnits ?? 0) !== totalActualVolume && (
+              <p className="mt-1 text-[11px] text-amber-300/90">
+                ⚠ Counter trên bin lệch với thực tế LPN ({data.usedVolumeUnits ?? 0} ≠{' '}
+                {totalActualVolume} vol). Chạy migration{' '}
+                <code className="rounded bg-white/10 px-1">
+                  bins_resync_lpn_volume.sql
+                </code>{' '}
+                để sync lại.
+              </p>
+            )}
+        </div>
+
+        <p className="mt-2 text-xs text-slate-500">
           Trạng thái: {BIN_STATUS_LABELS[data.status ?? ''] ?? data.status ?? '—'} ·{' '}
           {RESERVATION_TYPE_LABELS[data.reservationType ?? ''] ?? data.reservationType}
-        </p>
-        <p className="mt-1 text-xs">
-          {isBinEmpty(data) ? (
-            <span className="text-emerald-400">Còn trống (chưa có LPN)</span>
-          ) : isBinAtCapacity(data) ? (
-            <span className="text-amber-300">Đã đầy theo LPN hoặc thể tích</span>
-          ) : (
-            <span className="text-cyan-300/90">Đang dùng một phần</span>
-          )}
         </p>
       </div>
     ) : null
@@ -158,7 +250,7 @@ export function BinModal({
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       <button type="button" className="absolute inset-0 bg-black/70" onClick={onClose} aria-label="Đóng" />
-      <div className="relative z-10 w-full max-w-md rounded-xl border border-white/5 bg-[#0b101a] p-6 shadow-2xl">
+      <div className="relative z-10 flex max-h-[90vh] w-full max-w-md flex-col overflow-y-auto rounded-xl border border-white/5 bg-[#0b101a] p-6 shadow-2xl">
         <h2 className="text-lg font-bold text-white">
           {mode === 'create' ? 'Tạo bin' : 'Cấu hình bin'}
         </h2>
@@ -179,19 +271,30 @@ export function BinModal({
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <div>
             <label className={labelStyle} htmlFor="bin-max-vol">
-              Sức chứa (volume units)
+              Sức chứa (volume units) · cố định theo zone
             </label>
-            <input
-              id="bin-max-vol"
-              type="number"
-              min={1}
-              className={inputStyle}
-              value={maxVolumeUnits}
-              onChange={(e) => setMaxVolumeUnits(Number(e.target.value))}
-              aria-describedby="bin-volume-help"
-            />
+            <div className="relative">
+              <input
+                id="bin-max-vol"
+                type="number"
+                className={`${inputStyle} cursor-not-allowed opacity-60`}
+                value={maxVolumeUnits}
+                disabled
+                readOnly
+                aria-describedby="bin-volume-help"
+              />
+              <span className="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+                lock
+              </span>
+            </div>
             <p id="bin-volume-help" className="mt-1 text-[11px] text-slate-500">
-              Quy ước: 1 SMALL = 1, MEDIUM = 2, LARGE = 4, EXTRA = 8 volume unit.
+              Lock theo preset zone{' '}
+              <strong className="text-slate-300">
+                {ZONE_TYPE_LABELS[zoneType ?? ''] ?? zoneType ?? 'SHARED'}
+              </strong>{' '}
+              ({preset.maxVolumeUnits} vol). Quy ước: 1 SMALL = 1, MEDIUM = 2, LARGE = 4,
+              EXTRA = 8 volume unit. Đổi sức chứa = đổi physical shelf design → cần cập
+              nhật ở binCapacityDefaults thay vì sửa từng bin.
             </p>
           </div>
 
