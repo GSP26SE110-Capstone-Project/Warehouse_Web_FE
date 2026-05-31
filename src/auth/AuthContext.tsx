@@ -19,6 +19,7 @@ type AuthState = {
   login: (payload: LoginPayload) => Promise<ApiUser>
   logout: () => void
   refreshUser: () => Promise<void>
+  syncUser: (user: ApiUser) => void
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -41,6 +42,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearSession()
       setUser(null)
     }
+  }, [])
+
+  const syncUser = useCallback((next: ApiUser) => {
+    const token = getAccessToken()
+    if (!token) return
+    setUser(next)
+    saveSession(token, next)
   }, [])
 
   useEffect(() => {
@@ -84,8 +92,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       refreshUser,
+      syncUser,
     }),
-    [user, isLoading, login, logout, refreshUser]
+    [user, isLoading, login, logout, refreshUser, syncUser]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

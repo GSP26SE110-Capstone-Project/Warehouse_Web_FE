@@ -27,6 +27,10 @@ export function getMe() {
   return apiRequest<ApiUser>('/users/me')
 }
 
+export function updateMe(body: { fullName?: string; phone?: string }) {
+  return apiRequest<ApiUser>('/users/me', { method: 'PATCH', body })
+}
+
 export function listUsers(params?: {
   role?: UserRole
   status?: UserStatus
