@@ -135,10 +135,29 @@ export interface ApiInboundApprovalReadiness {
     usedFallback?: boolean
   }
   warnings: string[]
+  estimateUsage?: ApiInboundEstimateUsage | null
   batchCount: number
   canRevokeApproval: boolean
   canWarehouseCancel: boolean
   canWarehouseReject: boolean
+}
+
+export interface ApiInboundEstimateUsage {
+  rentalRequestId: string
+  requestCode: string | null
+  estimatedBoxCount: number | null
+  estimatedSkuCount: number | null
+  cumulativePieces: number
+  currentInboundPieces: number
+  previousInboundPieces: number
+  distinctSkus: number
+  boxUtilizationPercent: number | null
+  skuUtilizationPercent: number | null
+  overageBoxes: number
+  overageSkus: number
+  softThresholdPercent: number
+  hardThresholdPercent: number
+  severity: 'ok' | 'near' | 'soft' | 'hard'
 }
 
 export function getApprovalReadiness(inboundRequestId: string) {

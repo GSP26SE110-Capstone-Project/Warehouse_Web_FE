@@ -5,24 +5,29 @@ export type BinCapacityPreset = {
   note: string
 }
 
+/**
+ * Quy ước thiết kế: `maxLpnCount = maxVolumeUnits` để LPN count không phải là constraint
+ * (mỗi SMALL = 1 volume unit, nên upper bound vật lý của số LPN = số volume units).
+ * Bin chỉ bị chặn bởi volume → tenant nhập nhiều box nhỏ vẫn tận dụng đầy bin.
+ */
 const PRESETS: Record<string, BinCapacityPreset> = {
   FAST_MOVING: {
-    maxLpnCount: 3,
+    maxLpnCount: 6,
     maxVolumeUnits: 6,
-    note: 'Ít chồng — pick nhanh',
+    note: 'Pick nhanh — tối đa 6 SMALL / 3 MEDIUM / 1 LARGE+1 MEDIUM',
   },
   SHARED: {
-    maxLpnCount: 4,
+    maxLpnCount: 16,
     maxVolumeUnits: 16,
-    note: 'Chuẩn chung — tối đa 2 EXTRA/bin (8+8 volume)',
+    note: 'Chuẩn chung — 2 EXTRA / 4 LARGE / 8 MEDIUM / 16 SMALL (chặn bởi volume)',
   },
   PREMIUM: {
-    maxLpnCount: 2,
+    maxLpnCount: 4,
     maxVolumeUnits: 4,
-    note: 'Hàng giá trị cao, ít chồng',
+    note: 'Hàng giá trị cao — 1 LARGE / 2 MEDIUM / 4 SMALL',
   },
   RETURN: {
-    maxLpnCount: 4,
+    maxLpnCount: 16,
     maxVolumeUnits: 16,
     note: 'Giống shared',
   },
