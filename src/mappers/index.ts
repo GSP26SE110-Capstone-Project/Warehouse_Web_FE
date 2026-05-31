@@ -126,6 +126,7 @@ export type RentalRequestRow = {
   requiresFastPicking?: boolean
   requiresPremiumStorage?: boolean
   notes?: string | null
+  reviewNote?: string | null
   expectedStartDate?: string | null
   expectedEndDate?: string | null
 }
@@ -174,6 +175,7 @@ export function rentalRequestToRow(
     requiresFastPicking: r.requiresFastPicking,
     requiresPremiumStorage: r.requiresPremiumStorage,
     notes: r.notes,
+    reviewNote: r.reviewNote,
     expectedStartDate: r.expectedStartDate,
     expectedEndDate: r.expectedEndDate,
   }

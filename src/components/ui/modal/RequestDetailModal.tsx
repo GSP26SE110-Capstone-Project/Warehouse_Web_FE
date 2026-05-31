@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
   BILLING_CYCLE_GUEST_LABELS,
   CONTRACT_TYPE_LABELS,
@@ -9,16 +9,23 @@ import type { RentalRequestRow } from '../../../mappers'
 type Props = {
   data: RentalRequestRow
   canProcess?: boolean
+  canNotifyGuest?: boolean
+  notifyBusy?: boolean
   onClose: () => void
   onStartOnboarding: () => void
+  onNotifyGuest?: (message: string) => void | Promise<void>
 }
 
 export const RequestDetailModal: React.FC<Props> = ({
   data,
   canProcess = true,
+  canNotifyGuest = false,
+  notifyBusy = false,
   onClose,
   onStartOnboarding,
+  onNotifyGuest,
 }) => {
+  const [guestMessage, setGuestMessage] = useState(data.reviewNote ?? '')
   const labelStyle =
     'text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block'
 
@@ -30,6 +37,18 @@ export const RequestDetailModal: React.FC<Props> = ({
     data.apiStatus === 'PENDING' ||
     data.apiStatus === 'UNDER_REVIEW' ||
     data.apiStatus === 'APPROVED'
+
+  const showGuestNotify =
+    canNotifyGuest &&
+    !data.warehouseId &&
+    (data.apiStatus === 'PENDING' || data.apiStatus === 'UNDER_REVIEW') &&
+    onNotifyGuest
+
+  const handleNotifyGuest = () => {
+    const trimmed = guestMessage.trim()
+    if (!trimmed || !onNotifyGuest) return
+    void onNotifyGuest(trimmed)
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -144,6 +163,46 @@ export const RequestDetailModal: React.FC<Props> = ({
                   value={data.notes}
                   disabled
                 />
+              </div>
+            )}
+
+            {data.reviewNote && !showGuestNotify && (
+              <div>
+                <label className={labelStyle}>Thông báo guest (đã gửi)</label>
+                <textarea
+                  title="Thông báo guest"
+                  className={`${inputStyle} min-h-[60px]`}
+                  value={data.reviewNote}
+                  disabled
+                />
+              </div>
+            )}
+
+            {showGuestNotify && (
+              <div className="rounded-lg border border-amber-400/25 bg-amber-400/5 p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-amber-200 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-base">hourglass_top</span>
+                  Thông báo chờ kho trống
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Guest sẽ thấy nội dung này khi tra cứu mã RR + email. Trạng thái chuyển sang{' '}
+                  <strong className="text-amber-200">UNDER_REVIEW</strong>.
+                </p>
+                <textarea
+                  title="Thông báo cho guest"
+                  placeholder="VD: Hiện chưa có kho trống tại Bình Thạnh. Dự kiến có phương án Q3/2026 — chúng tôi sẽ liên hệ qua email."
+                  className={`${inputStyle} min-h-[88px]`}
+                  value={guestMessage}
+                  onChange={(e) => setGuestMessage(e.target.value)}
+                />
+                <button
+                  type="button"
+                  disabled={notifyBusy || !guestMessage.trim()}
+                  onClick={handleNotifyGuest}
+                  className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-400/20 disabled:opacity-50"
+                >
+                  {notifyBusy ? 'Đang lưu…' : 'Lưu thông báo cho guest'}
+                </button>
               </div>
             )}
 

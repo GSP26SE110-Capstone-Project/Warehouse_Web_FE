@@ -150,7 +150,7 @@ export function guestRegionWarehouseCopy(contractType: ContractTypeValue): Guest
         listIntro: (count, district, city) =>
           `Có ${count} kho tham khảo tại ${district}, ${city}`,
         footer:
-          'Danh sách chỉ để tham khảo. % quy hoạch = diện tích các khu (zone) đã bố trí / diện tích kho. Thuê nguyên kho cần admin xác nhận kho còn trống toàn bộ.',
+          '% đã thuê = diện tích zone/HĐ đang có khách. Thuê nguyên kho cần kho ~0% thuê — xem nhãn từng kho.',
         empty: (district, city) =>
           `Chưa có kho hoạt động tại ${district}, ${city}. Bạn vẫn có thể gửi yêu cầu — System Admin sẽ liên hệ khi có phương án phù hợp.`,
       }

@@ -23,6 +23,7 @@ export interface RentalRequestPublicLookup {
   expectedStartDate?: string | null
   expectedEndDate?: string | null
   rejectionReason?: string | null
+  reviewNote?: string | null
   warehouseName?: string | null
   createdAt?: string | null
   updatedAt?: string | null

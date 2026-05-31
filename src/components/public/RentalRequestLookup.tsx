@@ -15,7 +15,7 @@ const inputWrapStyle = { border: '1px solid #3a5455', background: 'rgba(11,22,23
 
 const STATUS_LABELS: Record<RentalRequestPublicLookup['status'], string> = {
   PENDING: 'Chờ duyệt',
-  UNDER_REVIEW: 'Đang xem xét',
+  UNDER_REVIEW: 'Đang chờ / tư vấn',
   APPROVED: 'Đã duyệt',
   REJECTED: 'Từ chối',
   CONVERTED: 'Đã chuyển hợp đồng',
@@ -279,10 +279,15 @@ function LookupResult({ result }: { result: RentalRequestPublicLookup }) {
         {result.rejectionReason && (
           <DetailRow label="Lý do từ chối" value={result.rejectionReason} />
         )}
+        {result.reviewNote && (
+          <DetailRow label="Thông báo từ NEXSPACE" value={result.reviewNote} />
+        )}
       </div>
 
       <p className="text-xs text-[#9bb9bb] mt-6 pt-4 border-t border-white/5">
-        {result.status === 'APPROVED' || result.status === 'CONVERTED'
+        {result.reviewNote && result.status === 'UNDER_REVIEW'
+          ? 'Admin đã ghi nhận yêu cầu. Vui lòng theo dõi mã RR và email — chúng tôi sẽ liên hệ khi có kho phù hợp.'
+          : result.status === 'APPROVED' || result.status === 'CONVERTED'
           ? 'Yêu cầu đã được duyệt. System Admin sẽ liên hệ cấp tài khoản đăng nhập.'
           : result.status === 'REJECTED'
             ? 'Yêu cầu không được chấp nhận. Bạn có thể gửi yêu cầu mới với thông tin cập nhật.'

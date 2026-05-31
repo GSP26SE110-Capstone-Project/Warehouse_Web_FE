@@ -43,6 +43,11 @@ import {
   deriveSuggestedZoneType,
 } from '../../utils/rentalRequestGuest'
 import { WarehouseUtilizationBar } from './WarehouseUtilizationBar'
+import {
+  dedicatedLeaseBadge,
+  dedicatedLeaseNoVacancyMessage,
+  hasWarehouseAvailableForDedicated,
+} from '../../utils/guestDedicatedWarehouse'
 
 const inputWrapStyle = { border: '1px solid #3a5455', background: 'rgba(11,22,23,0.8)' } as const
 
@@ -601,21 +606,45 @@ export function RentalRequestForm({
                         regionWarehouses.city
                       )}
                     </p>
-                    <ul className="space-y-3">
-                      {regionWarehouses.items.map((wh) => (
-                        <li
-                          key={wh.warehouseName}
-                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm border-t border-white/5 pt-3 first:border-0 first:pt-0"
-                        >
-                          <span className="text-white flex items-center gap-2 shrink-0">
-                            <span className="material-symbols-outlined text-[#06edf9] text-lg">
-                              warehouse
-                            </span>
-                            {wh.warehouseName}
+                    {contractType === 'DEDICATED_WAREHOUSE' &&
+                      !hasWarehouseAvailableForDedicated(regionWarehouses.items) && (
+                        <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2.5 text-xs sm:text-sm text-amber-100 leading-relaxed">
+                          <span className="material-symbols-outlined text-base align-middle mr-1 text-amber-300">
+                            info
                           </span>
-                          <WarehouseUtilizationBar item={wh} />
-                        </li>
-                      ))}
+                          {dedicatedLeaseNoVacancyMessage(regionWarehouses.district, regionWarehouses.city)}
+                        </div>
+                      )}
+                    <ul className="space-y-3">
+                      {regionWarehouses.items.map((wh) => {
+                        const dedicatedBadge =
+                          contractType === 'DEDICATED_WAREHOUSE'
+                            ? dedicatedLeaseBadge(wh.dedicatedLeaseAvailability)
+                            : null
+                        return (
+                          <li
+                            key={wh.warehouseName}
+                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm border-t border-white/5 pt-3 first:border-0 first:pt-0"
+                          >
+                            <div className="flex flex-col gap-1.5 shrink-0">
+                              <span className="text-white flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[#06edf9] text-lg">
+                                  warehouse
+                                </span>
+                                {wh.warehouseName}
+                              </span>
+                              {dedicatedBadge && (
+                                <span
+                                  className={`inline-flex w-fit items-center rounded-md border px-2 py-0.5 text-[10px] sm:text-xs font-medium ${dedicatedBadge.className}`}
+                                >
+                                  {dedicatedBadge.label}
+                                </span>
+                              )}
+                            </div>
+                            <WarehouseUtilizationBar item={wh} />
+                          </li>
+                        )
+                      })}
                     </ul>
                     <p className="text-xs text-[#9bb9bb]">
                       {guestRegionWarehouseCopy(contractType).footer}

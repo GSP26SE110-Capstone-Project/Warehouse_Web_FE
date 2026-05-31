@@ -34,6 +34,7 @@ export const RequestManagement = () => {
     open: false,
     message: '',
   })
+  const [notifyBusy, setNotifyBusy] = useState(false)
 
   const operator: OnboardingOperator = useMemo(
     () => ({
@@ -285,7 +286,46 @@ export const RequestManagement = () => {
         <RequestDetailModal
           data={modal.data}
           canProcess={currentUser?.role === 'WH_ADMIN'}
+          canNotifyGuest={currentUser?.role === 'SYSTEM_ADMIN'}
+          notifyBusy={notifyBusy}
           onClose={() => setModal({ open: false })}
+          onNotifyGuest={async (message) => {
+            if (!modal.data) return
+            setNotifyBusy(true)
+            try {
+              await rentalRequestsApi.updateRentalRequest(modal.data.rentalRequestId, {
+                status: 'UNDER_REVIEW',
+                reviewNote: message,
+              })
+              await loadRequests()
+              setModal((prev) =>
+                prev.data
+                  ? {
+                      ...prev,
+                      data: {
+                        ...prev.data,
+                        apiStatus: 'UNDER_REVIEW',
+                        status: 'pending',
+                        reviewNote: message,
+                      },
+                    }
+                  : prev
+              )
+              setAlert({
+                open: true,
+                type: 'success',
+                message: 'Đã lưu thông báo — guest tra cứu mã RR sẽ thấy nội dung.',
+              })
+            } catch (err) {
+              setAlert({
+                open: true,
+                type: 'error',
+                message: err instanceof ApiError ? err.message : 'Không lưu được thông báo',
+              })
+            } finally {
+              setNotifyBusy(false)
+            }
+          }}
           onStartOnboarding={() => {
             const data = modal.data!
             setModal({ open: false })

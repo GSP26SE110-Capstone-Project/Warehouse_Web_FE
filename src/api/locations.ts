@@ -29,6 +29,15 @@ export interface RegionWarehouseItem {
   availableAreaM2: number | null
   /** ~% diện tích đã quy hoạch thành zone (ACTIVE) */
   utilizationPercent: number | null
+  /** Diện tích đang thuê qua HĐ (zone riêng / nguyên kho) */
+  leasedAreaM2: number
+  /** ~% diện tích đã thuê so với capacity */
+  leasedPercent: number | null
+  unleasedAreaM2: number | null
+  hasActiveTenantContract: boolean
+  hasDedicatedWarehouseLease: boolean
+  /** Gợi ý thuê nguyên kho cho guest (không lộ tên tenant) */
+  dedicatedLeaseAvailability: 'AVAILABLE' | 'NEEDS_REVIEW' | 'OCCUPIED'
 }
 
 export interface RegionWarehousesResult {
