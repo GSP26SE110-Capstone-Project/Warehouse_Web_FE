@@ -394,36 +394,42 @@ export const WarehouseManagement: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 text-center text-slate-400">{item.lastUpdated}</td>
                         <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-3 opacity-60 group-hover:opacity-100">
+                          <div className="flex items-center justify-end gap-2">
                             <button
                               type="button"
                               title="Xem chi tiết"
                               onClick={() => setModal({ open: true, mode: 'view', data: item })}
-                              className="rounded p-1.5 hover:bg-white/10"
+                              className="rounded p-1.5 text-slate-300 opacity-70 transition hover:bg-white/10 hover:text-white group-hover:opacity-100"
                             >
                               <span className="material-symbols-outlined text-lg">visibility</span>
                             </button>
                             <button
                               type="button"
+                              title="Chỉnh sửa"
                               onClick={() => setModal({ open: true, mode: 'edit', data: item })}
-                              className="rounded p-1.5 hover:bg-white/10"
+                              className="rounded p-1.5 text-slate-300 opacity-70 transition hover:bg-white/10 hover:text-white group-hover:opacity-100"
                             >
                               <span className="material-symbols-outlined text-lg">edit</span>
                             </button>
                             {!isWhAdmin && (
                               <button
                                 type="button"
+                                title={`Xóa kho ${item.warehouseName}`}
                                 onClick={() =>
                                   setAlert({
                                     open: true,
                                     type: 'confirm',
-                                    message: `Bạn có chắc muốn xóa kho ${item.warehouseName}?`,
+                                    title: 'Xác nhận xóa kho',
+                                    message: `Bạn có chắc muốn xóa kho "${item.warehouseName}" (${
+                                      item.warehouseCode ?? item.warehouseId.slice(0, 8)
+                                    })? Thao tác này không thể hoàn tác.`,
                                     onConfirm: () => handleDelete(item.warehouseId),
                                   })
                                 }
-                                className="rounded p-1.5 hover:bg-white/10"
+                                className="inline-flex items-center gap-1 rounded-md border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-xs font-semibold text-red-300 transition hover:border-red-400 hover:bg-red-500/20 hover:text-red-100"
                               >
-                                <span className="material-symbols-outlined text-lg">delete</span>
+                                <span className="material-symbols-outlined text-base">delete</span>
+                                Xóa
                               </button>
                             )}
                           </div>

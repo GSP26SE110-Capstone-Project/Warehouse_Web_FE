@@ -1,9 +1,8 @@
 import type { ApiBin } from '../api/bins'
 
 export function formatBinOccupancy(bin: ApiBin): string {
-  const lpn = `${bin.currentLpnCount ?? 0}/${bin.maxLpnCount ?? '?'}`
   const vol = `${bin.usedVolumeUnits ?? 0}/${bin.maxVolumeUnits ?? '?'}`
-  return `LPN ${lpn} · Vol ${vol}`
+  return `Vol ${vol}`
 }
 
 export function isBinAtCapacity(bin: ApiBin): boolean {
