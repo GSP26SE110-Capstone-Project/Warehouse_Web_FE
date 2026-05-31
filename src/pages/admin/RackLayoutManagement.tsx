@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
@@ -8,11 +8,11 @@ import { BinModal, type BinFormPayload } from '../../components/ui/modal/BinModa
 import { getDefaultBinCapacity } from '../../data/binCapacityDefaults'
 import { formatBinOccupancy } from '../../utils/binOccupancy'
 import {
-  CinemaSeatGrid,
+  ZoneFloorPlanGrid,
   SeatLegendItem,
   type CinemaSeat,
   type SeatVisualStatus,
-} from '../../components/rack/CinemaSeatGrid'
+} from '../../components/rack/ZoneFloorPlanGrid'
 import {
   layoutItemsInGrid,
   listEmptyRackSlotCodes,
@@ -20,6 +20,7 @@ import {
 } from '../../components/rack/rackLayoutUtils'
 import { BulkRackModal } from '../../components/ui/modal/BulkRackModal'
 import { BulkBinModal } from '../../components/ui/modal/BulkBinModal'
+import { CinemaSeatGrid } from '../../components/rack/CinemaSeatGrid'
 import {
   listEmptyBinSlotsForLevel,
   listEmptyBinSlotsForRack,
@@ -166,6 +167,10 @@ export const RackLayoutManagement = () => {
   const remainingRackSlots = capacity.hasArea
     ? Math.max(0, capacity.maxRacks - racks.length)
     : 0
+
+  /** Nút bulk rack: zone đã chọn và còn slot, hoặc zone chưa có m² (mở modal hướng dẫn). */
+  const canBulkCreateRacks =
+    Boolean(selectedZoneId) && (!capacity.hasArea || remainingRackSlots > 0)
 
   const emptyBinSlotsForRack = useMemo(() => {
     if (!selectedRack || !levels.length || !capacity.hasArea) return []
@@ -600,15 +605,29 @@ export const RackLayoutManagement = () => {
               </option>
             ))}
           </select>
-          {selectedZoneId && capacity.hasArea && emptyRackSlotCodes.length > 0 && (
+          {canBulkCreateRacks && (
             <button
               type="button"
               onClick={() => setBulkRackModalOpen(true)}
-              className="flex items-center gap-2 rounded-lg border border-cyan-400/40 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20"
+              className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-bold ${
+                capacity.hasArea
+                  ? 'border-cyan-400/40 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20'
+                  : 'border-amber-400/40 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'
+              }`}
+              title={
+                capacity.hasArea
+                  ? `Tạo tối đa ${remainingRackSlots} rack còn trống`
+                  : 'Zone cần khai báo diện tích (m²) trước khi tạo rack hàng loạt'
+              }
             >
               <span className="material-symbols-outlined text-lg">grid_on</span>
               Tạo hàng loạt
             </button>
+          )}
+          {selectedZoneId && capacity.hasArea && remainingRackSlots === 0 && (
+            <span className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-slate-400">
+              Zone đã đủ {capacity.maxRacks} rack theo diện tích
+            </span>
           )}
         </div>
       </header>
@@ -628,8 +647,12 @@ export const RackLayoutManagement = () => {
           ) : (
             <p className="text-amber-200/90">
               Zone chưa khai báo diện tích (m²). Vào{' '}
-              <strong>Quản lý Zone</strong> nhập <code className="text-cyan-400">areaM2</code> để
-              tính số rack và bin.
+              <Link to="/admin/zones" className="font-semibold text-cyan-400 underline hover:text-cyan-300">
+                Quản lý Zone
+              </Link>{' '}
+              → sửa zone <span className="font-mono text-cyan-400">{activeZone.zoneCode}</span> và nhập{' '}
+              <code className="text-cyan-400">Diện tích (m²)</code> để tính số rack/bin và dùng{' '}
+              <strong>Tạo hàng loạt</strong>.
             </p>
           )}
         </div>
@@ -643,11 +666,13 @@ export const RackLayoutManagement = () => {
         {!selectedZoneId ? (
           <p className="text-center text-slate-500">Chọn kho và zone để xem sơ đồ rack</p>
         ) : (
-          <CinemaSeatGrid
+          <ZoneFloorPlanGrid
             screenLabel={zoneScreenLabel}
             cells={rackGrid}
             selectedId={selectedRackId}
-            perspective
+            areaM2={capacity.areaM2}
+            maxRacks={capacity.maxRacks}
+            storageAreaM2={capacity.storageAreaM2}
             onSeatClick={handleRackSeatClick}
             legend={
               <>

@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   addMonths,
   buildCalendarDays,
@@ -45,6 +46,11 @@ export function DatePickerField({
 }) {
   const listId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const [popoverStyle, setPopoverStyle] = useState<{ top: number; left: number; width: number } | null>(
+    null
+  )
   const selectedDate = useMemo(() => parseIsoDate(value), [value])
   const today = useMemo(() => new Date(), [])
 
@@ -59,10 +65,32 @@ export function DatePickerField({
 
   useEffect(() => {
     if (!open) return
+    const updatePosition = () => {
+      const trigger = triggerRef.current
+      if (!trigger) return
+      const rect = trigger.getBoundingClientRect()
+      setPopoverStyle({
+        top: rect.bottom + 8,
+        left: rect.left,
+        width: Math.max(rect.width, 280),
+      })
+    }
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
     const onDocMouseDown = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
+      const target = e.target as Node
+      if (rootRef.current?.contains(target)) return
+      if (popoverRef.current?.contains(target)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', onDocMouseDown)
     return () => document.removeEventListener('mousedown', onDocMouseDown)
@@ -74,6 +102,15 @@ export function DatePickerField({
   const openPicker = () => {
     if (disabled) return
     setViewMonth(selectedDate ?? today)
+    const trigger = triggerRef.current
+    if (trigger) {
+      const rect = trigger.getBoundingClientRect()
+      setPopoverStyle({
+        top: rect.bottom + 8,
+        left: rect.left,
+        width: Math.max(rect.width, 280),
+      })
+    }
     setOpen(true)
   }
 
@@ -97,7 +134,7 @@ export function DatePickerField({
   }
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className={`relative ${open ? 'z-[120]' : ''}`}>
       <input type="hidden" id={id} name={id} value={value} required={required} readOnly />
 
       <div
@@ -107,6 +144,7 @@ export function DatePickerField({
         style={inputWrapStyle}
       >
         <button
+          ref={triggerRef}
           type="button"
           aria-haspopup="dialog"
           aria-expanded={open ? 'true' : 'false'}
@@ -137,12 +175,21 @@ export function DatePickerField({
         </button>
       </div>
 
-      {open && (
+      {open &&
+        popoverStyle &&
+        createPortal(
         <div
+          ref={popoverRef}
           id={listId}
           role="dialog"
           aria-label="Chọn ngày"
-          className="absolute z-50 mt-2 w-full min-w-[280px] max-w-[320px] rounded-xl border border-[#06edf9]/25 bg-[#0b1617]/95 p-4 shadow-2xl shadow-black/50 backdrop-blur-xl"
+          className="fixed z-[200] rounded-xl border border-[#06edf9]/25 bg-[#0b1617]/95 p-4 shadow-2xl shadow-black/50 backdrop-blur-xl"
+          style={{
+            top: popoverStyle.top,
+            left: popoverStyle.left,
+            width: popoverStyle.width,
+            maxWidth: 320,
+          }}
         >
           <div className="mb-3 flex items-center justify-between gap-2">
             <button
@@ -223,8 +270,9 @@ export function DatePickerField({
               Hôm nay
             </button>
           </div>
-        </div>
-      )}
+        </div>,
+        document.body
+        )}
     </div>
   )
 }

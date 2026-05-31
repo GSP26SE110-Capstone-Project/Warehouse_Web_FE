@@ -21,6 +21,8 @@ import {
   type RegionWarehousesResult,
 } from '../../api/locations'
 import { createRentalRequest } from '../../api/rentalRequests'
+import { fetchProductKindCatalogTree, fetchSizeFactors } from '../../api/productCatalog'
+import type { ApiProductKindTreeNode, ApiSizeFactor } from '../../api/productCatalog'
 import { createTenant } from '../../api/tenants'
 import {
   BILLING_CYCLE_GUEST_OPTIONS,
@@ -34,6 +36,12 @@ import {
 import { LoadingOverlay } from '../ui/LoadingOverlay'
 import { DatePickerField } from '../ui/DatePickerField'
 import { SearchableSelect } from '../ui/SearchableSelect'
+import {
+  RentalProductLinesEditor,
+  buildProductLinesPayload,
+  createEmptyProductLine,
+  type RentalProductLineDraft,
+} from '../rental/RentalProductLinesEditor'
 
 const ZONE_TYPES = [
   { value: '', label: '— Chưa rõ / để kho tư vấn —' },
@@ -180,6 +188,11 @@ export function RentalRequestForm({
   const [expectedStartDate, setExpectedStartDate] = useState('')
   const [expectedEndDate, setExpectedEndDate] = useState('')
   const [notes, setNotes] = useState('')
+  const [productLines, setProductLines] = useState<RentalProductLineDraft[]>([
+    createEmptyProductLine(),
+  ])
+  const [catalogTree, setCatalogTree] = useState<ApiProductKindTreeNode[]>([])
+  const [sizeFactors, setSizeFactors] = useState<ApiSizeFactor[]>([])
 
   const handleContractTypeChange = (value: ContractTypeValue) => {
     onContractTypeChange(value)
@@ -252,6 +265,22 @@ export function RentalRequestForm({
       })
       .finally(() => {
         if (!cancelled) setLocationsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([fetchProductKindCatalogTree(), fetchSizeFactors()])
+      .then(([catalog, sizes]) => {
+        if (cancelled) return
+        setCatalogTree(catalog.tree ?? [])
+        setSizeFactors(sizes)
+      })
+      .catch(() => {
+        /* catalog optional — legacy estimate fields still work */
       })
     return () => {
       cancelled = true
@@ -333,9 +362,11 @@ export function RentalRequestForm({
     const hasArea = Number.isFinite(areaNum) && areaNum > 0
     const piecesNum = Number(estimatedTotalPieces)
     const hasPieces = Number.isFinite(piecesNum) && piecesNum > 0
-    if (!hasArea && !hasPieces) {
+    const productLinesPayload = buildProductLinesPayload(productLines)
+    const hasProductLines = productLinesPayload.length > 0
+    if (!hasArea && !hasPieces && !hasProductLines) {
       setError(
-        'Vui lòng nhập diện tích mong muốn (m²) hoặc tổng số cái/tháng — ít nhất một trong hai để kho ước tính sức chứa'
+        'Vui lòng khai báo hàng theo loại + size, hoặc diện tích (m²), hoặc tổng số cái/tháng — ít nhất một cách để kho ước tính sức chứa'
       )
       return
     }
@@ -363,7 +394,7 @@ export function RentalRequestForm({
         contractType,
         pricingModel: defaultPricingModel(contractType),
         billingCycle,
-        estimatedBoxCount: boxesPerMonthForSubmit ?? undefined,
+        estimatedBoxCount: hasProductLines ? undefined : (boxesPerMonthForSubmit ?? undefined),
         estimatedSkuCount: estimatedSkuCount ? Number(estimatedSkuCount) : undefined,
         estimatedInboundPerWeek: estimatedInboundPerWeek
           ? Number(estimatedInboundPerWeek)
@@ -379,6 +410,7 @@ export function RentalRequestForm({
         expectedStartDate: new Date(expectedStartDate).toISOString(),
         expectedEndDate: new Date(expectedEndDate).toISOString(),
         notes: mergedNotes || undefined,
+        productLines: hasProductLines ? productLinesPayload : undefined,
       })
 
       setSuccess({
@@ -677,12 +709,28 @@ export function RentalRequestForm({
             </div>
 
             <div className="sm:col-span-2">
-              <p className="text-sm font-medium text-gray-200 mb-1">Quy mô hàng hóa (ước tính theo tháng)</p>
+              <p className="text-sm font-medium text-gray-200 mb-1">Quy mô hàng hóa</p>
               <p className="text-xs text-[#9bb9bb] mb-3">
-                Bắt buộc nhập <strong className="text-gray-300">diện tích (m²)</strong> ở trên{' '}
-                <strong className="text-gray-300">hoặc</strong> <strong className="text-gray-300">tổng số cái/tháng</strong>{' '}
-                tại đây. Kho sẽ quyết định xếp bao nhiêu cái vào từng thùng khi nhận hàng thật — bạn không cần
-                nhập cái/thùng.
+                <strong className="text-gray-300">Khuyến nghị:</strong> khai báo theo loại hàng + size — hệ thống
+                tính volume units (U) và phân bổ thùng chính xác. Hoặc dùng diện tích (m²) / cái-tháng (cách cũ)
+                bên dưới.
+              </p>
+
+              {catalogTree.length > 0 && (
+                <div className="mb-6 overflow-visible rounded-xl border border-white/10 bg-white/[0.02] p-4 md:p-5">
+                  <RentalProductLinesEditor
+                    lines={productLines}
+                    onChange={setProductLines}
+                    catalogTree={catalogTree}
+                    sizeFactors={sizeFactors}
+                    theme="guest"
+                    rentalMonths={rentalMonths > 0 ? rentalMonths : undefined}
+                  />
+                </div>
+              )}
+
+              <p className="text-xs text-[#9bb9bb] mb-3 border-t border-white/5 pt-4">
+                Cách ước tính khác (tuỳ chọn nếu đã khai báo loại hàng ở trên)
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2 sm:col-span-2">

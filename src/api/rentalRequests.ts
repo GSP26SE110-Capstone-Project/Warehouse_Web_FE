@@ -1,5 +1,5 @@
 import { apiRequest, apiPaginated, buildQuery } from './client'
-import type { ApiRentalRequest, RentalRequestStatus } from './types'
+import type { ApiBoxAllocationRow, ApiRentalProductLine, ApiRentalRequest, RentalRequestStatus } from './types'
 
 export interface RentalRequestPublicLookup {
   requestCode: string
@@ -12,6 +12,9 @@ export interface RentalRequestPublicLookup {
   billingCycle?: string | null
   estimatedBoxCount?: number | null
   estimatedSkuCount?: number | null
+  totalCommittedVolumeUnits?: number | string | null
+  boxAllocation?: ApiBoxAllocationRow[]
+  productLines?: ApiRentalProductLine[]
   estimatedInboundPerWeek?: number | null
   estimatedOutboundPerWeek?: number | null
   requestedAreaM2?: number | null
@@ -33,6 +36,7 @@ export function listRentalRequests(params?: {
   city?: string
   district?: string
   status?: RentalRequestStatus
+  includeProductLines?: boolean
   page?: number
   limit?: number
 }) {
@@ -69,6 +73,13 @@ export function createRentalRequest(body: {
   suggestedRackType?: string
   expectedStartDate?: string
   expectedEndDate?: string
+  productLines?: Array<{
+    productKind: string
+    size?: string
+    sizeGroup?: string
+    quantity: number
+  }>
+  selectedBoxTypeHint?: string
 }) {
   return apiRequest<ApiRentalRequest>('/rental-requests', { method: 'POST', body, auth: false })
 }

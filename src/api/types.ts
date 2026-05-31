@@ -81,6 +81,24 @@ export type RentalRequestStatus =
   | 'REJECTED'
   | 'CONVERTED'
 
+export interface ApiRentalProductLine {
+  lineId?: string
+  rentalRequestId?: string
+  productKind: string
+  size?: string | null
+  sizeGroup?: string | null
+  quantity: number
+  baseVolumeUnitsPerPiece?: number | string
+  sizeFactor?: number | string
+  finalVolumeUnitsPerPiece?: number | string
+  lineVolumeUnits?: number | string
+}
+
+export interface ApiBoxAllocationRow {
+  boxType: string
+  count: number
+}
+
 export interface ApiRentalRequest {
   rentalRequestId: string
   requestCode: string
@@ -94,6 +112,10 @@ export interface ApiRentalRequest {
   estimatedSkuCount?: number | null
   estimatedBoxCount?: number | null
   estimatedVolume?: number | null
+  totalCommittedVolumeUnits?: number | string | null
+  boxAllocationJson?: ApiBoxAllocationRow[] | null
+  boxAllocation?: ApiBoxAllocationRow[]
+  productLines?: ApiRentalProductLine[]
   requestedAreaM2?: number | null
   estimatedInboundPerWeek?: number | null
   estimatedOutboundPerWeek?: number | null

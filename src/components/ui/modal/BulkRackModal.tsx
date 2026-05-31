@@ -74,7 +74,11 @@ export function BulkRackModal({
             )}
 
             {emptySlotCodes.length === 0 ? (
-              <p className="text-sm text-amber-300">Zone đã đủ rack hoặc chưa có diện tích để tính sức chứa.</p>
+              <p className="text-sm text-amber-300">
+                {maxCreatable <= 0
+                  ? 'Zone chưa có diện tích (m²) hoặc diện tích quá nhỏ — không tính được số rack. Cập nhật diện tích tại Quản lý Zone rồi thử lại.'
+                  : 'Zone đã đủ rack theo diện tích — không còn ô trống trên lưới.'}
+              </p>
             ) : (
               <>
                 <p className="text-sm text-slate-300">

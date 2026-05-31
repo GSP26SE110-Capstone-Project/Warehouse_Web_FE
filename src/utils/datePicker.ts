@@ -35,6 +35,17 @@ export function formatMonthYear(date: Date): string {
   return date.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })
 }
 
+/** Gửi API — giữ đúng ngày lịch, tránh lệch timezone khi parse ISO. */
+export function toRentalRequestDateIso(dateOnly: string): string {
+  return `${dateOnly}T12:00:00.000Z`
+}
+
+/** Lấy YYYY-MM-DD từ ISO/datetime API. */
+export function rentalRequestDateOnly(value?: string | null): string {
+  if (!value) return ''
+  return String(value).slice(0, 10)
+}
+
 export function startOfMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1)
 }
