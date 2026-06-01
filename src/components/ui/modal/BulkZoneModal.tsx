@@ -114,7 +114,8 @@ export function BulkZoneModal({
               {planning.suggestedMinZoneCount != null && (
                 <p className="mt-1 text-amber-200/90">
                   Gợi ý tối thiểu ~{planning.suggestedMinZoneCount} zone (≈{' '}
-                  {planning.suggestedReferenceZoneAreaM2} m²/zone). Còn thiếu khoảng{' '}
+                  {planning.suggestedReferenceZoneAreaM2} m²/zone). Còn{' '}
+                  {fmt(planning.remainingZoneAreaM2)} m² — có thể thêm tối đa ~
                   {planning.missingZoneCount ?? 0} zone.
                 </p>
               )}

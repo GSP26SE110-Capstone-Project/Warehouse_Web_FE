@@ -13,7 +13,7 @@ import * as zonesApi from '../../api/zones'
 import type { ApiZone } from '../../api/zones'
 import * as warehousesApi from '../../api/warehouses'
 import { useAuth } from '../../auth/AuthContext'
-import { ZONE_TYPE_LABELS } from '../../data/zoneTypes'
+import { ZONE_TYPE_LABELS, ZONE_TYPE_OPTIONS } from '../../data/zoneTypes'
 
 function formatArea(m2?: number | null) {
   if (m2 == null) return '—'
@@ -34,6 +34,7 @@ export const ZoneManagement = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [zoneTypeFilter, setZoneTypeFilter] = useState('')
 
   const [modal, setModal] = useState<{
     open: boolean
@@ -106,12 +107,14 @@ export const ZoneManagement = () => {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return zones.filter(
-      (z) =>
+    return zones.filter((z) => {
+      if (zoneTypeFilter && (z.zoneType ?? 'SHARED') !== zoneTypeFilter) return false
+      return (
         z.zoneCode.toLowerCase().includes(q) ||
         (z.zoneName ?? '').toLowerCase().includes(q)
-    )
-  }, [zones, search])
+      )
+    })
+  }, [zones, search, zoneTypeFilter])
 
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 6
@@ -120,7 +123,13 @@ export const ZoneManagement = () => {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, activeWarehouseId])
+    setZoneTypeFilter('')
+    setSearch('')
+  }, [activeWarehouseId])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, zoneTypeFilter])
 
   const warehouseOptions = useMemo(
     () =>
@@ -288,7 +297,11 @@ export const ZoneManagement = () => {
                     {zonePlanning.suggestedReferenceZoneAreaM2} m²/zone). Hiện có{' '}
                     {zonePlanning.zoneCount} zone
                     {(zonePlanning.missingZoneCount ?? 0) > 0 && (
-                      <> — có thể thêm ~{zonePlanning.missingZoneCount} zone</>
+                      <>
+                        {' '}
+                        — còn {formatArea(zonePlanning.remainingZoneAreaM2)} m², có thể thêm ~
+                        {zonePlanning.missingZoneCount} zone
+                      </>
                     )}
                   </p>
                 )}
@@ -299,7 +312,7 @@ export const ZoneManagement = () => {
               <StatsCard title="Tổng zone" value={zones.length} icon="grid_view" accentColor="emerald" />
               <StatsCard title="Đang hoạt động" value={activeCount} icon="check" accentColor="primary" />
               <StatsCard
-                title="Dedicated"
+                title="Kho riêng"
                 value={zones.filter((z) => z.isDedicated).length}
                 icon="lock"
                 accentColor="orange"
@@ -308,17 +321,44 @@ export const ZoneManagement = () => {
 
             <section className="glass-panel flex flex-col overflow-hidden rounded-xl border border-white/5">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 bg-white/[0.02] px-6 py-5">
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                    search
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="Tìm mã, tên zone..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="rounded-lg border border-white/10 bg-[#1a2333] py-2 pl-10 pr-4 text-sm text-white focus:border-cyan-400 focus:outline-none"
-                  />
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      search
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Tìm mã, tên zone..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="w-full min-w-[200px] rounded-lg border border-white/10 bg-[#1a2333] py-2 pl-10 pr-4 text-sm text-white focus:border-cyan-400 focus:outline-none sm:w-64"
+                    />
+                  </div>
+                  <select
+                    aria-label="Lọc loại zone"
+                    value={zoneTypeFilter}
+                    onChange={(e) => setZoneTypeFilter(e.target.value)}
+                    className="rounded-lg border border-white/10 bg-[#1a2333] px-3 py-2 text-sm text-white focus:border-cyan-400 focus:outline-none"
+                  >
+                    <option value="">Tất cả loại zone</option>
+                    {ZONE_TYPE_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                  {(zoneTypeFilter || search) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch('')
+                        setZoneTypeFilter('')
+                      }}
+                      className="text-xs text-slate-400 hover:text-cyan-300"
+                    >
+                      Xóa bộ lọc
+                    </button>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -350,7 +390,7 @@ export const ZoneManagement = () => {
                       <th className="px-6 py-4">Tên</th>
                       <th className="px-6 py-4">Loại</th>
                       <th className="px-6 py-4 text-center">m²</th>
-                      <th className="px-6 py-4 text-center">Dedicated</th>
+                      
                       <th className="px-6 py-4 text-center">Trạng thái</th>
                       <th className="px-6 py-4 text-right">Thao tác</th>
                     </tr>
@@ -370,13 +410,7 @@ export const ZoneManagement = () => {
                           {ZONE_TYPE_LABELS[z.zoneType ?? ''] ?? z.zoneType}
                         </td>
                         <td className="px-6 py-4 text-center">{formatArea(z.areaM2)}</td>
-                        <td className="px-6 py-4 text-center">
-                          {z.isDedicated ? (
-                            <span className="text-amber-400">Có</span>
-                          ) : (
-                            <span className="text-slate-500">Không</span>
-                          )}
-                        </td>
+                        
                         <td className="px-6 py-4 text-center">
                           <span
                             className={`rounded px-2 py-0.5 text-xs ${
@@ -435,7 +469,11 @@ export const ZoneManagement = () => {
                   </tbody>
                 </table>
                 {filtered.length === 0 && !loading && (
-                  <p className="px-6 py-12 text-center text-slate-500">Chưa có zone nào trong kho này.</p>
+                  <p className="px-6 py-12 text-center text-slate-500">
+                    {zones.length === 0
+                      ? 'Chưa có zone nào trong kho này.'
+                      : 'Không có zone phù hợp bộ lọc.'}
+                  </p>
                 )}
               </div>
 

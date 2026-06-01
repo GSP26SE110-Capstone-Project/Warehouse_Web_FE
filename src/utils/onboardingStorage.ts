@@ -31,7 +31,7 @@ export function getOnboardingStoragePlan(contractType: string): OnboardingStorag
         needsZone: true,
         needsRack: false,
         needsBin: false,
-        hint: 'Chọn zone riêng trong kho đã claim.',
+        hint: 'Chọn zone PRIVATE (khu riêng) trong kho đã claim.',
       }
     case 'RESERVED_STORAGE':
       return {
@@ -61,5 +61,38 @@ export function getOnboardingStoragePlan(contractType: string): OnboardingStorag
         needsBin: false,
         hint: 'Chọn zone SHARED làm pool chung; putaway bin cụ thể khi nhập hàng.',
       }
+  }
+}
+
+/** Loại zone bắt buộc khi chọn zone theo hình thức thuê (null = không giới hạn). */
+export function requiredZoneTypeForContract(contractType: string): string | null {
+  if (contractType === 'DEDICATED_ZONE') return 'PRIVATE'
+  return null
+}
+
+export function isZoneEligibleForContract(
+  contractType: string,
+  zoneType: string | null | undefined
+): boolean {
+  const required = requiredZoneTypeForContract(contractType)
+  if (!required) return true
+  return (zoneType ?? 'SHARED').toUpperCase() === required
+}
+
+/** Nhãn ngắn cho WH admin (không dùng mã reservation/level). */
+export function storagePlanShortLabel(contractType: string): string {
+  switch (contractType as ContractTypeValue) {
+    case 'DEDICATED_WAREHOUSE':
+      return 'Thuê riêng cả kho'
+    case 'DEDICATED_ZONE':
+      return 'Thuê riêng theo zone'
+    case 'RESERVED_STORAGE':
+      return 'Giữ chỗ theo bin cố định'
+    case 'SHARED_STORAGE':
+      return 'Kho chia sẻ (zone chung)'
+    case 'NEEDS_CONSULTATION':
+      return 'Chưa chốt loại thuê'
+    default:
+      return 'Cấp chỗ lưu trữ'
   }
 }

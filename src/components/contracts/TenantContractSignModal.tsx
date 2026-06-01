@@ -60,7 +60,7 @@ export function TenantContractSignModal({ contractId, onClose, onSigned }: Props
           if (r.zoneCode) {
             const cap =
               r.reservedCapacity != null && Number(r.reservedCapacity) > 0
-                ? ` (~${Number(r.reservedCapacity).toLocaleString('vi-VN')} thùng)`
+                ? ` (~${Number(r.reservedCapacity).toLocaleString('vi-VN')} LPN)`
                 : ''
             return `Zone ${r.zoneCode}${cap}`
           }
@@ -126,7 +126,7 @@ export function TenantContractSignModal({ contractId, onClose, onSigned }: Props
           </button>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto p-6">
+        <div className="dark-scrollbar flex-1 space-y-4 overflow-y-auto p-6 pr-5 [scrollbar-gutter:stable]">
           {loading && <p className="text-sm text-slate-400">Đang tải...</p>}
           {error && (
             <InlineAlert message={error} onDismiss={() => setError('')} />

@@ -115,11 +115,16 @@ export interface ApiContractPriceEstimate {
   source: string
 }
 
-export function getContractPriceEstimate(rentalRequestId: string, warehouseId?: string) {
+export function getContractPriceEstimate(
+  rentalRequestId: string,
+  params?: { warehouseId?: string; zoneIds?: string[]; contractType?: string }
+) {
+  const q: Record<string, string> = {}
+  if (params?.warehouseId) q.warehouseId = params.warehouseId
+  if (params?.zoneIds?.length) q.zoneIds = params.zoneIds.join(',')
+  if (params?.contractType) q.contractType = params.contractType
   return apiRequest<ApiContractPriceEstimate>(
-    `/rental-requests/${rentalRequestId}/price-estimate${buildQuery(
-      warehouseId ? { warehouseId } : {}
-    )}`
+    `/rental-requests/${rentalRequestId}/price-estimate${buildQuery(q)}`
   )
 }
 

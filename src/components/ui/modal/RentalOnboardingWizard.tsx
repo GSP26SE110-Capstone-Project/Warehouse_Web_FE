@@ -15,7 +15,9 @@ import { getStoredUser } from '../../../auth/storage'
 import {
   BILLING_CYCLE_GUEST_LABELS,
   CONTRACT_TYPE_LABELS,
+  PRICING_MODEL_LABELS,
   defaultPricingModel,
+  isDedicatedSpaceRental,
   requestedAreaFieldLabel,
   showsRequestedAreaField,
   suggestBillableContractType,
@@ -25,7 +27,12 @@ import {
 } from '../../../data/contractTypes'
 import type { ApiContract, UserRole } from '../../../api/types'
 import type { RentalRequestRow } from '../../../mappers'
-import { getOnboardingStoragePlan } from '../../../utils/onboardingStorage'
+import {
+  getOnboardingStoragePlan,
+  isZoneEligibleForContract,
+  requiredZoneTypeForContract,
+  storagePlanShortLabel,
+} from '../../../utils/onboardingStorage'
 import {
   computeMinZonesCapacityHint,
   type MinZonesCapacityHint,
@@ -147,10 +154,10 @@ export function RentalOnboardingWizard({
   const [contractLoading, setContractLoading] = useState(false)
   const contractStart = toDateInput(row.expectedStartDate)
   const contractEnd = toDateInput(row.expectedEndDate)
-  const [estimatedAmount, setEstimatedAmount] = useState('')
   const [priceEstimate, setPriceEstimate] = useState<ApiContractPriceEstimate | null>(null)
-  const [priceEstimateLoading, setPriceEstimateLoading] = useState(false)
-  const [priceEstimateError, setPriceEstimateError] = useState('')
+  const [allocationPriceEstimate, setAllocationPriceEstimate] =
+    useState<ApiContractPriceEstimate | null>(null)
+  const [allocationPriceLoading, setAllocationPriceLoading] = useState(false)
 
   const [zones, setZones] = useState<zonesApi.ApiZone[]>([])
   const [racks, setRacks] = useState<racksApi.ApiRack[]>([])
@@ -177,6 +184,20 @@ export function RentalOnboardingWizard({
 
   const storagePlan = useMemo(() => getOnboardingStoragePlan(contractType), [contractType])
   const allowsMultiZone = storagePlan.needsZone && !storagePlan.needsBin
+  const requiredZoneType = requiredZoneTypeForContract(contractType)
+  const eligibleZones = useMemo(
+    () => zones.filter((z) => isZoneEligibleForContract(contractType, z.zoneType)),
+    [zones, contractType]
+  )
+
+  useEffect(() => {
+    setSelectedZoneIds((prev) =>
+      prev.filter((id) => {
+        const z = zones.find((x) => x.zoneId === id)
+        return z != null && isZoneEligibleForContract(contractType, z.zoneType)
+      })
+    )
+  }, [contractType, zones])
 
   const tenantRequiredAreaNum = useMemo(() => {
     const n = Number(tenantRequiredAreaM2)
@@ -432,10 +453,22 @@ export function RentalOnboardingWizard({
   const applyLinkedContract = useCallback((pick: ApiContract) => {
     setContractId(pick.contractId)
     setLinkedContract(pick)
-    if (pick.estimatedTotalAmount != null) {
-      setEstimatedAmount(String(pick.estimatedTotalAmount))
-    }
   }, [])
+
+  const fetchContractPriceEstimate = useCallback(
+    (wh: string, zoneIds: string[]) => {
+      const contractTypeParam =
+        contractType !== (row.contractType as BillableContractTypeValue | undefined)
+          ? contractType
+          : undefined
+      return rentalRequestsApi.getContractPriceEstimate(row.rentalRequestId, {
+        warehouseId: wh,
+        zoneIds: zoneIds.length > 0 ? zoneIds : undefined,
+        contractType: contractTypeParam,
+      })
+    },
+    [row.rentalRequestId, row.contractType, contractType]
+  )
 
   const resolveLinkedContract = useCallback(
     async (wh: string): Promise<ApiContract | null> => {
@@ -506,41 +539,56 @@ export function RentalOnboardingWizard({
   }, [step, loadExistingContract])
 
   useEffect(() => {
-    if (step !== 1) return
+    if (step !== 0 || contractType !== 'DEDICATED_ZONE') return
     const loadWh = whId || warehouseId
-    if (!loadWh && contractType === 'DEDICATED_WAREHOUSE' && !row.requestedAreaM2) {
-      setPriceEstimate(null)
-      setPriceEstimateError('Chọn/duyệt kho trước để lấy diện tích kho')
-      return
-    }
+    if (!loadWh) return
     let cancelled = false
-    setPriceEstimateLoading(true)
-    setPriceEstimateError('')
-    rentalRequestsApi
-      .getContractPriceEstimate(row.rentalRequestId, loadWh || undefined)
+    fetchContractPriceEstimate(loadWh, selectedZoneIds)
       .then((est) => {
-        if (!cancelled) {
-          setPriceEstimate(est)
-          if (!estimatedAmount && est.suggestedTotalAmount > 0) {
-            setEstimatedAmount(String(est.suggestedTotalAmount))
-          }
-        }
+        if (!cancelled) setPriceEstimate(est)
       })
-      .catch((err) => {
-        if (!cancelled) {
-          setPriceEstimate(null)
-          setPriceEstimateError(
-            err instanceof ApiError ? err.message : 'Không tải được gợi ý giá'
-          )
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setPriceEstimateLoading(false)
+      .catch(() => {
+        if (!cancelled) setPriceEstimate(null)
       })
     return () => {
       cancelled = true
     }
-  }, [step, whId, warehouseId, row.rentalRequestId, contractType, row.requestedAreaM2])
+  }, [step, whId, warehouseId, contractType, selectedZoneIds, fetchContractPriceEstimate])
+
+  useEffect(() => {
+    if (step !== 2) {
+      setAllocationPriceEstimate(null)
+      return
+    }
+    const loadWh = whId || warehouseId
+    if (!loadWh) return
+    if (storagePlan.needsZone && selectedZoneIds.length === 0) {
+      setAllocationPriceEstimate(null)
+      return
+    }
+    let cancelled = false
+    setAllocationPriceLoading(true)
+    fetchContractPriceEstimate(loadWh, storagePlan.needsZone ? selectedZoneIds : [])
+      .then((est) => {
+        if (!cancelled) setAllocationPriceEstimate(est)
+      })
+      .catch(() => {
+        if (!cancelled) setAllocationPriceEstimate(null)
+      })
+      .finally(() => {
+        if (!cancelled) setAllocationPriceLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [
+    step,
+    whId,
+    warehouseId,
+    storagePlan.needsZone,
+    selectedZoneIds,
+    fetchContractPriceEstimate,
+  ])
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true)
@@ -696,7 +744,6 @@ export function RentalOnboardingWizard({
             warehouseSignature: 'SIGNED_WH_ONBOARDING',
             startDate: contractStart,
             endDate: contractEnd,
-            estimatedTotalAmount: estimatedAmount ? Number(estimatedAmount) : undefined,
           })
           applyLinkedContract(updated)
         }
@@ -715,7 +762,6 @@ export function RentalOnboardingWizard({
           startDate: contractStart,
           endDate: contractEnd,
           contractName: row.customer,
-          estimatedTotalAmount: estimatedAmount ? Number(estimatedAmount) : undefined,
           status: 'DRAFT',
         })
         applyLinkedContract(draft)
@@ -723,7 +769,6 @@ export function RentalOnboardingWizard({
           warehouseSignature: 'SIGNED_WH_ONBOARDING',
           startDate: contractStart,
           endDate: contractEnd,
-          estimatedTotalAmount: estimatedAmount ? Number(estimatedAmount) : undefined,
         })
         applyLinkedContract(updated)
         setStep(2)
@@ -785,7 +830,20 @@ export function RentalOnboardingWizard({
       }
       if (storagePlan.storageLevel === 'ZONE') {
         if (selectedZoneIds.length === 0) {
-          setError('Chọn ít nhất một zone')
+          setError(
+            requiredZoneType
+              ? `Chọn ít nhất một zone ${requiredZoneType} — loại hình thuê khu riêng không dùng zone SHARED/FAST_MOVING/PREMIUM.`
+              : 'Chọn ít nhất một zone'
+          )
+          return
+        }
+        const ineligible = selectedZones.filter(
+          (z) => !isZoneEligibleForContract(contractType, z.zoneType)
+        )
+        if (ineligible.length > 0) {
+          setError(
+            `Thuê khu riêng chỉ được chọn zone PRIVATE. Bỏ chọn: ${ineligible.map((z) => z.zoneCode).join(', ')}.`
+          )
           return
         }
       }
@@ -855,7 +913,23 @@ export function RentalOnboardingWizard({
           ...(reservedCapacityNum ? { reservedCapacity: reservedCapacityNum } : {}),
         })
       }
-      await contractsApi.updateContract(contractId, { status: 'PENDING_APPROVAL' })
+      let contractAmount: number | undefined
+      try {
+        const zoneIdsForPrice = storagePlan.needsZone ? selectedZoneIds : []
+        if (!storagePlan.needsZone || zoneIdsForPrice.length > 0) {
+          const est = await fetchContractPriceEstimate(wh, zoneIdsForPrice)
+          if (est.suggestedTotalAmount > 0) {
+            contractAmount = est.suggestedTotalAmount
+          }
+        }
+      } catch {
+        contractAmount = undefined
+      }
+
+      await contractsApi.updateContract(contractId, {
+        status: 'PENDING_APPROVAL',
+        ...(contractAmount != null ? { estimatedTotalAmount: contractAmount } : {}),
+      })
       await finishOnboarding()
     })
 
@@ -904,10 +978,15 @@ export function RentalOnboardingWizard({
           </div>
         )}
 
-        <div className="flex-1 space-y-4 overflow-y-auto p-6">
+        <div className="dark-scrollbar flex-1 space-y-4 overflow-y-auto p-6 pr-5 [scrollbar-gutter:stable]">
           {step === 0 && (
             <div className="space-y-4">
-              <SummaryBlock row={row} whName={whName} tenantContractType={tenantContractType} />
+              <SummaryBlock
+                row={row}
+                whName={whName}
+                tenantContractType={tenantContractType}
+                contractType={contractType}
+              />
               {isWhOperator && (
                 <div>
                   <label className={labelStyle}>Loại thuê (WH chọn)</label>
@@ -939,7 +1018,7 @@ export function RentalOnboardingWizard({
                     contractType={contractType}
                     reservedCapacity={reservedCapacityNum}
                   />
-                  {minZonesHint && minZonesHint.minZones > 1 && (
+                  {minZonesHint && minZonesHint.minZones > 1 && !isDedicatedSpaceRental(contractType) && (
                     <MinZonesCapacityAlert
                       hint={minZonesHint}
                       selectedZoneCount={selectedZoneIds.length}
@@ -1017,7 +1096,7 @@ export function RentalOnboardingWizard({
                       </p>
                     )}
                   </div>
-                  {approvalCapacity && (
+                  {approvalCapacity && !isDedicatedSpaceRental(contractType) && (
                     <WarehouseApprovalCapacityCard
                       whName={whName}
                       capacity={approvalCapacity}
@@ -1031,33 +1110,51 @@ export function RentalOnboardingWizard({
                         Pre-allocation preview (nháp trước hợp đồng)
                       </p>
                       <p className="mt-1 text-xs text-slate-400">
-                        Chọn zone dự kiến ngay ở bước duyệt để ước tính giá sát thực tế nếu tenant cần nhiều
-                        hơn 1 zone.
+                        Chọn zone PRIVATE dự kiến ngay ở bước duyệt để ước tính giá sát thực tế. Zone
+                        SHARED / FAST_MOVING / PREMIUM không áp dụng cho thuê khu riêng.
                       </p>
-                      <div className="mt-2 grid max-h-44 grid-cols-1 gap-2 overflow-y-auto rounded border border-white/10 p-2">
+                      {eligibleZones.length === 0 && (
+                        <p className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-100">
+                          Kho chưa có zone PRIVATE — tạo zone loại &quot;Khu riêng (PRIVATE)&quot; trong
+                          quản lý kho trước khi duyệt.
+                        </p>
+                      )}
+                      <div className="dark-scrollbar-inset mt-2 grid max-h-44 grid-cols-1 gap-2 overflow-y-auto rounded border border-white/10 p-2 pr-1">
                         {zones.map((z) => {
                           const checked = selectedZoneIds.includes(z.zoneId)
+                          const eligible = isZoneEligibleForContract(contractType, z.zoneType)
                           return (
                             <label
                               key={z.zoneId}
-                              className={`flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 text-xs ${
-                                checked ? 'bg-cyan-500/15 text-cyan-100' : 'bg-white/[0.03] text-slate-300'
+                              className={`flex items-start gap-2 rounded px-2 py-1.5 text-xs ${
+                                !eligible
+                                  ? 'cursor-not-allowed bg-white/[0.02] text-slate-500 opacity-60'
+                                  : checked
+                                    ? 'cursor-pointer bg-cyan-500/15 text-cyan-100'
+                                    : 'cursor-pointer bg-white/[0.03] text-slate-300'
                               }`}
                             >
                               <input
                                 type="checkbox"
                                 checked={checked}
+                                disabled={!eligible}
                                 onChange={(e) => {
+                                  if (!eligible) return
                                   if (e.target.checked) {
                                     setSelectedZoneIds((prev) => [...prev, z.zoneId])
                                   } else {
                                     setSelectedZoneIds((prev) => prev.filter((id) => id !== z.zoneId))
                                   }
                                 }}
-                                className="mt-0.5 rounded border-white/20"
+                                className="mt-0.5 rounded border-white/20 disabled:cursor-not-allowed"
                               />
                               <span>
                                 {formatZoneOptionLabel(z)}
+                                {!eligible && (
+                                  <span className="mt-0.5 block text-[10px] text-slate-500">
+                                    Không chọn — cần zone PRIVATE
+                                  </span>
+                                )}
                               </span>
                             </label>
                           )
@@ -1076,13 +1173,10 @@ export function RentalOnboardingWizard({
                             </p>
                           )}
                           {preAllocationPreview.totalBySelectedZones != null && (
-                            <button
-                              type="button"
-                              onClick={() => setEstimatedAmount(String(preAllocationPreview.totalBySelectedZones))}
-                              className="mt-2 rounded border border-cyan-400/40 px-2 py-1 text-[11px] font-medium text-cyan-200 hover:bg-cyan-500/10"
-                            >
-                              Áp dụng vào ước tính giá trị HĐ ({preAllocationPreview.totalBySelectedZones.toLocaleString('vi-VN')} VND)
-                            </button>
+                            <p className="mt-1 text-[10px] text-cyan-200/80">
+                              Tổng kỳ ~{preAllocationPreview.totalBySelectedZones.toLocaleString('vi-VN')} VND — sẽ
+                              ghi vào HĐ khi cấp zone (bước 3).
+                            </p>
                           )}
                         </div>
                       )}
@@ -1091,7 +1185,7 @@ export function RentalOnboardingWizard({
                   <div>
                     <label className={labelStyle}>Lý do từ chối (nếu từ chối)</label>
                     <textarea
-                      className={`${inputStyle} min-h-[80px]`}
+                      className={`${inputStyle} dark-scrollbar-inset min-h-[80px]`}
                       value={rejectionReason}
                       onChange={(e) => setRejectionReason(e.target.value)}
                       placeholder="Nhập lý do..."
@@ -1139,106 +1233,22 @@ export function RentalOnboardingWizard({
                   />
                 </div>
                 <div>
-                  <label className={labelStyle}>Billing</label>
+                  <label className={labelStyle}>Cách tính giá</label>
                   <input
                     className={inputStyle}
                     disabled
-                      title="Chu kỳ thanh toán"
-                      aria-label="Chu kỳ thanh toán"
-                    value={
-                      BILLING_CYCLE_GUEST_LABELS[row.billingCycle ?? ''] ??
-                      row.billingCycle ??
-                      'MONTHLY'
-                    }
-                  />
-                </div>
-                <div>
-                  <label className={labelStyle}>Pricing model</label>
-                    <input
-                      className={inputStyle}
-                      disabled
-                      title="Pricing model"
-                      aria-label="Pricing model"
-                      value={pricingModel}
-                    />
-                </div>
-                <div className="col-span-2">
-                  <ContractPriceEstimateBlock
-                    estimate={priceEstimate}
-                    loading={priceEstimateLoading}
-                    error={priceEstimateError}
-                    onApply={() => {
-                      if (priceEstimate?.suggestedTotalAmount) {
-                        setEstimatedAmount(String(priceEstimate.suggestedTotalAmount))
-                      }
-                    }}
-                  />
-                  {preAllocationPreview?.totalBySelectedZones != null && (
-                    <p className="mt-2 rounded border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs text-cyan-100">
-                      Pre-allocation đã chọn {preAllocationPreview.zoneCount} zone (
-                      {fmtM2(preAllocationPreview.totalAreaM2)} m²) → ước tính tổng kỳ ~
-                      {preAllocationPreview.totalBySelectedZones.toLocaleString('vi-VN')} VND.
-                    </p>
-                  )}
-                  {contractType === 'DEDICATED_ZONE' && (
-                    <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-                      Giá trị ước tính hiện tính theo diện tích khai báo/tham chiếu. Nếu khi cấp chỗ thực tế cần
-                      nhiều zone để đủ dung lượng, hãy cập nhật lại <strong>Ước tính giá trị</strong> trước khi
-                      kích hoạt hợp đồng.
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className={labelStyle}>Ước tính giá trị (VND)</label>
-                  <input
-                    className={inputStyle}
-                    type="number"
-                    min={0}
-                    value={estimatedAmount}
-                    onChange={(e) => setEstimatedAmount(e.target.value)}
-                    placeholder={
-                      priceEstimate
-                        ? String(priceEstimate.suggestedTotalAmount)
-                        : 'Tùy chọn'
-                    }
-                  />
-                  {priceEstimate && (
-                    <p className="mt-1 text-[10px] text-slate-500">
-                      Gợi ý tổng kỳ:{' '}
-                      {priceEstimate.suggestedTotalAmount.toLocaleString('vi-VN')} VND (
-                      {priceEstimate.monthCount} tháng)
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className={labelStyle}>Bắt đầu (khách chọn)</label>
-                  <input
-                    type="date"
-                    className={inputStyle}
-                    value={contractStart}
-                    disabled
-                    title="Bắt đầu hợp đồng"
-                    aria-label="Bắt đầu hợp đồng"
-                  />
-                </div>
-                <div>
-                  <label className={labelStyle}>Kết thúc (khách chọn)</label>
-                  <input
-                    type="date"
-                    className={inputStyle}
-                    value={contractEnd}
-                    disabled
-                    title="Kết thúc hợp đồng"
-                    aria-label="Kết thúc hợp đồng"
+                    title="Cách tính giá"
+                    aria-label="Cách tính giá"
+                    value={PRICING_MODEL_LABELS[pricingModel] ?? pricingModel}
                   />
                 </div>
               </div>
               <p className="text-xs text-slate-500">
-                Thời hạn hợp đồng lấy từ yêu cầu thuê của khách ({row.startDate || '—'} →{' '}
-                {row.endDate || '—'}). Kho ký trước; sau khi{' '}
-                <strong className="text-slate-300">cấp bin/zone (bước 3)</strong> hợp đồng chuyển{' '}
-                <strong className="text-slate-300">Chờ tenant ký</strong> — Tenant Admin ký trên portal
-                rồi HĐ mới ACTIVE.
+                Thời hạn: <strong className="text-slate-300">{row.startDate || '—'}</strong> →{' '}
+                <strong className="text-slate-300">{row.endDate || '—'}</strong> (từ yêu cầu khách).{' '}
+                <strong className="text-slate-300">Giá trị HĐ</strong> không nhập ở bước này — hệ thống tính và ghi
+                khi <strong className="text-slate-300">cấp bin/zone (bước 3)</strong> theo diện tích zone thực tế. Sau
+                đó HĐ chuyển <strong className="text-slate-300">Chờ tenant ký</strong>.
               </p>
             </div>
           )}
@@ -1258,17 +1268,23 @@ export function RentalOnboardingWizard({
                     allowUndersized={allowUndersizedZone}
                     onAllowUndersizedChange={setAllowUndersizedZone}
                   />
-                  <p className="text-sm text-slate-300">{storagePlan.hint}</p>
+                  <p className="text-sm text-slate-300">
+                    <span className="mr-2 inline-block rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-semibold text-cyan-200">
+                      {storagePlanShortLabel(contractType)}
+                    </span>
+                    {storagePlan.hint}
+                  </p>
+                  <AllocationPricePreview
+                    loading={allocationPriceLoading}
+                    estimate={allocationPriceEstimate}
+                    needsZone={storagePlan.needsZone}
+                    hasZonesSelected={selectedZoneIds.length > 0}
+                  />
                   {contractType === 'SHARED_STORAGE' && (
                     <p className="rounded-lg border border-cyan-500/25 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-100">
-                      Kho chia sẻ: ở bước này chỉ cần gán <strong>zone pool</strong>. Không khóa cố định
-                      rack/bin cho tenant; rack/bin cụ thể sẽ do putaway quyết định khi xử lý phiếu nhập.
+                      Chỉ gán <strong>zone chung</strong> — bin/rack cụ thể khi nhập hàng.
                     </p>
                   )}
-                  <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 text-xs text-slate-400">
-                    <span className="text-cyan-400">reservation:</span> {storagePlan.reservationType}{' '}
-                    · <span className="text-cyan-400">level:</span> {storagePlan.storageLevel}
-                  </div>
 
                   {storagePlan.needsZone && (
                     <div>
@@ -1277,12 +1293,13 @@ export function RentalOnboardingWizard({
                       </label>
                       <p className="mb-2 text-[11px] text-slate-500">
                         {allowsMultiZone
-                          ? 'Mỗi zone hiển thị số rack đã tạo và sức chứa thùng/LPN ước tính. VD: giữ 80 thùng — chọn nhiều zone nếu một zone không đủ.'
+                          ? 'Cùng diện tích có thể khác sức chứa LPN vì loại zone (PRIVATE / SHARED…) quy định kích cỡ bin mặc định. Chọn đủ zone nếu một zone không đủ.'
                           : 'Chọn zone trước khi chọn rack/bin.'}
                       </p>
                       {allowsMultiZone ? (
                         <ZoneMultiSelectList
                           zones={zones}
+                          contractType={contractType}
                           selectedIds={selectedZoneIds}
                           tenantRequiredAreaM2={tenantRequiredAreaNum}
                           reservedCapacity={reservedCapacityNum}
@@ -1302,11 +1319,15 @@ export function RentalOnboardingWizard({
                           aria-label="Chọn zone cấp cho tenant"
                         >
                           <option value="">— Chọn zone —</option>
-                          {zones.map((z) => (
-                            <option key={z.zoneId} value={z.zoneId}>
-                              {formatZoneOptionLabel(z)}
-                            </option>
-                          ))}
+                          {zones.map((z) => {
+                            const eligible = isZoneEligibleForContract(contractType, z.zoneType)
+                            return (
+                              <option key={z.zoneId} value={z.zoneId} disabled={!eligible}>
+                                {formatZoneOptionLabel(z)}
+                                {!eligible && requiredZoneType ? ` — cần ${requiredZoneType}` : ''}
+                              </option>
+                            )
+                          })}
                         </select>
                       )}
                       {minZonesHint && minZonesHint.minZones > 1 && allowsMultiZone && (
@@ -1329,7 +1350,12 @@ export function RentalOnboardingWizard({
                         />
                       )}
 
-                      <ContractTypeStorageHint contractType={contractType} reservedCapacity={reservedCapacityNum} />
+                      {!isDedicatedSpaceRental(contractType) && (
+                        <ContractTypeStorageHint
+                          contractType={contractType}
+                          reservedCapacity={reservedCapacityNum}
+                        />
+                      )}
                       {zoneAreaFit && tenantRequiredAreaNum != null && selectedZones.length > 0 && (
                         <ZoneAreaFitAlert
                           fit={zoneAreaFit}
@@ -1662,18 +1688,26 @@ function formatZoneOptionLabel(z: zonesApi.ApiZone) {
 
 function ZoneMultiSelectList({
   zones,
+  contractType,
   selectedIds,
   tenantRequiredAreaM2,
   reservedCapacity,
   onChange,
 }: {
   zones: zonesApi.ApiZone[]
+  contractType: string
   selectedIds: string[]
   tenantRequiredAreaM2: number | null
   reservedCapacity: number | null
   onChange: (ids: string[]) => void
 }) {
-  const toggle = (zoneId: string) => {
+  const requiredZoneType = requiredZoneTypeForContract(contractType)
+  const eligibleCount = zones.filter((z) =>
+    isZoneEligibleForContract(contractType, z.zoneType)
+  ).length
+
+  const toggle = (zoneId: string, eligible: boolean) => {
+    if (!eligible) return
     if (selectedIds.includes(zoneId)) {
       onChange(selectedIds.filter((id) => id !== zoneId))
     } else {
@@ -1690,9 +1724,17 @@ function ZoneMultiSelectList({
   }
 
   return (
-    <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-white/10 p-2">
-      {zones.map((z) => {
-        const checked = selectedIds.includes(z.zoneId)
+    <>
+      {requiredZoneType && eligibleCount === 0 && (
+        <p className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+          Kho chưa có zone {requiredZoneType} — tạo zone loại &quot;Khu riêng (PRIVATE)&quot; trước khi cấp
+          cho tenant thuê khu riêng.
+        </p>
+      )}
+      <div className="dark-scrollbar-inset max-h-64 space-y-2 overflow-y-auto rounded-lg border border-white/10 p-2 pr-1">
+        {zones.map((z) => {
+          const checked = selectedIds.includes(z.zoneId)
+          const eligible = isZoneEligibleForContract(contractType, z.zoneType)
         const area = Number(z.areaM2) || 0
         const lpnCap = estimateZoneLpnCapacity(z)
         const cap = computeZoneStorageCapacity(z.areaM2)
@@ -1703,17 +1745,20 @@ function ZoneMultiSelectList({
         return (
           <label
             key={z.zoneId}
-            className={`flex cursor-pointer gap-3 rounded-lg border p-3 transition-colors ${
-              checked
-                ? 'border-cyan-400/50 bg-cyan-400/10'
-                : 'border-white/5 bg-white/[0.02] hover:border-white/15'
+            className={`flex gap-3 rounded-lg border p-3 transition-colors ${
+              !eligible
+                ? 'cursor-not-allowed border-white/5 bg-white/[0.01] opacity-55'
+                : checked
+                  ? 'cursor-pointer border-cyan-400/50 bg-cyan-400/10'
+                  : 'cursor-pointer border-white/5 bg-white/[0.02] hover:border-white/15'
             }`}
           >
             <input
               type="checkbox"
               checked={checked}
-              onChange={() => toggle(z.zoneId)}
-              className="mt-1 rounded border-white/20"
+              disabled={!eligible}
+              onChange={() => toggle(z.zoneId, eligible)}
+              className="mt-1 rounded border-white/20 disabled:cursor-not-allowed"
             />
             <div className="min-w-0 flex-1 text-xs">
               <p className="font-semibold text-white">
@@ -1723,24 +1768,30 @@ function ZoneMultiSelectList({
               </p>
               <p className="mt-1 text-slate-400">{formatZoneRackSummary(z)}</p>
               {cap.hasArea && (
-                <p className="mt-0.5 text-slate-500">{formatZoneCapacitySummary(cap)}</p>
+                <p className="mt-0.5 text-slate-500">{formatZoneCapacitySummary(cap, z.zoneType)}</p>
               )}
               {lpnCap > 0 && (
-                <p className="mt-1 text-cyan-300/90">≈ {lpnCap.toLocaleString('vi-VN')} thùng/LPN</p>
+                <p className="mt-1 text-cyan-300/90">≈ {lpnCap.toLocaleString('vi-VN')} LPN (tối đa theo loại zone)</p>
               )}
               {tenantRequiredAreaM2 != null && area > 0 && !areaOk && (
                 <p className="mt-1 text-amber-300">Diện tích &lt; nhu cầu {fmtM2(tenantRequiredAreaM2)} — chọn thêm zone</p>
               )}
-              {reservedCapacity != null && lpnCap > 0 && !lpnOk && (
+              {reservedCapacity != null && lpnCap > 0 && !lpnOk && eligible && (
                 <p className="mt-1 text-amber-300">
                   Một zone chưa đủ {reservedCapacity} thùng — chọn thêm zone
+                </p>
+              )}
+              {!eligible && requiredZoneType && (
+                <p className="mt-1 text-slate-500">
+                  Không chọn — loại hình thuê khu riêng chỉ dùng zone {requiredZoneType}
                 </p>
               )}
             </div>
           </label>
         )
       })}
-    </div>
+      </div>
+    </>
   )
 }
 
@@ -1796,6 +1847,10 @@ function ContractTypeStorageHint({
   contractType: BillableContractTypeValue
   reservedCapacity: number | null
 }) {
+  if (contractType === 'DEDICATED_ZONE' || contractType === 'DEDICATED_WAREHOUSE') {
+    return null
+  }
+
   if (contractType === 'SHARED_STORAGE') {
     return (
       <div className="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-100/95">
@@ -1810,19 +1865,6 @@ function ContractTypeStorageHint({
             Billing theo mức dùng (USAGE_BASED), không trả cố định toàn bộ m² zone nếu không dùng hết.
           </p>
         )}
-      </div>
-    )
-  }
-
-  if (contractType === 'DEDICATED_ZONE') {
-    return (
-      <div className="mt-3 rounded-lg border border-violet-500/25 bg-violet-500/5 px-3 py-2 text-xs text-violet-100/95">
-        <p className="font-semibold text-violet-200">DEDICATED_ZONE — lưu ý chi phí</p>
-        <p className="mt-1 text-slate-300">
-          Mỗi zone tick = tenant thuê <strong>trọn diện tích zone</strong> (vd. 2 × 100 m² = 200 m² trên
-          HĐ). Phù hợp khi cần tách riêng vận hành; với cùng ~1.800 thùng, tenant thường trả{' '}
-          <strong>cao hơn</strong> SHARED_STORAGE.
-        </p>
       </div>
     )
   }
@@ -2108,101 +2150,62 @@ function ZoneAreaFitAlert({
   )
 }
 
-function ContractPriceEstimateBlock({
-  estimate,
+function AllocationPricePreview({
   loading,
-  error,
-  onApply,
+  estimate,
+  needsZone,
+  hasZonesSelected,
 }: {
-  estimate: ApiContractPriceEstimate | null
   loading: boolean
-  error: string
-  onApply: () => void
+  estimate: ApiContractPriceEstimate | null
+  needsZone: boolean
+  hasZonesSelected: boolean
 }) {
-  if (loading) {
+  if (needsZone && !hasZonesSelected) {
     return (
-      <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-sm text-slate-400">
-        Đang tính gợi ý giá theo loại HĐ và diện tích...
-      </div>
+      <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+        Chọn zone để xem giá HĐ trước khi hoàn tất.
+      </p>
     )
   }
-  if (error && !estimate) {
+  if (loading) {
     return (
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
-        {error}
-      </div>
+      <p className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs text-slate-400">
+        Đang tính giá...
+      </p>
     )
   }
   if (!estimate) return null
 
+  const formula = formatContractPriceFormula(estimate)
+
   return (
-    <div className="rounded-xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/10 to-blue-600/5 px-4 py-3">
-      <p className="text-[11px] font-bold uppercase tracking-wider text-cyan-400/90">
-        Gợi ý giá hợp đồng ({estimate.source})
+    <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+      <p className="font-medium text-emerald-200">
+        Giá HĐ ước tính: <strong className="text-white">{fmtMoney(estimate.suggestedTotalAmount)}</strong>
       </p>
-      <p className="mt-1 text-xs text-slate-400">{estimate.basisLabel}</p>
-
-      {estimate.warehouse && (
-        <div className="mt-2 grid gap-1 text-xs text-slate-300 sm:grid-cols-2">
-          <p>
-            Kho: <strong className="text-white">{estimate.warehouse.warehouseName}</strong>
-          </p>
-          <p>
-            Sử dụng: <strong>{estimate.warehouse.usableAreaM2?.toLocaleString('vi-VN') ?? '—'}</strong>{' '}
-            m²
-            {estimate.warehouse.totalAreaM2 != null && (
-              <span className="text-slate-500">
-                {' '}
-                (tổng {estimate.warehouse.totalAreaM2.toLocaleString('vi-VN')} m²)
-              </span>
-            )}
-          </p>
-        </div>
-      )}
-
-      {estimate.zonePlanning && (
-        <p className="mt-2 text-xs text-slate-300">
-          Zone trong kho: {estimate.zonePlanning.zoneCount} · đã phân bổ{' '}
-          {estimate.zonePlanning.usedZoneAreaM2.toLocaleString('vi-VN')} m² · còn{' '}
-          <strong className="text-cyan-300">
-            {estimate.zonePlanning.remainingZoneAreaM2?.toLocaleString('vi-VN') ?? '—'} m²
-          </strong>
-        </p>
-      )}
-
-      {estimate.requestedAreaM2 != null && (
-        <p className="mt-1 text-xs text-amber-200/90">
-          Diện tích khách yêu cầu: {estimate.requestedAreaM2.toLocaleString('vi-VN')} m²
-        </p>
-      )}
-
-      <ul className="mt-2 space-y-1 text-xs text-slate-400">
-        {estimate.breakdown.map((b) => (
-          <li key={b.label}>
-            <span className="text-slate-300">{b.label}:</span> {b.detail}
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3">
-        <div className="text-sm">
-          <p className="text-slate-400">
-            ~{fmtMoney(estimate.monthlyAmount)}/tháng × {estimate.monthCount} tháng
-          </p>
-          <p className="font-bold text-emerald-300">
-            Tổng gợi ý: {fmtMoney(estimate.suggestedTotalAmount)}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onApply}
-          className="rounded-lg border border-cyan-500/40 px-3 py-1.5 text-xs font-medium text-cyan-300 hover:bg-cyan-500/10"
-        >
-          Áp dụng vào ô giá trị
-        </button>
-      </div>
+      {formula && <p className="mt-1 text-emerald-200/90">{formula}</p>}
+      <p className="mt-1 text-[10px] text-emerald-200/70">
+        Ghi vào hợp đồng khi bấm <strong>Cấp chỗ & hoàn tất</strong>.
+      </p>
     </div>
   )
+}
+
+function formatContractPriceFormula(estimate: ApiContractPriceEstimate): string | null {
+  const zoneLines = estimate.breakdown.filter((b) => b.label && b.label !== 'Thuê zone đã chọn')
+  if (zoneLines.length > 0) {
+    const parts = zoneLines.map((b) => b.detail.replace(/ VND/g, ' ₫'))
+    const tail = `× ${estimate.monthCount} tháng`
+    return parts.length === 1 ? `${parts[0]} ${tail}` : `${parts.join(' + ')} ${tail}`
+  }
+  if (estimate.areaM2Used != null && estimate.unitPricePerM2Month != null) {
+    return `${estimate.areaM2Used.toLocaleString('vi-VN')} m² × ${estimate.unitPricePerM2Month.toLocaleString('vi-VN')} ₫/m²/tháng × ${estimate.monthCount} tháng`
+  }
+  if (estimate.monthlyAmount > 0) {
+    return `~${estimate.monthlyAmount.toLocaleString('vi-VN')} ₫/tháng × ${estimate.monthCount} tháng`
+  }
+  return null
 }
 
 function SummaryBlock({
@@ -2210,13 +2213,17 @@ function SummaryBlock({
   whName,
   compact,
   tenantContractType,
+  contractType,
 }: {
   row: RentalRequestRow
   whName: string
   compact?: boolean
   tenantContractType?: ContractTypeValue
+  contractType?: BillableContractTypeValue
 }) {
   const ct = (tenantContractType ?? row.contractType) as ContractTypeValue | undefined
+  const effectiveType = contractType ?? ct
+  const hideVolumeEstimate = isDedicatedSpaceRental(effectiveType)
   const estimatedLpn = row.estimatedBoxCount ?? null
   const estimatedAreaM2 = estimateAreaFromLpnCount(estimatedLpn)
   const rentalMonths = estimateMonthCount(row.expectedStartDate ?? '', row.expectedEndDate ?? '')
@@ -2244,7 +2251,7 @@ function SummaryBlock({
         )}
         {row.billingCycle && (
           <div>
-            <span className={labelStyle}>Chu kỳ</span>
+            <span className={labelStyle}>Chu kỳ thanh toán</span>
             <p className="text-white">
               {BILLING_CYCLE_GUEST_LABELS[row.billingCycle] ?? row.billingCycle}
             </p>
@@ -2261,10 +2268,10 @@ function SummaryBlock({
       </div>
       {!compact && (
         <div className="grid grid-cols-2 gap-3 border-t border-white/5 pt-3 text-xs text-slate-400">
-          {row.estimatedBoxCount != null && (
+          {!hideVolumeEstimate && row.estimatedBoxCount != null && (
             <div className="col-span-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-amber-100">
               <p className="font-semibold">
-                Hộp ước tính: {row.estimatedBoxCount.toLocaleString('vi-VN')} thùng/LPN
+                Hộp ước tính: {row.estimatedBoxCount.toLocaleString('vi-VN')} thùng-LPN
               </p>
               <p className="mt-1 text-[11px] text-amber-200/90">
                 Diện tích ước tính: ~{fmtM2(estimatedAreaM2)} m² (tham chiếu: ~

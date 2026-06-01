@@ -83,8 +83,17 @@ export const BILLING_CYCLE_GUEST_OPTIONS = [
 ] as const
 
 export const BILLING_CYCLE_GUEST_LABELS: Record<string, string> = {
+  DAILY: 'Theo ngày',
   MONTHLY: 'Theo tháng',
+  QUARTERLY: 'Theo quý',
   YEARLY: 'Theo năm',
+}
+
+/** Cách tính tiền trên hợp đồng (pricing_model). */
+export const PRICING_MODEL_LABELS: Record<string, string> = {
+  USAGE_BASED: 'Theo mức sử dụng',
+  FIXED: 'Giá cố định theo kỳ',
+  HYBRID: 'Kết hợp (cố định + theo dùng)',
 }
 
 export function defaultPricingModel(contractType: ContractTypeValue): string {
@@ -99,6 +108,13 @@ export function showsRequestedAreaField(contractType: ContractTypeValue): boolea
     contractType === 'DEDICATED_ZONE' ||
     contractType === 'NEEDS_CONSULTATION'
   )
+}
+
+/** Thuê nguyên zone/kho — billing theo diện tích, không cần gợi ý bin/thùng. */
+export function isDedicatedSpaceRental(
+  contractType: ContractTypeValue | string | null | undefined
+): boolean {
+  return contractType === 'DEDICATED_ZONE' || contractType === 'DEDICATED_WAREHOUSE'
 }
 
 export function requestedAreaFieldLabel(contractType: ContractTypeValue): string {

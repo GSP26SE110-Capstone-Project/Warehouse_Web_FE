@@ -28,7 +28,10 @@ const CODE_MESSAGES: Record<string, string> = {
     'Zone này đã được cấp riêng hoặc đang bị khóa DEDICATED — chọn zone khác.',
   RESERVATION_CONFLICT:
     'Vị trí lưu trữ không khả dụng trong khoảng thời gian này — chọn vị trí khác hoặc điều chỉnh thời hạn.',
-  DUPLICATE: 'Dữ liệu đã tồn tại trong hệ thống.',
+  DUPLICATE:
+    'Thông tin này đã được đăng ký. Kiểm tra email / mã số thuế — hoặc tra cứu yêu cầu cũ bằng mã RR + email.',
+  GUEST_TENANT_TAX_EXISTS:
+    'Mã số thuế đã đăng ký với email khác. Dùng đúng email đã đăng ký hoặc tra cứu mã RR + email.',
   CONTRACT_ALREADY_LINKED:
     'Yêu cầu thuê đã có hợp đồng — tiếp tục với hợp đồng hiện có.',
   STORAGE_NOT_ASSIGNED:
@@ -37,16 +40,20 @@ const CODE_MESSAGES: Record<string, string> = {
 }
 
 export function translateApiErrorMessage(message?: string | null, code?: string | null): string {
-  if (code && CODE_MESSAGES[code]) return CODE_MESSAGES[code]
-  if (!message?.trim()) return 'Yêu cầu thất bại'
+  if (!message?.trim()) {
+    if (code && CODE_MESSAGES[code]) return CODE_MESSAGES[code]
+    return 'Yêu cầu thất bại'
+  }
 
   const trimmed = message.trim()
   if (EXACT[trimmed]) return EXACT[trimmed]
 
-  // Đã là tiếng Việt
+  // Ưu tiên message tiếng Việt từ BE (kể cả khi có code DUPLICATE chung)
   if (/[àáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]/i.test(trimmed)) {
     return trimmed
   }
+
+  if (code && CODE_MESSAGES[code]) return CODE_MESSAGES[code]
 
   return trimmed
 }

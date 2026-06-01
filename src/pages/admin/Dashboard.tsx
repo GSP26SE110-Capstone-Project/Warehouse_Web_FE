@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
 import { SystemLogs } from '../../components/ui/SystemLogs'
-import { ZoneUtilization } from '../../components/ui/ZoneUtilization'
+import { ZoneUtilization, computeZoneLayoutUtil } from '../../components/ui/ZoneUtilization'
+import { WarehouseOpsChart } from '../../components/dashboard/WarehouseOpsChart'
 import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { ApiError } from '../../api/client'
@@ -9,6 +10,8 @@ import * as contractsApi from '../../api/contracts'
 import * as inboundApi from '../../api/inboundRequests'
 import * as rentalRequestsApi from '../../api/rentalRequests'
 import * as warehousesApi from '../../api/warehouses'
+import * as zonesApi from '../../api/zones'
+import type { ApiZone } from '../../api/zones'
 import { useAuth } from '../../auth/AuthContext'
 
 export const Dashboard: React.FC = () => {
@@ -23,87 +26,126 @@ export const Dashboard: React.FC = () => {
     inboundOpen: 0,
     zoneUtilizationPct: 0,
   })
+  const [zoneItems, setZoneItems] = useState<ApiZone[]>([])
+  const [zonePlanning, setZonePlanning] = useState<
+    Awaited<ReturnType<typeof warehousesApi.getWarehouseZonePlanning>> | null
+  >(null)
+  const [chartRentals, setChartRentals] = useState<Array<{ createdAt?: string | null }>>([])
+  const [chartInbounds, setChartInbounds] = useState<Array<{ createdAt?: string | null }>>([])
+  const [chartContracts, setChartContracts] = useState<Array<{ createdAt?: string | null }>>([])
   const [logs, setLogs] = useState<
     Array<{ timestamp: string; level: 'INFO' | 'WARN' | 'SYS'; message: string }>
   >([])
 
-  const gridCells: Array<'empty' | 'active' | 'stable' | 'alert'> = [
-    'active', 'active', 'stable', 'active', 'alert', 'active',
-    'active', 'stable', 'active', 'active', 'stable', 'active',
-    'empty', 'empty', 'empty', 'empty',
-  ]
+  const loadDashboard = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const contractParams = isWhAdmin && warehouseId ? { warehouseId, limit: 200 } : { limit: 200 }
+      const inboundParams = isWhAdmin && warehouseId ? { warehouseId, limit: 200 } : { limit: 200 }
 
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setError('')
-      try {
-        const contractParams = isWhAdmin && warehouseId ? { warehouseId, limit: 200 } : { limit: 200 }
-        const rentalParams = isWhAdmin && warehouseId ? { warehouseId, limit: 200 } : { limit: 200 }
-        const inboundParams = isWhAdmin && warehouseId ? { warehouseId, limit: 200 } : { limit: 200 }
-
-        const [contractsRes, rentalRes, inboundRes, planningRes] = await Promise.all([
-          contractsApi.listContracts(contractParams),
-          rentalRequestsApi.listRentalRequests(rentalParams),
-          inboundApi.listInboundRequests(inboundParams),
-          isWhAdmin && warehouseId
-            ? warehousesApi.getWarehouseZonePlanning(warehouseId).catch(() => null)
-            : Promise.resolve(null),
+      let rentalItems: Awaited<ReturnType<typeof rentalRequestsApi.listRentalRequests>>['items']
+      if (isWhAdmin && warehouseId) {
+        const [inbox, mine] = await Promise.all([
+          rentalRequestsApi.listRentalRequests({
+            warehouseId,
+            regionMatch: true,
+            limit: 100,
+          }),
+          rentalRequestsApi.listRentalRequests({ warehouseId, limit: 100 }),
         ])
-
-        const activeContracts = contractsRes.items.filter((c) => c.status === 'ACTIVE').length
-        const inboundOpen = inboundRes.items.filter((i) =>
-          ['DRAFT', 'PENDING', 'APPROVED', 'ARRIVED', 'RECEIVING'].includes(i.status)
-        ).length
-        const util = planningRes?.usableAreaM2
-          ? Math.round(((planningRes.usedZoneAreaM2 ?? 0) / planningRes.usableAreaM2) * 100)
-          : 0
-
-        if (!cancelled) {
-          setKpis({
-            rentalRequests: rentalRes.items.length,
-            contractsActive: activeContracts,
-            inboundOpen,
-            zoneUtilizationPct: Math.max(0, Math.min(100, util)),
-          })
-          setLogs([
-            {
-              timestamp: new Date().toLocaleTimeString('vi-VN'),
-              level: 'INFO',
-              message: `Đang có ${activeContracts} hợp đồng ACTIVE.`,
-            },
-            {
-              timestamp: new Date().toLocaleTimeString('vi-VN'),
-              level: inboundOpen > 20 ? 'WARN' : 'SYS',
-              message: `${inboundOpen} phiếu nhập đang mở xử lý.`,
-            },
-            {
-              timestamp: new Date().toLocaleTimeString('vi-VN'),
-              level: util >= 85 ? 'WARN' : 'INFO',
-              message:
-                util > 0
-                  ? `Mức sử dụng zone hiện tại: ${util}%.`
-                  : 'Chưa có dữ liệu quy hoạch zone/usableArea.',
-            },
-          ])
+        const byId = new Map<string, (typeof inbox.items)[0]>()
+        for (const r of [...inbox.items, ...mine.items]) {
+          byId.set(r.rentalRequestId, r)
         }
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof ApiError ? e.message : 'Không tải được dữ liệu dashboard')
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
+        rentalItems = [...byId.values()]
+      } else {
+        const res = await rentalRequestsApi.listRentalRequests({ limit: 200 })
+        rentalItems = res.items
       }
-    })()
-    return () => {
-      cancelled = true
+
+      const [contractsRes, inboundRes, planningRes, zonesRes] = await Promise.all([
+        contractsApi.listContracts(contractParams),
+        inboundApi.listInboundRequests(inboundParams),
+        isWhAdmin && warehouseId
+          ? warehousesApi.getWarehouseZonePlanning(warehouseId).catch(() => null)
+          : Promise.resolve(null),
+        isWhAdmin && warehouseId
+          ? zonesApi.listZones({ warehouseId, limit: 50 }).catch(() => ({ items: [] as ApiZone[] }))
+          : Promise.resolve({ items: [] as ApiZone[] }),
+      ])
+
+      const activeContracts = contractsRes.items.filter((c) => c.status === 'ACTIVE').length
+      const inboundOpen = inboundRes.items.filter((i) =>
+        ['DRAFT', 'PENDING', 'APPROVED', 'ARRIVED', 'RECEIVING'].includes(i.status)
+      ).length
+      const util = planningRes?.usableAreaM2
+        ? Math.round(((planningRes.usedZoneAreaM2 ?? 0) / planningRes.usableAreaM2) * 100)
+        : 0
+
+      setKpis({
+        rentalRequests: rentalItems.length,
+        contractsActive: activeContracts,
+        inboundOpen,
+        zoneUtilizationPct: Math.max(0, Math.min(100, util)),
+      })
+      setZonePlanning(planningRes)
+      setZoneItems(zonesRes.items)
+      setChartRentals(rentalItems)
+      setChartInbounds(inboundRes.items)
+      setChartContracts(contractsRes.items)
+      setLogs([
+        {
+          timestamp: new Date().toLocaleTimeString('vi-VN'),
+          level: 'INFO',
+          message: `Đang có ${activeContracts} hợp đồng ACTIVE.`,
+        },
+        {
+          timestamp: new Date().toLocaleTimeString('vi-VN'),
+          level: inboundOpen > 20 ? 'WARN' : 'SYS',
+          message: `${inboundOpen} phiếu nhập đang mở xử lý.`,
+        },
+        {
+          timestamp: new Date().toLocaleTimeString('vi-VN'),
+          level: util >= 85 ? 'WARN' : 'INFO',
+          message:
+            util > 0
+              ? `Mức sử dụng zone hiện tại: ${util}%.`
+              : 'Chưa có dữ liệu quy hoạch zone/usableArea.',
+        },
+      ])
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Không tải được dữ liệu dashboard')
+    } finally {
+      setLoading(false)
     }
   }, [isWhAdmin, warehouseId])
+
+  useEffect(() => {
+    void loadDashboard()
+  }, [loadDashboard])
 
   const utilizationForCard = useMemo(
     () => `${kpis.zoneUtilizationPct}%`,
     [kpis.zoneUtilizationPct]
+  )
+
+  const zoneUtilRows = useMemo(
+    () =>
+      [...zoneItems]
+        .sort((a, b) => a.zoneCode.localeCompare(b.zoneCode))
+        .map((z) => ({
+          zoneId: z.zoneId,
+          zoneCode: z.zoneCode,
+          zoneName: z.zoneName,
+          zoneType: z.zoneType,
+          areaM2: z.areaM2,
+          status: z.status,
+          rackCount: z.rackCount,
+          maxRacks: z.maxRacks,
+          utilPct: computeZoneLayoutUtil(z),
+        })),
+    [zoneItems]
   )
 
   return (
@@ -125,7 +167,11 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <button className="px-4 py-2 rounded-lg glass-panel hover:bg-white/10 text-xs font-bold text-primary border border-primary/30 shadow-neon transition-all flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void loadDashboard()}
+              className="px-4 py-2 rounded-lg glass-panel hover:bg-white/10 text-xs font-bold text-primary border border-primary/30 shadow-neon transition-all flex items-center gap-2"
+            >
               <span className="material-symbols-outlined text-sm">refresh</span>
               Cập nhật dữ liệu
             </button>
@@ -172,15 +218,23 @@ export const Dashboard: React.FC = () => {
               Tình trạng vận hành kho
             </h3>
             <p className="text-slate-400 text-sm mb-4">
-              Dashboard cho Warehouse Admin lấy số liệu từ yêu cầu thuê, hợp đồng, nhập kho và quy hoạch zone
-              hiện tại. Dùng để theo dõi tải kho và quyết định cấp chỗ nhanh hơn.
+              Xu hướng 7–14 ngày: yêu cầu thuê mới, phiếu nhập và hợp đồng được tạo — giúp thấy tải
+              vận hành theo thời gian.
             </p>
-            <div className="h-64 bg-black/20 rounded flex items-center justify-center text-slate-500">
-              [Biểu đồ KPI theo ngày - đang triển khai]
-            </div>
+            <WarehouseOpsChart
+              rentalRequests={chartRentals}
+              inboundRequests={chartInbounds}
+              contracts={chartContracts}
+            />
           </div>
 
-          <ZoneUtilization capacity={kpis.zoneUtilizationPct || 0} gridCells={gridCells} />
+          <ZoneUtilization
+            capacityPct={kpis.zoneUtilizationPct}
+            zones={zoneUtilRows}
+            usedAreaM2={zonePlanning?.usedZoneAreaM2}
+            usableAreaM2={zonePlanning?.usableAreaM2}
+            remainingAreaM2={zonePlanning?.remainingZoneAreaM2}
+          />
         </div>
 
         {/* System Logs */}

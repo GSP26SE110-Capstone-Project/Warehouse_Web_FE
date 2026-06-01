@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { StatsCard } from '../../components/ui/StatCard'
 import { Pagination } from '../../components/ui/Pagination'
 import { RequestDetailModal } from '../../components/ui/modal/RequestDetailModal'
@@ -8,6 +9,7 @@ import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { ApiError } from '../../api/client'
 import * as rentalRequestsApi from '../../api/rentalRequests'
+import { fetchGuestAccountAlerts, fetchWhPendingRentalAlerts, type GuestAccountAlerts, type WhPendingRentalAlerts } from '../../api/adminNotifications'
 import * as tenantsApi from '../../api/tenants'
 import * as warehousesApi from '../../api/warehouses'
 import { rentalRequestToRow, type RentalRequestRow } from '../../mappers'
@@ -35,6 +37,8 @@ export const RequestManagement = () => {
     message: '',
   })
   const [notifyBusy, setNotifyBusy] = useState(false)
+  const [guestAlerts, setGuestAlerts] = useState<GuestAccountAlerts | null>(null)
+  const [whPendingAlerts, setWhPendingAlerts] = useState<WhPendingRentalAlerts | null>(null)
 
   const operator: OnboardingOperator = useMemo(
     () => ({
@@ -94,6 +98,19 @@ export const RequestManagement = () => {
   useEffect(() => {
     loadRequests()
   }, [loadRequests])
+
+  useEffect(() => {
+    if (currentUser?.role === 'SYSTEM_ADMIN') {
+      void fetchGuestAccountAlerts()
+        .then(setGuestAlerts)
+        .catch(() => setGuestAlerts(null))
+    }
+    if (currentUser?.role === 'WH_ADMIN') {
+      void fetchWhPendingRentalAlerts()
+        .then(setWhPendingAlerts)
+        .catch(() => setWhPendingAlerts(null))
+    }
+  }, [currentUser?.role, requests.length])
 
   const filtered = useMemo(() => {
     return requests.filter((r) => {
@@ -160,6 +177,59 @@ export const RequestManagement = () => {
             {error && (
               <InlineAlert message={error} onDismiss={() => setError('')} />
             )}
+            {currentUser?.role === 'SYSTEM_ADMIN' &&
+              guestAlerts &&
+              guestAlerts.guestWithoutAccountCount > 0 && (
+                <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 leading-relaxed flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-start gap-2">
+                    <span className="material-symbols-outlined text-amber-300 shrink-0">person_add</span>
+                    <p>
+                      Có <strong>{guestAlerts.pendingGuestCount}</strong> guest mới gửi yêu cầu thuê
+                      {guestAlerts.approvedAwaitingAccountCount > 0 && (
+                        <>
+                          {' '}
+                          và <strong>{guestAlerts.approvedAwaitingAccountCount}</strong> đã duyệt cần
+                          cấp Tenant Admin
+                        </>
+                      )}
+                      . Vào <strong>Quản lý Tài khoản</strong> để tạo tài khoản sau khi xử lý yêu
+                      cầu.
+                    </p>
+                  </div>
+                  <Link
+                    to="/admin/accounts"
+                    className="shrink-0 rounded-lg border border-amber-400/40 bg-amber-400/15 px-4 py-2 text-xs font-semibold text-amber-100 no-underline hover:bg-amber-400/25"
+                  >
+                    Cấp tài khoản
+                  </Link>
+                </div>
+              )}
+            {currentUser?.role === 'WH_ADMIN' &&
+              whPendingAlerts &&
+              whPendingAlerts.pendingCount > 0 && (
+                <div className="flex flex-col gap-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-2">
+                    <span className="material-symbols-outlined shrink-0 text-amber-300">
+                      notifications_active
+                    </span>
+                    <p>
+                      Có <strong>{whPendingAlerts.pendingCount}</strong> yêu cầu thuê chưa duyệt
+                      trong vùng{' '}
+                      <strong>
+                        {whPendingAlerts.district}, {whPendingAlerts.city}
+                      </strong>
+                      . Mở onboarding để duyệt và claim cho kho bạn.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFilter('pending')}
+                    className="shrink-0 rounded-lg border border-amber-400/40 bg-amber-400/15 px-4 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-400/25"
+                  >
+                    Lọc chờ duyệt
+                  </button>
+                </div>
+              )}
             {currentUser?.role === 'WH_ADMIN' && currentUser.warehouseId && (
               <p className="rounded-lg border border-cyan-400/20 bg-cyan-400/5 px-4 py-2 text-sm text-cyan-200">
                 Hộp thư vùng <strong>{operatorWithWhName.warehouseName ?? 'kho của bạn'}</strong>: yêu cầu

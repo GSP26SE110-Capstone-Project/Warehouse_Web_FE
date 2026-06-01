@@ -268,7 +268,7 @@ export function DarkDropdownSelect({
             <div
               id={listId}
               role="listbox"
-              className="max-h-52 overflow-y-auto"
+              className="max-h-52 overflow-y-auto dark-scrollbar"
             >
             {filteredMenuEntries.length === 0 ? (
               <p className={`px-3 py-3 ${text} text-slate-400`}>{emptyMessage}</p>

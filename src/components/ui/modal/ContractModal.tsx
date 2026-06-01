@@ -7,6 +7,7 @@ import * as warehousesApi from '../../../api/warehouses'
 import type { ContractStatus } from '../../../api/types'
 import {
   BILLING_CYCLE_GUEST_LABELS,
+  PRICING_MODEL_LABELS,
   CONTRACT_TYPE_LABELS,
   type ContractTypeValue,
 } from '../../../data/contractTypes'
@@ -171,7 +172,7 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
           </button>
         </div>
 
-        <div className="flex-1 space-y-6 overflow-y-auto p-6">
+        <div className="dark-scrollbar flex-1 space-y-6 overflow-y-auto p-6 pr-5 [scrollbar-gutter:stable]">
           {loading && (
             <p className="text-center text-sm text-slate-400">Đang tải hợp đồng...</p>
           )}
@@ -218,8 +219,12 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
                     <input disabled className={inputStyle} value={typeLabel || '—'} />
                   </div>
                   <div>
-                    <label className={labelStyle}>Pricing model</label>
-                    <input disabled className={inputStyle} value={pricingModel || '—'} />
+                    <label className={labelStyle}>Cách tính giá</label>
+                    <input
+                      disabled
+                      className={inputStyle}
+                      value={PRICING_MODEL_LABELS[pricingModel] ?? pricingModel ?? '—'}
+                    />
                   </div>
                   <div>
                     <label className={labelStyle}>Chu kỳ thanh toán</label>

@@ -9,9 +9,16 @@ import type { ApiStorageReservation } from '../../api/storageReservations'
 import {
   BILLING_CYCLE_GUEST_LABELS,
   CONTRACT_TYPE_LABELS,
+  PRICING_MODEL_LABELS,
   type ContractTypeValue,
 } from '../../data/contractTypes'
 import { formatVnd } from '../../data/pricing'
+import {
+  CONTRACT_BILLING_UNIT_LABELS,
+  CONTRACT_ITEM_TYPE_LABELS,
+  formatLpnSize,
+  LPN_SIZE_COLUMN_HEADER,
+} from '../../data/lpnTerminology'
 import {
   contractSigningStepLabel,
   contractStatusLabel,
@@ -22,31 +29,6 @@ import {
   type ContractSigningContext,
 } from '../../utils/contractSigning'
 import { groupReservationsForTenantView } from '../../utils/tenantReservationGroups'
-
-const PRICING_MODEL_LABELS: Record<string, string> = {
-  USAGE_BASED: 'Theo mức sử dụng',
-  FIXED: 'Cố định',
-  HYBRID: 'Kết hợp',
-}
-
-const ITEM_TYPE_LABELS: Record<string, string> = {
-  INBOUND: 'Nhập kho (LPN)',
-  STORAGE: 'Lưu kho',
-  HANDLING: 'Xử lý hàng',
-}
-
-const BILLING_UNIT_LABELS: Record<string, string> = {
-  INBOUND_LPN: 'LPN nhập',
-  BOX_DAY: 'Thùng/ngày',
-  HANDLING_UNIT: 'Đơn vị xử lý',
-}
-
-const BOX_TYPE_LABELS: Record<string, string> = {
-  SMALL: 'Nhỏ (S)',
-  MEDIUM: 'Vừa (M)',
-  LARGE: 'Lớn (L)',
-  EXTRA: 'Cực lớn (XL)',
-}
 
 type Props = {
   contractId: string
@@ -178,7 +160,7 @@ export function TenantContractDetailModal({
           </button>
         </div>
 
-        <div className="flex-1 space-y-5 overflow-y-auto p-6">
+        <div className="dark-scrollbar flex-1 space-y-5 overflow-y-auto p-6 pr-5 [scrollbar-gutter:stable]">
           {loading && <p className="text-sm text-slate-400">Đang tải...</p>}
           {error && <InlineAlert message={error} onDismiss={() => setError('')} />}
 
@@ -207,7 +189,7 @@ export function TenantContractDetailModal({
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs uppercase tracking-wide text-slate-500">Mô hình giá</dt>
+                    <dt className="text-xs uppercase tracking-wide text-slate-500">Cách tính giá</dt>
                     <dd className="text-slate-200">
                       {PRICING_MODEL_LABELS[contract.pricingModel] ?? contract.pricingModel}
                     </dd>
@@ -280,7 +262,7 @@ export function TenantContractDetailModal({
                         </p>
                         {g.totalReservedCapacity > 0 && (
                           <p className="mt-1 text-xs text-slate-500">
-                            Giữ ~{g.totalReservedCapacity.toLocaleString('vi-VN')} thùng/LPN
+                            Giữ ~{g.totalReservedCapacity.toLocaleString('vi-VN')} LPN
                           </p>
                         )}
                       </div>
@@ -299,13 +281,13 @@ export function TenantContractDetailModal({
                     {[...groupedItems.entries()].map(([itemType, rows]) => (
                       <div key={itemType} className="overflow-hidden rounded-lg border border-white/10">
                         <div className="bg-[#131b29] px-4 py-2 text-xs font-semibold uppercase text-slate-400">
-                          {ITEM_TYPE_LABELS[itemType] ?? itemType}
+                          {CONTRACT_ITEM_TYPE_LABELS[itemType] ?? itemType}
                         </div>
                         <table className="w-full text-left text-xs">
                           <thead className="text-slate-500">
                             <tr>
                               <th className="px-4 py-2">Đơn vị tính</th>
-                              <th className="px-4 py-2">Loại thùng</th>
+                              <th className="px-4 py-2">{LPN_SIZE_COLUMN_HEADER}</th>
                               <th className="px-4 py-2 text-right">Đơn giá</th>
                             </tr>
                           </thead>
@@ -313,13 +295,9 @@ export function TenantContractDetailModal({
                             {rows.map((row) => (
                               <tr key={row.contractItemId}>
                                 <td className="px-4 py-2">
-                                  {BILLING_UNIT_LABELS[row.billingUnit] ?? row.billingUnit}
+                                  {CONTRACT_BILLING_UNIT_LABELS[row.billingUnit] ?? row.billingUnit}
                                 </td>
-                                <td className="px-4 py-2">
-                                  {row.boxType
-                                    ? BOX_TYPE_LABELS[row.boxType] ?? row.boxType
-                                    : '—'}
-                                </td>
+                                <td className="px-4 py-2">{formatLpnSize(row.boxType)}</td>
                                 <td className="px-4 py-2 text-right tabular-nums text-cyan-300/90">
                                   {formatVnd(Number(row.unitPrice))}
                                 </td>

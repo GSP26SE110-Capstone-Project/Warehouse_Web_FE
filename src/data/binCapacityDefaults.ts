@@ -27,9 +27,9 @@ const PRESETS: Record<string, BinCapacityPreset> = {
     note: 'Hàng giá trị cao — 1 LARGE / 2 MEDIUM / 4 SMALL',
   },
   PRIVATE: {
-    maxLpnCount: 12,
-    maxVolumeUnits: 12,
-    note: 'Khu riêng tenant — 3 LARGE / 6 MEDIUM / 12 SMALL',
+    maxLpnCount: 16,
+    maxVolumeUnits: 16,
+    note: 'Khu riêng tenant — cùng chuẩn bin SHARED (2 EXTRA / 4 LARGE / 8 MEDIUM / 16 SMALL)',
   },
 }
 

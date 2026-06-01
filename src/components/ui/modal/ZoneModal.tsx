@@ -187,6 +187,7 @@ export function ZoneModal({
         zoneCode: form.zoneCode.trim(),
         zoneName: form.zoneName.trim(),
         areaM2: area,
+        isDedicated: form.zoneType === 'PRIVATE' ? true : form.isDedicated,
       })
       onClose()
     } catch (e) {
@@ -210,7 +211,7 @@ export function ZoneModal({
           </button>
         </div>
 
-        <div className="space-y-4 overflow-y-auto p-6">
+        <div className="dark-scrollbar space-y-4 overflow-y-auto p-6">
           {error && (
             <InlineAlert compact hideTitle message={error} onDismiss={() => setError('')} />
           )}
@@ -367,7 +368,14 @@ export function ZoneModal({
               disabled={isView}
               className={inputStyle}
               value={form.zoneType}
-              onChange={(e) => setForm({ ...form, zoneType: e.target.value })}
+              onChange={(e) => {
+                const zoneType = e.target.value
+                setForm({
+                  ...form,
+                  zoneType,
+                  isDedicated: zoneType === 'PRIVATE' ? true : form.isDedicated,
+                })
+              }}
             >
               {ZONE_TYPE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -391,21 +399,23 @@ export function ZoneModal({
               onChange={(e) => setAreaInput(e.target.value)}
             />
             {areaInput.trim() && Number(areaInput) > 0 && (
-              <p className="mt-2 text-[10px] text-cyan-200/80">
-                ≈ {formatZoneCapacitySummary(computeZoneStorageCapacity(Number(areaInput)))}
+              <p className="mt-2 text-[11px] leading-relaxed text-cyan-200/80">
+                ≈ {formatZoneCapacitySummary(computeZoneStorageCapacity(Number(areaInput)), form.zoneType)}
               </p>
             )}
           </div>
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
-            <input
-              type="checkbox"
-              disabled={isView}
-              checked={form.isDedicated}
-              onChange={(e) => setForm({ ...form, isDedicated: e.target.checked })}
-              className="rounded border-white/20"
-            />
-            Zone riêng (dedicated)
-          </label>
+          {form.zoneType !== 'PRIVATE' && (
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+              <input
+                type="checkbox"
+                disabled={isView}
+                checked={form.isDedicated}
+                onChange={(e) => setForm({ ...form, isDedicated: e.target.checked })}
+                className="rounded border-white/20"
+              />
+              Zone riêng (dedicated)
+            </label>
+          )}
           <div>
             <label className={labelStyle} htmlFor="zone-status">
               Trạng thái

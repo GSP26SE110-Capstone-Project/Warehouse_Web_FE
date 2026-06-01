@@ -1,4 +1,6 @@
 import { RACK_FIXED_LEVEL_COUNT } from '../data/rackStructure'
+import { getDefaultBinCapacity } from '../data/binCapacityDefaults'
+import { lpnsPerBin } from './putawayCapacity'
 
 /** Đồng bộ với BE `warehouseCapacity.js` */
 export const RACK_FOOTPRINT_M2 = 3
@@ -65,25 +67,51 @@ function fmtM2(n: number) {
   return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(n)
 }
 
-export function formatZoneCapacitySummary(c: ZoneStorageCapacity): string {
+/** Ước tính số thùng EXTRA theo số ngăn bin và volume mặc định của loại zone. */
+export function estimateExtraBoxCapacity(
+  totalBinSlots: number,
+  zoneType?: string | null
+): number {
+  if (totalBinSlots <= 0) return 0
+  const binVolume = getDefaultBinCapacity(zoneType).maxVolumeUnits
+  return totalBinSlots * lpnsPerBin('EXTRA', binVolume)
+}
+
+function lpnPerBinSlot(zoneType?: string | null): number {
+  return getDefaultBinCapacity(zoneType).maxLpnCount
+}
+
+function extraLpnsPerBin(zoneType?: string | null): number {
+  const binVolume = getDefaultBinCapacity(zoneType).maxVolumeUnits
+  return lpnsPerBin('EXTRA', binVolume)
+}
+
+export function formatZoneCapacitySummary(
+  c: ZoneStorageCapacity,
+  zoneType?: string | null
+): string {
   if (!c.hasArea) return ''
-  const pct = Math.round(c.aisleRatio * 100)
-  return `${c.maxRacks} rack · ${c.binsPerLevel} bin/tầng · ${c.totalBinSlots} ô (sau trừ ${pct}% lối đi ≈ ${fmtM2(c.storageAreaM2)} m² đặt rack)`
+  const extraBoxes = estimateExtraBoxCapacity(c.totalBinSlots, zoneType)
+  const perBin = extraLpnsPerBin(zoneType)
+  const vol = getDefaultBinCapacity(zoneType).maxVolumeUnits
+  return `${c.maxRacks} rack · ${c.binsPerLevel} bin/tầng · tối đa ~${extraBoxes.toLocaleString('vi-VN')} LPN cỡ EXTRA (${perBin} LPN/ngăn · bin ${vol} vol.)`
 }
 
 export function estimateZoneLpnCapacity(zone: {
   areaM2?: number | null
   estimatedLpnCapacity?: number | null
   totalBinSlots?: number | null
+  zoneType?: string | null
 }): number {
   if (zone.estimatedLpnCapacity != null && zone.estimatedLpnCapacity > 0) {
     return zone.estimatedLpnCapacity
   }
+  const perSlot = lpnPerBinSlot(zone.zoneType)
   if (zone.totalBinSlots != null && zone.totalBinSlots > 0) {
-    return zone.totalBinSlots * DEFAULT_BIN_MAX_LPN_COUNT
+    return zone.totalBinSlots * perSlot
   }
   const cap = computeZoneStorageCapacity(zone.areaM2)
-  return cap.totalBinSlots * DEFAULT_BIN_MAX_LPN_COUNT
+  return cap.totalBinSlots * perSlot
 }
 
 export function formatZoneRackSummary(zone: {

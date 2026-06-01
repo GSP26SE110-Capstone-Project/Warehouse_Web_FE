@@ -2,6 +2,7 @@ import type {
   ApiInboundApprovalReadiness,
   ApiInboundEstimateUsage,
 } from '../../api/inboundRequests'
+import { formatLpnSize } from '../../data/lpnTerminology'
 
 type Props = {
   readiness: ApiInboundApprovalReadiness
@@ -153,9 +154,9 @@ export function InboundApprovalPanel({ readiness }: Props) {
       <h2 className="mb-2 font-semibold text-white">Kiểm tra chỗ trống (ước tính)</h2>
       <p className="mb-3 text-xs text-slate-400">
         Trước khi duyệt: so sánh hàng dự kiến với bin còn trống. Giả định{' '}
-        <strong className="text-slate-300">{a.piecesPerLpn} cái/thùng</strong>, thùng{' '}
-        <strong className="text-slate-300">{a.boxType}</strong> ({a.volumeUnitsPerLpn} volume
-        units/thùng). Bin: tối đa{' '}
+        <strong className="text-slate-300">{a.piecesPerLpn} cái/LPN</strong>, kích cỡ{' '}
+        <strong className="text-slate-300">{formatLpnSize(a.boxType)}</strong> ({a.volumeUnitsPerLpn}{' '}
+        volume units/LPN). Bin: tối đa{' '}
         <strong className="text-slate-300">{a.binMaxLpnCount ?? 4} LPN</strong> và{' '}
         <strong className="text-slate-300">{a.binMaxVolumeUnits ?? 16} volume</strong> — ví dụ tối
         đa 2 EXTRA hoặc 4 MEDIUM/bin.
@@ -169,7 +170,7 @@ export function InboundApprovalPanel({ readiness }: Props) {
             {readiness.inboundLineCount} dòng SKU
           </p>
           <p className="mt-1 text-xs text-cyan-300/90">
-            ≈ {readiness.estimatedLpnNeeded} thùng (LPN) · ≈ {readiness.estimatedVolumeUnitsNeeded}{' '}
+            ≈ {readiness.estimatedLpnNeeded} LPN · ≈ {readiness.estimatedVolumeUnitsNeeded}{' '}
             volume units
             {readiness.estimatedBinsNeeded != null && (
               <>
@@ -219,11 +220,11 @@ export function InboundApprovalPanel({ readiness }: Props) {
             <p className="mt-2 text-xs font-medium text-slate-400">Nhập kho — một lần</p>
             <div className="mt-1 grid gap-1 text-xs text-slate-300 sm:grid-cols-2">
               <p>
-                INBOUND_LPN ({a.boxType}): {readiness.estimatedLpnNeeded} ×{' '}
+                LPN/lần nhập ({formatLpnSize(a.boxType)}): {readiness.estimatedLpnNeeded} ×{' '}
                 <strong>{formatMoney(p.inboundLpnUnitPrice)}</strong>
               </p>
               <p>
-                HANDLING_UNIT: {readiness.estimatedLpnNeeded.toLocaleString('vi-VN')} ×{' '}
+                Xử lý hàng: {readiness.estimatedLpnNeeded.toLocaleString('vi-VN')} LPN ×{' '}
                 <strong>{formatMoney(p.handlingUnitPrice)}</strong>
               </p>
             </div>
@@ -236,8 +237,9 @@ export function InboundApprovalPanel({ readiness }: Props) {
 
             <p className="mt-3 text-xs font-medium text-slate-400">Lưu kho — ước tính 1 tháng</p>
             <p className="mt-1 text-xs text-slate-300">
-              STORAGE BOX_DAY ({a.boxType}): ~{p.estimatedAvgBoxesForMonth ?? readiness.estimatedLpnNeeded}{' '}
-              thùng × <strong>{formatMoney(p.storageBoxDayUnitPrice)}</strong>/ngày × {days} ngày
+              LPN/ngày ({formatLpnSize(a.boxType)}): ~
+              {p.estimatedAvgBoxesForMonth ?? readiness.estimatedLpnNeeded} LPN ×{' '}
+              <strong>{formatMoney(p.storageBoxDayUnitPrice)}</strong>/ngày × {days} ngày
             </p>
             <p className="mt-1 text-sm text-slate-200">
               Phí lưu kho tháng:{' '}
@@ -257,7 +259,7 @@ export function InboundApprovalPanel({ readiness }: Props) {
           </>
         ) : (
           <p className="mt-1 text-xs text-amber-300/90">
-            Chưa có đơn giá INBOUND/HANDLING/STORAGE trong contract item để ước tính.
+            Chưa có đơn giá nhập kho / lưu kho / xử lý hàng trong hợp đồng để ước tính.
           </p>
         )}
       </div>

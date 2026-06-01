@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import logo from '../../assets/logo.png'
 import { ContractTypeGuide } from '../../components/public/ContractTypeGuide'
@@ -97,7 +97,17 @@ export const Landing: React.FC = () => {
     setLookupCode(requestCode)
     setLookupEmail(contactEmail)
     setAutoLookup(true)
+    window.requestAnimationFrame(() => {
+      document.getElementById('lookup')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }
+
+  useEffect(() => {
+    document.documentElement.classList.add('dark-scrollbar-root')
+    return () => {
+      document.documentElement.classList.remove('dark-scrollbar-root')
+    }
+  }, [])
 
   return (
     <div

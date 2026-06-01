@@ -185,7 +185,7 @@ export function SearchableSelect({
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-50 mt-1 w-full max-h-56 overflow-y-auto rounded-lg border border-[#3a5455] bg-[#0f2223] shadow-lg py-1"
+          className="absolute z-50 mt-1 w-full max-h-56 overflow-y-auto dark-scrollbar rounded-lg border border-[#3a5455] bg-[#0f2223] shadow-lg py-1"
         >
           {filteredOptions.length === 0 ? (
             <li className="px-4 py-3 text-sm text-[#9bb9bb]">{emptyMessage}</li>

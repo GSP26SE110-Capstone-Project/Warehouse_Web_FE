@@ -10,6 +10,8 @@ export interface ApiTenant {
   contactPhone?: string | null
   address?: string | null
   status: 'ACTIVE' | 'SUSPENDED'
+  /** Guest onboarding — hồ sơ công ty đã tồn tại theo email */
+  reusedExistingProfile?: boolean
 }
 
 export function listTenants(params?: { page?: number; limit?: number }) {

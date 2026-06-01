@@ -298,7 +298,7 @@ export function RentalProductLinesEditor({
             <span className="mx-2 text-slate-600">·</span>
             {formatBoxAllocation(summary.boxAllocation)}
             <span className="mx-2 text-slate-600">·</span>
-            <span className="text-slate-400">{summary.estimatedBoxCount} thùng</span>
+            <span className="text-slate-400">= {summary.estimatedBoxCount} thùng</span>
           </p>
         </div>
       )}

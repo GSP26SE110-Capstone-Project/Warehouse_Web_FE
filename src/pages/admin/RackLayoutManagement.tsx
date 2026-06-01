@@ -641,7 +641,7 @@ export const RackLayoutManagement = () => {
               <strong>{Math.round(capacity.aisleRatio * 100)}%</strong> lối đi xe (
               {capacity.aisleAreaM2.toFixed(1)} m²) →{' '}
               <strong>{capacity.storageAreaM2.toFixed(1)}</strong> m² đặt rack →{' '}
-              {formatZoneCapacitySummary(capacity).split('(')[0].trim()} · đang có{' '}
+              {formatZoneCapacitySummary(capacity, activeZone.zoneType)} · đang có{' '}
               <strong className="text-amber-300">{racks.length}</strong> rack
             </p>
           ) : (

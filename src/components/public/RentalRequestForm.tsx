@@ -51,6 +51,23 @@ import {
 
 const inputWrapStyle = { border: '1px solid #3a5455', background: 'rgba(11,22,23,0.8)' } as const
 
+function guestSubmitErrorMeta(err: unknown): {
+  message: string
+  variant: 'error' | 'warning'
+} {
+  if (!(err instanceof ApiError)) {
+    return { message: 'Gửi yêu cầu thất bại. Vui lòng thử lại.', variant: 'error' }
+  }
+  const isDuplicateLike =
+    err.code === 'DUPLICATE' ||
+    err.code === 'GUEST_TENANT_TAX_EXISTS' ||
+    err.status === 409
+  return {
+    message: err.message,
+    variant: isDuplicateLike ? 'warning' : 'error',
+  }
+}
+
 function FieldLabel({
   htmlFor,
   children,
@@ -224,7 +241,12 @@ export function RentalRequestForm({
 }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState<{ requestCode: string; companyName: string } | null>(null)
+  const [errorVariant, setErrorVariant] = useState<'error' | 'warning'>('error')
+  const [success, setSuccess] = useState<{
+    requestCode: string
+    companyName: string
+    reusedExistingProfile: boolean
+  } | null>(null)
 
   const [companyName, setCompanyName] = useState('')
   const [contactName, setContactName] = useState('')
@@ -366,6 +388,7 @@ export function RentalRequestForm({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
+    setErrorVariant('error')
     if (!contactEmail.trim()) {
       setError('Vui lòng nhập email liên hệ để tra cứu yêu cầu sau này')
       return
@@ -436,10 +459,13 @@ export function RentalRequestForm({
       setSuccess({
         requestCode: rental.requestCode,
         companyName: tenant.companyName,
+        reusedExistingProfile: Boolean(tenant.reusedExistingProfile),
       })
       onSubmitted?.(rental.requestCode, contactEmail.trim().toLowerCase())
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Gửi yêu cầu thất bại. Vui lòng thử lại.')
+      const meta = guestSubmitErrorMeta(err)
+      setError(meta.message)
+      setErrorVariant(meta.variant)
     } finally {
       setLoading(false)
     }
@@ -451,8 +477,19 @@ export function RentalRequestForm({
         <span className="material-symbols-outlined text-5xl text-[#06edf9] mb-4">check_circle</span>
         <h3 className="text-2xl font-bold text-white mb-2">Đã gửi yêu cầu thuê kho</h3>
         <p className="text-[#9bb9bb] mb-6 max-w-md mx-auto">
-          Công ty <strong className="text-white">{success.companyName}</strong> đã đăng ký thành công.
-          Mã yêu cầu: <strong className="text-[#06edf9] font-mono">{success.requestCode}</strong>
+          {success.reusedExistingProfile ? (
+            <>
+              Email <strong className="text-white">{contactEmail.trim()}</strong> đã có hồ sơ công ty{' '}
+              <strong className="text-white">{success.companyName}</strong>. Hệ thống đã tạo{' '}
+              <strong className="text-white">yêu cầu thuê mới</strong> — mã{' '}
+              <strong className="text-[#06edf9] font-mono">{success.requestCode}</strong>.
+            </>
+          ) : (
+            <>
+              Công ty <strong className="text-white">{success.companyName}</strong> đã đăng ký thành công.
+              Mã yêu cầu: <strong className="text-[#06edf9] font-mono">{success.requestCode}</strong>
+            </>
+          )}
         </p>
         <p className="text-sm text-[#9bb9bb] max-w-lg mx-auto">
           Lưu mã yêu cầu và email liên hệ để tra cứu trạng thái bất cứ lúc nào — không cần đăng nhập.
@@ -488,7 +525,36 @@ export function RentalRequestForm({
       <LoadingOverlay show={loading} text="Đang gửi yêu cầu..." />
       <form onSubmit={handleSubmit} className="glass-panel rounded-2xl p-6 sm:p-8 space-y-8">
         {error && (
-          <InlineAlert message={error} onDismiss={() => setError('')} />
+          <InlineAlert
+            variant={errorVariant}
+            title={
+              errorVariant === 'warning'
+                ? 'Thông tin đã đăng ký trước đó'
+                : undefined
+            }
+            message={
+              errorVariant === 'warning' ? (
+                <>
+                  {error}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      document.getElementById('lookup')?.scrollIntoView({ behavior: 'smooth' })
+                    }
+                    className="mt-2 block text-left text-sm font-medium text-amber-200 underline underline-offset-2 hover:text-white"
+                  >
+                    Tra cứu yêu cầu đã gửi (mã RR + email)
+                  </button>
+                </>
+              ) : (
+                error
+              )
+            }
+            onDismiss={() => {
+              setError('')
+              setErrorVariant('error')
+            }}
+          />
         )}
 
         <div>
@@ -798,7 +864,7 @@ export function RentalRequestForm({
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
                 placeholder="Mô tả ngắn loại hàng, mùa vụ, yêu cầu đặc biệt..."
-                className="input-glow w-full rounded-lg px-4 py-3 bg-transparent border text-white focus:outline-none text-base resize-y"
+                className="dark-scrollbar-inset input-glow w-full rounded-lg px-4 py-3 bg-transparent border text-white focus:outline-none text-base resize-y"
                 style={inputWrapStyle}
               />
             </div>

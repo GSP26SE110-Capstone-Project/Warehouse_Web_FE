@@ -67,7 +67,7 @@ function ZoneGroupCard({
                 {' '}
                 · Giữ ~{' '}
                 <strong className="text-slate-300">
-                  {group.totalReservedCapacity.toLocaleString('vi-VN')} thùng
+                  {group.totalReservedCapacity.toLocaleString('vi-VN')} LPN
                 </strong>
               </span>
             )}
