@@ -89,6 +89,11 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
                 <div className="flex items-center gap-4">
                     {mode === 'home' && (
                         <nav className="hidden md:flex items-center gap-6 text-xs font-bold uppercase tracking-wider">
+
+                             <Link to="/rentalRequest" className="text-slate-600 hover:text-cyan-600 transition-colors">
+                                Kho hàng
+                            </Link>
+
                             <Link to="/warehouses" className="text-slate-600 hover:text-cyan-600 transition-colors">
                                 Kho hàng
                             </Link>
