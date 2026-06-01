@@ -76,3 +76,7 @@ export function updateBin(
 ) {
   return apiRequest<ApiBin>(`/bins/${binId}`, { method: 'PATCH', body })
 }
+
+export function deleteBin(binId: string) {
+  return apiRequest<ApiBin>(`/bins/${binId}`, { method: 'DELETE' })
+}

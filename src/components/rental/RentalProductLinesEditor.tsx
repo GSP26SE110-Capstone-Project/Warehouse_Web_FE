@@ -4,7 +4,6 @@ import { DarkDropdownSelect, type DarkDropdownOptionGroup } from '../ui/DarkDrop
 import {
   buildFlatSizeOptions,
   computeProductLinesSummary,
-  formatBoxAllocation,
   type ProductLinesSummary,
 } from '../../utils/volumeUnits'
 
@@ -295,11 +294,18 @@ export function RentalProductLinesEditor({
             <strong className={t.summaryAccent}>
               {summary.totalCommittedVolumeUnits.toLocaleString('vi-VN')} U/tháng
             </strong>
-            <span className="mx-2 text-slate-600">·</span>
-            {formatBoxAllocation(summary.boxAllocation)}
-            <span className="mx-2 text-slate-600">·</span>
-            <span className="text-slate-400">= {summary.estimatedBoxCount} thùng</span>
           </p>
+
+          <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Phân bổ thùng
+            </span>
+            <span className={`text-sm tabular-nums ${t.summaryAccent}`}>
+              {summary.boxAllocation
+                .map((row) => `${row.count.toLocaleString('vi-VN')} thùng ${row.boxType.toLowerCase()}`)
+                .join(' + ')}
+            </span>
+          </div>
         </div>
       )}
     </div>

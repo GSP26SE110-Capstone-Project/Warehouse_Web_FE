@@ -1,21 +1,16 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { ContactShadows, Edges, Grid, OrbitControls } from '@react-three/drei'
+import { ContactShadows, Edges, Grid, Html, OrbitControls } from '@react-three/drei'
+import type { ThreeEvent } from '@react-three/fiber'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import * as THREE from 'three'
 import type { WarehouseLayerId } from './types'
+import { DEMO_ZONES, describeZoneLpnCapacity, type DemoZone3D } from './demoZones'
 
 const BUILDING = { w: 20, d: 14, h: 5.5 }
 const CYAN = '#06edf9'
 
-const ZONES = [
-  { id: 'A', x: -4.75, z: -3.5, w: 9, d: 6.2, color: '#06edf9' },
-  { id: 'B', x: 4.75, z: -3.5, w: 9, d: 6.2, color: '#fbbf24' },
-  { id: 'C', x: -4.75, z: 3.5, w: 9, d: 6.2, color: '#a78bfa' },
-  { id: 'D', x: 4.75, z: 3.5, w: 9, d: 6.2, color: '#34d399' },
-] as const
-
-const FOCUS_ZONE = ZONES[0]
+const FOCUS_ZONE = DEMO_ZONES[0]
 const RACK_SPOTS: [number, number, number][] = [
   [-6.8, 0, -5.2],
   [-4.75, 0, -3.5],
@@ -115,32 +110,88 @@ function WarehouseShell({ layer }: { layer: WarehouseLayerId }) {
   )
 }
 
-function ZoneTiles({ layer }: { layer: WarehouseLayerId }) {
+function ZoneTiles({
+  layer,
+  selectedZoneId,
+  onZoneSelect,
+}: {
+  layer: WarehouseLayerId
+  selectedZoneId?: string | null
+  onZoneSelect?: (zone: DemoZone3D) => void
+}) {
   const zoneHighlight = layer === 'zone'
+  const clickable = layer === 'warehouse' || layer === 'zone'
 
   return (
     <group>
-      {ZONES.map((zone) => {
+      {DEMO_ZONES.map((zone) => {
         const focusZone = layer === 'rack' || layer === 'bin'
         const isFocus = zone.id === FOCUS_ZONE.id
         const dimOthers = focusZone && !isFocus
+        const isSelected = selectedZoneId === zone.id
+        const capacity = describeZoneLpnCapacity(zone.zoneType)
 
         return (
-          <mesh key={zone.id} position={[zone.x, 0.06, zone.z]} receiveShadow>
-            <boxGeometry args={[zone.w, 0.12, zone.d]} />
-            <meshStandardMaterial
-              color={zone.color}
-              transparent
-              opacity={dimOthers ? 0.08 : zoneHighlight ? 0.55 : 0.22}
-              emissive={zone.color}
-              emissiveIntensity={zoneHighlight ? 0.45 : dimOthers ? 0.02 : 0.12}
-              metalness={0.1}
-              roughness={0.75}
-            />
-            {(zoneHighlight || (focusZone && isFocus)) && (
-              <Edges color={zone.color} threshold={12} />
+          <group key={zone.id} position={[zone.x, 0.06, zone.z]}>
+            <mesh
+              receiveShadow
+              onClick={
+                clickable
+                  ? (event: ThreeEvent<MouseEvent>) => {
+                      event.stopPropagation()
+                      onZoneSelect?.(zone)
+                    }
+                  : undefined
+              }
+              onPointerOver={
+                clickable
+                  ? (event: ThreeEvent<PointerEvent>) => {
+                      event.stopPropagation()
+                      document.body.style.cursor = 'pointer'
+                    }
+                  : undefined
+              }
+              onPointerOut={
+                clickable
+                  ? () => {
+                      document.body.style.cursor = 'auto'
+                    }
+                  : undefined
+              }
+            >
+              <boxGeometry args={[zone.w, 0.12, zone.d]} />
+              <meshStandardMaterial
+                color={zone.color}
+                transparent
+                opacity={
+                  isSelected ? 0.78 : dimOthers ? 0.08 : zoneHighlight ? 0.55 : 0.22
+                }
+                emissive={zone.color}
+                emissiveIntensity={
+                  isSelected ? 0.65 : zoneHighlight ? 0.45 : dimOthers ? 0.02 : 0.12
+                }
+                metalness={0.1}
+                roughness={0.75}
+              />
+              {(zoneHighlight || isSelected || (focusZone && isFocus)) && (
+                <Edges color={isSelected ? '#ffffff' : zone.color} threshold={12} />
+              )}
+            </mesh>
+
+            {(zoneHighlight || isSelected) && (
+              <Html
+                center
+                distanceFactor={14}
+                position={[0, 0.55, 0]}
+                style={{ pointerEvents: 'none', userSelect: 'none' }}
+              >
+                <div className="whitespace-nowrap rounded-md border border-white/20 bg-[#0b1617]/90 px-2 py-1 text-[10px] font-semibold text-white shadow-lg backdrop-blur-sm">
+                  {zone.title}
+                  <span className="ml-1 font-normal text-[#9bb9bb]">· {capacity.maxBoxType}</span>
+                </div>
+              </Html>
             )}
-          </mesh>
+          </group>
         )
       })}
     </group>
@@ -230,7 +281,15 @@ function Racks({ layer }: { layer: WarehouseLayerId }) {
   )
 }
 
-function SceneContent({ layer }: { layer: WarehouseLayerId }) {
+function SceneContent({
+  layer,
+  selectedZoneId,
+  onZoneSelect,
+}: {
+  layer: WarehouseLayerId
+  selectedZoneId?: string | null
+  onZoneSelect?: (zone: DemoZone3D) => void
+}) {
   return (
     <>
       <color attach="background" args={['#050b0b']} />
@@ -257,7 +316,7 @@ function SceneContent({ layer }: { layer: WarehouseLayerId }) {
       />
 
       <WarehouseShell layer={layer} />
-      <ZoneTiles layer={layer} />
+      <ZoneTiles layer={layer} selectedZoneId={selectedZoneId} onZoneSelect={onZoneSelect} />
       <Racks layer={layer} />
 
       <ContactShadows
@@ -275,19 +334,69 @@ function SceneContent({ layer }: { layer: WarehouseLayerId }) {
 type Props = {
   layer: WarehouseLayerId
   className?: string
+  selectedZoneId?: string | null
+  onZoneSelect?: (zone: DemoZone3D) => void
 }
 
-export default function WarehouseScene3D({ layer, className = '' }: Props) {
+function createWebGLRenderer(defaultProps: THREE.WebGLRendererParameters) {
+  const canvas = defaultProps.canvas
+  if (!(canvas instanceof HTMLCanvasElement)) {
+    throw new Error('WebGL canvas unavailable')
+  }
+
+  const context =
+    canvas.getContext('webgl2', {
+      alpha: false,
+      antialias: true,
+      powerPreference: 'default',
+      failIfMajorPerformanceCaveat: false,
+    }) ??
+    canvas.getContext('webgl', {
+      alpha: false,
+      antialias: true,
+      powerPreference: 'default',
+      failIfMajorPerformanceCaveat: false,
+    })
+
+  if (!context) {
+    throw new Error('WebGL context unavailable')
+  }
+
+  const renderer = new THREE.WebGLRenderer({
+    ...defaultProps,
+    canvas,
+    context,
+    antialias: true,
+    alpha: false,
+    powerPreference: 'default',
+  })
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75))
+  return renderer
+}
+
+export default function WarehouseScene3D({
+  layer,
+  className = '',
+  selectedZoneId,
+  onZoneSelect,
+}: Props) {
   return (
     <div className={`h-full w-full min-h-[280px] sm:min-h-[360px] ${className}`}>
       <Canvas
         shadows
-        dpr={[1, 1.75]}
-        gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+        dpr={[1, 1.5]}
+        gl={createWebGLRenderer}
         camera={{ fov: 42, near: 0.1, far: 80, position: [22, 16, 22] }}
       >
-        <SceneContent layer={layer} />
+        <SceneContent
+          layer={layer}
+          selectedZoneId={selectedZoneId}
+          onZoneSelect={onZoneSelect}
+        />
       </Canvas>
     </div>
   )
 }
+
+export type { DemoZone3D }
+export { describeZoneLpnCapacity }

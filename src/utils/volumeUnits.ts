@@ -111,6 +111,21 @@ export function formatBoxAllocation(allocation: Array<{ boxType: string; count: 
   return allocation.map((row) => `${row.count} ${row.boxType}`).join(' + ')
 }
 
+/** Số thùng nếu dùng duy nhất một loại box (làm tròn lên). */
+export function pureBoxCount(totalU: number, boxType: BoxType): number {
+  const vol = BOX_VOLUME_UNITS[boxType]
+  if (!Number.isFinite(totalU) || totalU <= 0) return 0
+  return Math.ceil(totalU / vol)
+}
+
+export function boxCountsByType(allocation: BoxAllocationRow[]): Record<BoxType, number> {
+  const counts: Record<BoxType, number> = { EXTRA: 0, LARGE: 0, MEDIUM: 0, SMALL: 0 }
+  for (const row of allocation) {
+    counts[row.boxType] = row.count
+  }
+  return counts
+}
+
 export function computeProductLinesSummary(
   drafts: Array<{ productKind: string; size: string; quantity: number }>,
   catalogByKind: Map<string, ApiProductKind>,

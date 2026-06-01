@@ -35,6 +35,25 @@ const PRESETS: Record<string, BinCapacityPreset> = {
 
 const FALLBACK = PRESETS.SHARED
 
+export type LpnBoxType = 'SMALL' | 'MEDIUM' | 'LARGE' | 'EXTRA'
+
+const LPN_BOX_VOLUME: Record<LpnBoxType, number> = {
+  SMALL: 1,
+  MEDIUM: 2,
+  LARGE: 4,
+  EXTRA: 8,
+}
+
+/** LPN box type lớn nhất mà bin mặc định của zone chứa được (theo maxVolumeUnits). */
+export function getMaxLpnBoxTypeForZone(zoneType?: string | null): LpnBoxType {
+  const vol = getDefaultBinCapacity(zoneType).maxVolumeUnits
+  const order: LpnBoxType[] = ['EXTRA', 'LARGE', 'MEDIUM', 'SMALL']
+  for (const type of order) {
+    if (vol >= LPN_BOX_VOLUME[type]) return type
+  }
+  return 'SMALL'
+}
+
 export function getDefaultBinCapacity(zoneType?: string | null): BinCapacityPreset {
   if (!zoneType) return FALLBACK
   return PRESETS[zoneType] ?? FALLBACK

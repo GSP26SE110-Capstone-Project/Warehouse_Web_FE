@@ -140,7 +140,7 @@ export const RackLayoutManagement = () => {
 
   const [alert, setAlert] = useState<{
     open: boolean
-    type: 'success' | 'confirm'
+    type: 'success' | 'confirm' | 'error'
     message: string
     onConfirm?: () => void
   }>({ open: false, type: 'success', message: '' })
@@ -460,6 +460,31 @@ export const RackLayoutManagement = () => {
       open: true,
       type: 'success',
       message: binModal.mode === 'create' ? 'Đã tạo bin' : 'Đã lưu cấu hình bin',
+    })
+  }
+
+  const requestDeleteBin = () => {
+    const bin = binModal?.bin
+    if (!bin || !selectedRack) return
+    setAlert({
+      open: true,
+      type: 'confirm',
+      message: `Xóa bin ${bin.binCode}? Chỉ xóa được bin trống (không có LPN/hàng tồn).`,
+      onConfirm: async () => {
+        try {
+          await binsApi.deleteBin(bin.binId)
+          setBinModal(null)
+          await loadRackDetail(selectedRack.rackId)
+          await loadRacks()
+          setAlert({ open: true, type: 'success', message: 'Đã xóa bin' })
+        } catch (err) {
+          setAlert({
+            open: true,
+            type: 'error',
+            message: err instanceof ApiError ? err.message : 'Không xóa được bin',
+          })
+        }
+      },
     })
   }
 
@@ -796,6 +821,7 @@ export const RackLayoutManagement = () => {
           data={binModal.bin}
           onClose={() => setBinModal(null)}
           onSubmit={submitBin}
+          onDelete={binModal.mode === 'edit' ? requestDeleteBin : undefined}
         />
       )}
 

@@ -44,6 +44,7 @@ type Props = {
   data?: ApiBin
   onClose: () => void
   onSubmit: (payload: BinFormPayload) => void | Promise<void>
+  onDelete?: () => void
 }
 
 const labelStyle =
@@ -61,6 +62,7 @@ export function BinModal({
   data,
   onClose,
   onSubmit,
+  onDelete,
 }: Props) {
   const preset = getDefaultBinCapacity(zoneType)
 
@@ -143,6 +145,14 @@ export function BinModal({
       }),
     [maxVolumeUnits, maxLpnCount]
   )
+
+  const canDelete =
+    mode === 'edit' &&
+    !!data &&
+    (data.usedVolumeUnits ?? 0) === 0 &&
+    (data.currentLpnCount ?? 0) === 0 &&
+    lpns.length === 0 &&
+    !lpnsLoading
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -425,21 +435,40 @@ export function BinModal({
             <InlineAlert compact hideTitle message={error} onDismiss={() => setError('')} />
           )}
 
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-            >
-              {saving ? 'Đang lưu…' : mode === 'create' ? 'Tạo bin' : 'Lưu'}
-            </button>
+          <div className="flex items-center justify-between gap-2 pt-2">
+            {mode === 'edit' && onDelete ? (
+              <button
+                type="button"
+                disabled={!canDelete}
+                onClick={onDelete}
+                title={
+                  canDelete
+                    ? 'Xóa bin trống'
+                    : 'Chỉ xóa được bin trống (không có LPN/hàng tồn)'
+                }
+                className="rounded-lg border border-red-500/30 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Xóa bin
+              </button>
+            ) : (
+              <span />
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300"
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {saving ? 'Đang lưu…' : mode === 'create' ? 'Tạo bin' : 'Lưu'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
