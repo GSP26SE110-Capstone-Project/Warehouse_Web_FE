@@ -60,7 +60,7 @@ export function RackModal({ mode, zoneLabel, suggestedCode, data, onClose, onSub
       <button type="button" className="absolute inset-0 bg-black/70" onClick={onClose} aria-label="Đóng" />
       <div className="relative z-10 w-full max-w-md rounded-xl border border-white/5 bg-[#0b101a] p-6 shadow-2xl">
         <h2 className="text-lg font-bold text-white">
-          {mode === 'create' ? 'Thêm rack' : 'Sửa rack'}
+          {mode === 'create' ? 'Thêm rack' : 'Trạng thái rack'}
         </h2>
         <p className="mt-1 text-sm text-slate-400">Zone: {zoneLabel}</p>
         <p className="mt-2 rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-200/90">

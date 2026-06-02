@@ -41,6 +41,10 @@ const CODE_MESSAGES: Record<string, string> = {
   STORAGE_NOT_ASSIGNED:
     'Kho chưa cấp vị trí lưu trữ — bạn chỉ ký sau khi kho hoàn tất cấp bin/zone.',
   ALREADY_CLAIMED: 'Yêu cầu đã được kho khác duyệt trước.',
+  INVOICE_ALREADY_PAID:
+    'Invoice đã thanh toán — hợp đồng đã ACTIVE. Làm mới trang, không cần thanh toán lại.',
+  PAYOS_LINK_NOT_PAYABLE:
+    'Link PayOS cũ đã hủy hoặc hết hạn. Bấm thanh toán lại để tạo link mới.',
 }
 
 export function translateApiErrorMessage(message?: string | null, code?: string | null): string {

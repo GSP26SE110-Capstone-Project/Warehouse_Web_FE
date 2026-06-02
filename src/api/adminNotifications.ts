@@ -44,3 +44,62 @@ export interface WhPendingRentalAlerts {
 export function fetchWhPendingRentalAlerts() {
   return apiRequest<WhPendingRentalAlerts>('/admin/notifications/wh-pending-rentals')
 }
+
+export interface WhPendingInboundAlertItem {
+  inboundRequestId: string
+  inboundCode: string
+  status: string
+  expectedArrivalDate: string | null
+  companyName: string
+  createdAt: string
+}
+
+export interface WhPendingInboundAlerts {
+  pendingCount: number
+  warehouseName: string | null
+  recent: WhPendingInboundAlertItem[]
+}
+
+export interface WhArrivedInboundAlertItem {
+  inboundRequestId: string
+  inboundCode: string
+  status: string
+  actualArrivalAt: string | null
+  vehiclePlate: string | null
+  driverName: string | null
+  companyName: string
+}
+
+export interface WhArrivedInboundAlerts {
+  arrivedCount: number
+  warehouseName: string | null
+  recent: WhArrivedInboundAlertItem[]
+}
+
+export function fetchWhPendingInboundAlerts() {
+  return apiRequest<WhPendingInboundAlerts>('/admin/notifications/wh-pending-inbounds')
+}
+
+export function fetchWhArrivedInboundAlerts() {
+  return apiRequest<WhArrivedInboundAlerts>('/admin/notifications/wh-arrived-inbounds')
+}
+
+export interface WhContractPaymentAlertItem {
+  contractId: string
+  contractCode: string
+  contractName: string | null
+  companyName: string
+  invoiceCode: string
+  totalAmount: number
+  paidAt: string
+}
+
+export interface WhContractPaymentAlerts {
+  recentCount: number
+  warehouseName: string | null
+  recent: WhContractPaymentAlertItem[]
+}
+
+export function fetchWhContractPaymentAlerts() {
+  return apiRequest<WhContractPaymentAlerts>('/admin/notifications/wh-contract-payments')
+}

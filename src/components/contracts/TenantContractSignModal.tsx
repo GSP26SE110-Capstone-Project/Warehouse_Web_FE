@@ -95,7 +95,6 @@ export function TenantContractSignModal({ contractId, onClose, onSigned }: Props
     try {
       await contractsApi.updateContract(contractId, {
         tenantSignature: signature,
-        status: 'ACTIVE',
       })
       onSigned()
       onClose()
@@ -118,7 +117,7 @@ export function TenantContractSignModal({ contractId, onClose, onSigned }: Props
           <div>
             <h2 className="text-lg font-bold text-white">Ký hợp đồng thuê kho</h2>
             <p className="mt-1 text-xs text-slate-400">
-              Bước cuối — Tenant Admin xác nhận và kích hoạt hợp đồng
+              Bước cuối — Tenant Admin ký; sau đó thanh toán invoice đầu để HĐ ACTIVE
             </p>
           </div>
           <button type="button" onClick={onClose} className="rounded p-2 hover:bg-white/10">
@@ -197,9 +196,10 @@ export function TenantContractSignModal({ contractId, onClose, onSigned }: Props
               )}
 
               <p className="text-xs text-slate-500">
-                Kho đã ký trước. Sau khi bạn ký, hợp đồng chuyển sang{' '}
-                <strong className="text-emerald-400">ACTIVE</strong> và bạn có thể tạo yêu cầu nhập
-                kho.
+                Kho đã ký trước. Sau khi bạn ký, hệ thống tạo invoice đầu và HĐ ở trạng thái{' '}
+                <strong className="text-amber-300">Chờ thanh toán PayOS</strong>. Khi invoice đầu được
+                thanh toán, HĐ chuyển <strong className="text-emerald-400">ACTIVE</strong> — lúc đó
+                mới tạo được yêu cầu nhập kho.
               </p>
 
               <SignaturePad onChange={setSignature} />

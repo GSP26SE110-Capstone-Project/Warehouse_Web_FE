@@ -33,6 +33,7 @@ export interface ProductLinesSummary {
   totalCommittedVolumeUnits: number
   boxAllocation: BoxAllocationRow[]
   estimatedBoxCount: number
+  /** Tổng số cái cam kết (sum quantity các dòng SP), không phải số mã SKU. */
   estimatedSkuCount: number
 }
 
@@ -70,17 +71,18 @@ export function buildFlatSizeOptions(sizeFactors: ApiSizeFactor[]) {
 }
 
 export function allocateBoxes(totalU: number): BoxAllocationRow[] {
-  let remaining = Number(totalU)
+  let remaining = roundVolumeUnits(Number(totalU))
   if (!Number.isFinite(remaining) || remaining <= 0) return []
 
   const allocation: Partial<Record<BoxType, number>> = {}
+  const floorTypes = BOX_ORDER.filter((t) => t !== 'SMALL')
 
-  for (const boxType of BOX_ORDER) {
+  for (const boxType of floorTypes) {
     const vol = BOX_VOLUME_UNITS[boxType]
     const count = Math.floor(remaining / vol)
     if (count > 0) {
       allocation[boxType] = count
-      remaining -= count * vol
+      remaining = roundVolumeUnits(remaining - count * vol)
     }
   }
 
@@ -106,9 +108,12 @@ export function allocateBoxes(totalU: number): BoxAllocationRow[] {
   }))
 }
 
-export function formatBoxAllocation(allocation: Array<{ boxType: string; count: number }>) {
+export function formatBoxAllocation(
+  allocation: Array<{ boxType: string; count: number }>,
+  formatTypeName: (boxType: string) => string = (t) => t
+) {
   if (!allocation.length) return '—'
-  return allocation.map((row) => `${row.count} ${row.boxType}`).join(' + ')
+  return allocation.map((row) => `${row.count} ${formatTypeName(row.boxType)}`).join(' + ')
 }
 
 /** Số thùng nếu dùng duy nhất một loại box (làm tròn lên). */
@@ -124,6 +129,97 @@ export function boxCountsByType(allocation: BoxAllocationRow[]): Record<BoxType,
     counts[row.boxType] = row.count
   }
   return counts
+}
+
+export interface SkuVolumeUnitsBreakdown {
+  finalVolumeUnitsPerPiece: number
+  baseVolumeUnitsPerPiece: number
+  sizeFactor: number
+  displayName?: string
+}
+
+/** U/cái theo productKind + size (cùng công thức rental). */
+export function resolveSkuFinalVolumeUnitsPerPiece(
+  productKind: string | null | undefined,
+  size: string | null | undefined,
+  catalogByKind: Map<string, ApiProductKind>,
+  sizeFactors: ApiSizeFactor[]
+): SkuVolumeUnitsBreakdown | null {
+  if (!productKind) return null
+  const kind =
+    catalogByKind.get(productKind) ??
+    catalogByKind.get(String(productKind).trim().toUpperCase())
+  if (!kind) return null
+
+  const baseU = roundVolumeUnits(Number(kind.baseVolumeUnitsPerPiece))
+  if (!Number.isFinite(baseU) || baseU <= 0) return null
+
+  let sizeFactor = 1
+  if (kind.hasSize !== false) {
+    const normalizedSize = String(size ?? '').trim().toUpperCase()
+    if (normalizedSize) {
+      const sizeMap = buildSizeToGroupMap(sizeFactors)
+      const resolved = sizeMap.get(normalizedSize)
+      if (!resolved) return null
+      sizeFactor = resolved.factor
+    }
+  }
+
+  return {
+    finalVolumeUnitsPerPiece: roundVolumeUnits(baseU * sizeFactor),
+    baseVolumeUnitsPerPiece: baseU,
+    sizeFactor,
+    displayName: kind.displayName,
+  }
+}
+
+export interface PiecesPerLpnResult {
+  pieces: number
+  boxVolumeUnits: number
+  skuVolume: SkuVolumeUnitsBreakdown | null
+  usedLegacyFallback: boolean
+}
+
+/** Số cái tối đa/LPN = floor(volumeUnits(boxType) / U/cái). */
+export function computePiecesPerLpnForSku(
+  boxType: BoxType | string,
+  productKind: string | null | undefined,
+  size: string | null | undefined,
+  catalogByKind: Map<string, ApiProductKind>,
+  sizeFactors: ApiSizeFactor[]
+): PiecesPerLpnResult {
+  const boxVolumeUnits = BOX_VOLUME_UNITS[boxType as BoxType] ?? 2
+  const skuVolume = resolveSkuFinalVolumeUnitsPerPiece(
+    productKind,
+    size,
+    catalogByKind,
+    sizeFactors
+  )
+
+  if (skuVolume && skuVolume.finalVolumeUnitsPerPiece > 0) {
+    return {
+      pieces: Math.max(1, Math.floor(boxVolumeUnits / skuVolume.finalVolumeUnitsPerPiece)),
+      boxVolumeUnits,
+      skuVolume,
+      usedLegacyFallback: false,
+    }
+  }
+
+  return {
+    pieces: Math.max(1, Math.round(25 * (boxVolumeUnits / 2))),
+    boxVolumeUnits,
+    skuVolume: null,
+    usedLegacyFallback: true,
+  }
+}
+
+export function buildProductKindMap(productKinds: ApiProductKind[]) {
+  const map = new Map<string, ApiProductKind>()
+  for (const kind of productKinds) {
+    map.set(kind.productKind, kind)
+    map.set(kind.productKind.toUpperCase(), kind)
+  }
+  return map
 }
 
 export function computeProductLinesSummary(

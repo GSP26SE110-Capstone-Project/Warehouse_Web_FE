@@ -27,7 +27,13 @@ export function getMe() {
   return apiRequest<ApiUser>('/users/me')
 }
 
-export function updateMe(body: { fullName?: string; phone?: string }) {
+export function updateMe(body: {
+  fullName?: string
+  phone?: string
+  defaultVehiclePlate?: string | null
+  defaultDriverIdNumber?: string | null
+  defaultCarrierName?: string | null
+}) {
   return apiRequest<ApiUser>('/users/me', { method: 'PATCH', body })
 }
 

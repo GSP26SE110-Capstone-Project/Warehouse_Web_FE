@@ -35,6 +35,19 @@ export function formatLpnSize(boxType: string | null | undefined): string {
   return LPN_SIZE_LABELS[boxType] ?? boxType
 }
 
+/** Tên loại thùng tiếng Anh (Small, Medium, Large, Extra) — dùng trong ước tính inbound. */
+export const LPN_BOX_TYPE_NAMES: Record<string, string> = {
+  SMALL: 'Small',
+  MEDIUM: 'Medium',
+  LARGE: 'Large',
+  EXTRA: 'Extra',
+}
+
+export function formatBoxTypeName(boxType: string | null | undefined): string {
+  if (!boxType) return '—'
+  return LPN_BOX_TYPE_NAMES[boxType] ?? boxType
+}
+
 export function formatLpnCount(count: number): string {
   return `${count.toLocaleString('vi-VN')} LPN`
 }

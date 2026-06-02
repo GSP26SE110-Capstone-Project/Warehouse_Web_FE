@@ -12,6 +12,10 @@ export interface ApiInboundDelivery {
   scheduledAt?: string | null
   notes?: string | null
   assignedDriverUserId?: string | null
+  pickupAddress?: string | null
+  pickupContactName?: string | null
+  pickupContactPhone?: string | null
+  pickupNotes?: string | null
 }
 
 export type InboundDeliveryPayload = {
@@ -23,6 +27,10 @@ export type InboundDeliveryPayload = {
   scheduledAt?: string
   notes?: string
   assignedDriverUserId?: string | null
+  pickupAddress?: string
+  pickupContactName?: string
+  pickupContactPhone?: string
+  pickupNotes?: string
 }
 
 export function getInboundDelivery(inboundRequestId: string) {

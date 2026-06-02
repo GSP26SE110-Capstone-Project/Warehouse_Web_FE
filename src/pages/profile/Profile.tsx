@@ -43,6 +43,9 @@ export const Profile: React.FC = () => {
   const [profile, setProfile] = useState<ApiUser | null>(null)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [defaultVehiclePlate, setDefaultVehiclePlate] = useState('')
+  const [defaultDriverIdNumber, setDefaultDriverIdNumber] = useState('')
+  const [defaultCarrierName, setDefaultCarrierName] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
@@ -72,6 +75,9 @@ export const Profile: React.FC = () => {
           setProfile(me)
           setName(me.fullName)
           setPhone(me.phone ?? '')
+          setDefaultVehiclePlate(me.defaultVehiclePlate ?? '')
+          setDefaultDriverIdNumber(me.defaultDriverIdNumber ?? '')
+          setDefaultCarrierName(me.defaultCarrierName ?? '')
         }
       } catch (err) {
         if (!cancelled) {
@@ -79,6 +85,9 @@ export const Profile: React.FC = () => {
             setProfile(user)
             setName(user.fullName)
             setPhone(user.phone ?? '')
+            setDefaultVehiclePlate(user.defaultVehiclePlate ?? '')
+            setDefaultDriverIdNumber(user.defaultDriverIdNumber ?? '')
+            setDefaultCarrierName(user.defaultCarrierName ?? '')
             setError(
               err instanceof ApiError
                 ? `${err.message} — đang hiển thị dữ liệu cache.`
@@ -121,10 +130,20 @@ export const Profile: React.FC = () => {
       const updated = await usersApi.updateMe({
         fullName: trimmedName,
         phone: trimmedPhone || undefined,
+        ...(profile.role === 'WH_TRANSPORTER'
+          ? {
+              defaultVehiclePlate: defaultVehiclePlate.trim().toUpperCase() || null,
+              defaultDriverIdNumber: defaultDriverIdNumber.trim() || null,
+              defaultCarrierName: defaultCarrierName.trim() || null,
+            }
+          : {}),
       })
       setProfile(updated)
       setName(updated.fullName)
       setPhone(updated.phone ?? '')
+      setDefaultVehiclePlate(updated.defaultVehiclePlate ?? '')
+      setDefaultDriverIdNumber(updated.defaultDriverIdNumber ?? '')
+      setDefaultCarrierName(updated.defaultCarrierName ?? '')
       syncUser(updated)
       setProfileMessage('Đã cập nhật thông tin cá nhân.')
       setProfileSuccessModal(true)
@@ -181,6 +200,7 @@ export const Profile: React.FC = () => {
 
   const roleLabel = profile ? (ROLE_LABEL[profile.role] ?? profile.role) : ''
   const statusLabel = profile ? (STATUS_LABEL[profile.status] ?? profile.status) : ''
+  const isTransporter = profile?.role === 'WH_TRANSPORTER'
 
   return (
     <div className="min-h-[calc(100vh-4rem)] p-6 text-slate-100 md:p-8">
@@ -301,6 +321,42 @@ export const Profile: React.FC = () => {
                   </InfoField>
                 )}
               </div>
+
+              {isTransporter && (
+                <>
+                  <h3 className="text-lg font-semibold">Thông tin xe / vận chuyển</h3>
+                  <p className="text-xs text-slate-400">
+                    WH Admin sẽ tự điền các trường này khi gán bạn vào chuyến lấy hàng.
+                  </p>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <InfoField label="Biển số xe mặc định">
+                      <input
+                        value={defaultVehiclePlate}
+                        onChange={(e) =>
+                          setDefaultVehiclePlate(e.target.value.toUpperCase())
+                        }
+                        placeholder="51F-12345"
+                        className="w-full rounded-lg border border-white/10 bg-[#1a2333] p-3 font-mono text-white focus:border-cyan-400 focus:outline-none"
+                      />
+                    </InfoField>
+                    <InfoField label="CCCD / GPLX">
+                      <input
+                        value={defaultDriverIdNumber}
+                        onChange={(e) => setDefaultDriverIdNumber(e.target.value)}
+                        className="w-full rounded-lg border border-white/10 bg-[#1a2333] p-3 text-white focus:border-cyan-400 focus:outline-none"
+                      />
+                    </InfoField>
+                    <InfoField label="Đơn vị vận chuyển" className="md:col-span-2">
+                      <input
+                        value={defaultCarrierName}
+                        onChange={(e) => setDefaultCarrierName(e.target.value)}
+                        placeholder="Tên công ty / đội xe"
+                        className="w-full rounded-lg border border-white/10 bg-[#1a2333] p-3 text-white focus:border-cyan-400 focus:outline-none"
+                      />
+                    </InfoField>
+                  </div>
+                </>
+              )}
 
               <button
                 type="button"

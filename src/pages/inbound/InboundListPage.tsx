@@ -145,6 +145,30 @@ export function InboundListPage({ mode, basePath }: Props) {
               <InlineAlert message={error} onDismiss={() => setError('')} />
             )}
 
+            {mode === 'warehouse' &&
+              user?.role === 'WH_ADMIN' &&
+              stats.pending > 0 && (
+                <div className="flex flex-col gap-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-2">
+                    <span className="material-symbols-outlined shrink-0 text-amber-300">pending_actions</span>
+                    <p>
+                      Có <strong>{stats.pending}</strong> yêu cầu nhập kho đang chờ duyệt — mở từng
+                      đơn để duyệt hoặc từ chối.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter('PENDING')
+                      setCurrentPage(1)
+                    }}
+                    className="shrink-0 rounded-lg border border-amber-400/40 bg-amber-400/15 px-4 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-400/25"
+                  >
+                    Lọc chờ duyệt
+                  </button>
+                </div>
+              )}
+
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
               <StatsCard title="Tổng" value={stats.total} icon="inventory_2" accentColor="emerald" />
               <StatsCard title="Chờ duyệt" value={stats.pending} icon="pending" accentColor="primary" />

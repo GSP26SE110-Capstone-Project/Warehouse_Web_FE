@@ -12,6 +12,12 @@ import {
   emptyDeliveryForm,
   type DeliveryFormState,
 } from '../../components/inbound/InboundDeliveryForm'
+import {
+  InboundPickupForm,
+  emptyPickupForm,
+  type PickupFormState,
+} from '../../components/inbound/InboundPickupForm'
+import { InboundTransportRoutePanel } from '../../components/inbound/InboundTransportRoutePanel'
 import * as deliveryApi from '../../api/inboundDeliveries'
 import { DELIVERY_MODE_OPTIONS, type DeliveryMode } from '../../data/deliveryMode'
 import { useAuth } from '../../auth/AuthContext'
@@ -27,10 +33,23 @@ import * as batchesApi from '../../api/batches'
 import type { ApiBatch } from '../../api/batches'
 import * as lpnsApi from '../../api/lpns'
 import type { ApiLpn, ApiLpnDetail, BoxType } from '../../api/lpns'
-import { BOX_TYPE_OPTIONS } from '../../data/inboundStatus'
+import { BOX_TYPE_OPTIONS, filterBoxTypeOptionsForMax } from '../../data/inboundStatus'
+import { pickLargestBoxTypeForZoneTypes } from '../../data/binCapacityDefaults'
 import { formatDate } from '../../mappers'
 import * as usersApi from '../../api/users'
-import type { ApiUser } from '../../api/types'
+import * as warehousesApi from '../../api/warehouses'
+import type { ApiUser, ApiWarehouse } from '../../api/types'
+import { fillDeliveryFromTransporterProfile } from '../../utils/transporterProfile'
+import {
+  fetchProductKindCatalogTree,
+  fetchSizeFactors,
+  type ApiProductKind,
+  type ApiSizeFactor,
+} from '../../api/productCatalog'
+import {
+  buildProductKindMap,
+  computePiecesPerLpnForSku,
+} from '../../utils/volumeUnits'
 
 type Mode = 'tenant' | 'warehouse' | 'transporter'
 
@@ -65,12 +84,23 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   const [putawayBinId, setPutawayBinId] = useState('')
 
   const [receivedDraft, setReceivedDraft] = useState<Record<string, number>>({})
+  const [receivingDirty, setReceivingDirty] = useState(false)
+  const [receivingEditing, setReceivingEditing] = useState(true)
+  const [receivingCommitted, setReceivingCommitted] = useState(false)
 
   const [readiness, setReadiness] = useState<ApiInboundApprovalReadiness | null>(null)
   const [deliveryForm, setDeliveryForm] = useState<DeliveryFormState>(emptyDeliveryForm())
+  const [pickupForm, setPickupForm] = useState<PickupFormState>(emptyPickupForm())
   const [deliveryDirty, setDeliveryDirty] = useState(false)
+  const [pickupDirty, setPickupDirty] = useState(false)
+  const [deliveryEditing, setDeliveryEditing] = useState(true)
+  const [warehouse, setWarehouse] = useState<ApiWarehouse | null>(null)
   const [assignedDriverUserId, setAssignedDriverUserId] = useState('')
   const [transporters, setTransporters] = useState<ApiUser[]>([])
+  const [productCatalogByKind, setProductCatalogByKind] = useState<Map<string, ApiProductKind>>(
+    () => new Map()
+  )
+  const [sizeFactors, setSizeFactors] = useState<ApiSizeFactor[]>([])
 
   const [alert, setAlert] = useState<{
     open: boolean
@@ -103,14 +133,40 @@ export function InboundDetailPage({ mode, basePath }: Props) {
         carrierName: d?.carrierName ?? '',
         notes: d?.notes ?? '',
       })
+      setPickupForm({
+        pickupAddress: d?.pickupAddress ?? '',
+        pickupContactName: d?.pickupContactName ?? '',
+        pickupContactPhone: d?.pickupContactPhone ?? '',
+        pickupNotes: d?.pickupNotes ?? '',
+      })
       setAssignedDriverUserId(d?.assignedDriverUserId ?? '')
       setDeliveryDirty(false)
+      setPickupDirty(false)
+      const hasSavedDispatch = Boolean(d?.assignedDriverUserId || d?.vehiclePlate?.trim())
+      setDeliveryEditing(!hasSavedDispatch)
+
+      if (data.deliveryMode === 'WAREHOUSE_TRANSPORT' && data.warehouseId) {
+        warehousesApi
+          .getWarehouse(data.warehouseId)
+          .then(setWarehouse)
+          .catch(() => setWarehouse(null))
+      } else {
+        setWarehouse(null)
+      }
 
       const draft: Record<string, number> = {}
       for (const item of data.items ?? []) {
         draft[item.inboundRequestItemId] = item.receivedQuantity ?? 0
       }
       setReceivedDraft(draft)
+      const itemList = data.items ?? []
+      const hasSavedReceiving =
+        data.status === 'RECEIVING' &&
+        itemList.length > 0 &&
+        itemList.some((item) => (item.receivedQuantity ?? 0) > 0)
+      setReceivingDirty(false)
+      setReceivingEditing(!hasSavedReceiving)
+      setReceivingCommitted(hasSavedReceiving)
 
       if (!isTransporter) {
         const batchRes = await batchesApi.listBatches({ inboundRequestId, limit: 50 })
@@ -181,11 +237,35 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   }, [isWarehouse, user?.role])
 
   useEffect(() => {
-    if (!readiness?.boxTypeSuggestion?.recommendedBoxType || boxTypeTouched) return
-    const recommended = readiness.boxTypeSuggestion.recommendedBoxType as BoxType
-    if (BOX_TYPE_OPTIONS.some((o) => o.value === recommended)) {
-      setBoxType(recommended)
+    if (!isWarehouse || isTransporter) return
+    let cancelled = false
+    Promise.all([fetchProductKindCatalogTree(), fetchSizeFactors()])
+      .then(([tree, factors]) => {
+        if (cancelled) return
+        setProductCatalogByKind(buildProductKindMap(tree.productKinds))
+        setSizeFactors(factors)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setProductCatalogByKind(new Map())
+          setSizeFactors([])
+        }
+      })
+    return () => {
+      cancelled = true
     }
+  }, [isWarehouse, isTransporter])
+
+  useEffect(() => {
+    if (!readiness || boxTypeTouched) return
+    const zoneTypes = readiness.boxTypeSuggestion?.contractZoneTypes
+    const maxBoxType = pickLargestBoxTypeForZoneTypes(zoneTypes)
+    const allowed = filterBoxTypeOptionsForMax(maxBoxType)
+    const recommended = readiness.boxTypeSuggestion?.recommendedBoxType as BoxType
+    const next = allowed.some((o) => o.value === recommended)
+      ? recommended
+      : (allowed[allowed.length - 1]?.value as BoxType | undefined)
+    if (next) setBoxType(next)
   }, [readiness, boxTypeTouched])
 
   const runAction = async (fn: () => Promise<unknown>, successMsg?: string) => {
@@ -230,25 +310,42 @@ export function InboundDetailPage({ mode, basePath }: Props) {
 
   const confirmApprove = () => {
     const warn = readiness && !readiness.sufficient
+    const willAssign = Boolean(canAssignTransporter && assignedDriverUserId.trim())
     setAlert({
       open: true,
       type: 'confirm',
       title: warn ? 'Duyệt dù thiếu chỗ?' : 'Duyệt inbound?',
       message: warn
         ? `Ước tính thiếu slot LPN hoặc volume. Bạn vẫn muốn duyệt yêu cầu ${inbound?.inboundCode}?`
-        : `Xác nhận duyệt ${inbound?.inboundCode}?`,
-      onConfirm: () => patchStatus('APPROVED'),
+        : willAssign
+          ? `Xác nhận duyệt ${inbound?.inboundCode} và gán tài xế? Thông tin xe sẽ được điền từ hồ sơ tài xế.`
+          : `Xác nhận duyệt ${inbound?.inboundCode}?`,
+      onConfirm: () =>
+        runAction(async () => {
+          if (willAssign) {
+            await persistDelivery()
+          }
+          await inboundApi.updateInboundRequest(inboundRequestId, {
+            status: 'APPROVED',
+            approvedBy: user?.userId,
+          })
+        }, 'Đã duyệt inbound'),
     })
   }
 
   const isWarehouseTransport =
     inbound?.deliveryMode === 'WAREHOUSE_TRANSPORT'
 
+  const isTenant = mode === 'tenant'
+  const tenantDeliveryLocked = isTenant && isWarehouseTransport
+
   const canEditDelivery = isTransporter
     ? inbound && inbound.status === 'APPROVED'
     : isWarehouse
       ? inbound && ['PENDING', 'APPROVED', 'ARRIVED'].includes(inbound.status)
-      : inbound && ['DRAFT', 'PENDING', 'APPROVED'].includes(inbound.status)
+      : inbound &&
+        ['DRAFT', 'PENDING', 'APPROVED'].includes(inbound.status) &&
+        !tenantDeliveryLocked
 
   const canAssignTransporter =
     isWarehouse &&
@@ -256,27 +353,62 @@ export function InboundDetailPage({ mode, basePath }: Props) {
     inbound &&
     ['PENDING', 'APPROVED', 'ARRIVED'].includes(inbound.status)
 
-  const saveDelivery = () =>
-    runAction(async () => {
-      const plate = deliveryForm.vehiclePlate.trim()
-      const assignId = assignedDriverUserId.trim() || undefined
-      if (!isTransporter && !plate && !assignId) {
-        throw new ApiError('Nhập biển số xe hoặc chọn tài xế', 400)
-      }
-      if (isTransporter && !plate) {
-        throw new ApiError('Nhập biển số xe trước khi lưu', 400)
-      }
-      await deliveryApi.upsertInboundDelivery(inboundRequestId, {
-        vehiclePlate: plate || undefined,
-        driverName: deliveryForm.driverName?.trim() || undefined,
-        driverPhone: deliveryForm.driverPhone?.trim() || undefined,
-        driverIdNumber: deliveryForm.driverIdNumber?.trim() || undefined,
-        carrierName: deliveryForm.carrierName?.trim() || undefined,
-        notes: deliveryForm.notes?.trim() || undefined,
-        assignedDriverUserId: canAssignTransporter ? assignId ?? null : undefined,
-      })
-      setDeliveryDirty(false)
-    }, 'Đã lưu thông tin vận chuyển')
+  const hasSavedDispatch = Boolean(
+    inbound?.delivery?.assignedDriverUserId || inbound?.delivery?.vehiclePlate?.trim()
+  )
+  const deliveryFieldsLocked = hasSavedDispatch && !deliveryEditing
+
+  const startDeliveryEdit = () => {
+    setDeliveryEditing(true)
+    setDeliveryDirty(true)
+  }
+
+  const persistDelivery = async () => {
+    const plate = deliveryForm.vehiclePlate.trim()
+    const assignId = assignedDriverUserId.trim() || undefined
+    if (!isTransporter && !plate && !assignId) {
+      throw new ApiError('Nhập biển số xe hoặc chọn tài xế', 400)
+    }
+    if (isTransporter && !plate) {
+      throw new ApiError('Nhập biển số xe trước khi lưu', 400)
+    }
+    await deliveryApi.upsertInboundDelivery(inboundRequestId, {
+      vehiclePlate: plate || undefined,
+      driverName: deliveryForm.driverName?.trim() || undefined,
+      driverPhone: deliveryForm.driverPhone?.trim() || undefined,
+      driverIdNumber: deliveryForm.driverIdNumber?.trim() || undefined,
+      carrierName: deliveryForm.carrierName?.trim() || undefined,
+      notes: deliveryForm.notes?.trim() || undefined,
+      assignedDriverUserId: canAssignTransporter ? assignId ?? null : undefined,
+    })
+    setDeliveryDirty(false)
+  }
+
+  const saveDelivery = () => runAction(() => persistDelivery(), 'Đã lưu thông tin vận chuyển')
+
+  const persistPickup = async () => {
+    if (!pickupForm.pickupAddress.trim()) {
+      throw new ApiError('Nhập địa chỉ lấy hàng', 400)
+    }
+    if (!pickupForm.pickupContactName.trim() || !pickupForm.pickupContactPhone.trim()) {
+      throw new ApiError('Nhập người liên hệ và SĐT tại điểm lấy', 400)
+    }
+    await deliveryApi.upsertInboundDelivery(inboundRequestId, {
+      pickupAddress: pickupForm.pickupAddress.trim(),
+      pickupContactName: pickupForm.pickupContactName.trim(),
+      pickupContactPhone: pickupForm.pickupContactPhone.trim(),
+      pickupNotes: pickupForm.pickupNotes?.trim() || undefined,
+    })
+    setPickupDirty(false)
+  }
+
+  const savePickup = () => runAction(() => persistPickup(), 'Đã lưu điểm lấy hàng')
+
+  const canEditPickup =
+    mode === 'tenant' &&
+    isWarehouseTransport &&
+    inbound &&
+    ['PENDING', 'APPROVED'].includes(inbound.status)
 
   const reportArrival = () =>
     runAction(async () => {
@@ -299,17 +431,19 @@ export function InboundDetailPage({ mode, basePath }: Props) {
 
   const items = inbound?.items ?? []
 
-  const handleCreateBatch = () =>
-    runAction(async () => {
-      if (!batchCode.trim()) throw new ApiError('Nhập mã batch', 400)
-      await batchesApi.createBatch({
-        inboundRequestId,
-        batchCode: batchCode.trim(),
-      })
-      setBatchCode('')
-    }, 'Đã tạo batch')
-
-  const piecesPerLpn = readiness?.assumptions.piecesPerLpn ?? 25
+  const getSkuPackInfo = useCallback(
+    (skuId: string, bt: BoxType = boxType) => {
+      const item = items.find((i) => i.skuId === skuId)
+      return computePiecesPerLpnForSku(
+        bt,
+        item?.sku?.productKind,
+        item?.sku?.size,
+        productCatalogByKind,
+        sizeFactors
+      )
+    },
+    [items, boxType, productCatalogByKind, sizeFactors]
+  )
 
   const getTargetQtyForItem = (item: ApiInboundRequestItem) =>
     receivedDraft[item.inboundRequestItemId] ?? item.receivedQuantity ?? 0
@@ -360,9 +494,19 @@ export function InboundDetailPage({ mode, basePath }: Props) {
     return actualQty
   }
 
+  const handleCreateBatch = () =>
+    runAction(async () => {
+      if (!batchCode.trim()) throw new ApiError('Nhập mã batch', 400)
+      await batchesApi.createBatch({
+        inboundRequestId,
+        batchCode: batchCode.trim(),
+      })
+      setBatchCode('')
+    }, 'Đã tạo batch')
+
   const handleCreateNextLpn = () =>
     runAction(async () => {
-      const qty = Math.min(piecesPerLpn, remainingForSku(detailSkuId))
+      const qty = Math.min(getSkuPackInfo(detailSkuId).pieces, remainingForSku(detailSkuId))
       await createLpnWithSkuQty(qty)
     }, 'Đã tạo LPN và gán SKU')
 
@@ -371,11 +515,12 @@ export function InboundDetailPage({ mode, basePath }: Props) {
       if (!detailSkuId) throw new ApiError('Chọn SKU', 400)
       let created = 0
       let rem = remainingForSku(detailSkuId)
+      const perLpn = getSkuPackInfo(detailSkuId).pieces
       const base = inbound?.inboundCode?.replace(/[^a-zA-Z0-9-]/g, '') ?? 'IN'
       let seq = lpns.length
       while (rem > 0 && created < 200) {
         seq += 1
-        const qty = Math.min(piecesPerLpn, rem)
+        const qty = Math.min(perLpn, rem)
         const code = `${base}-LPN-${String(seq).padStart(3, '0')}`
         await createLpnWithSkuQty(qty, code, rem)
         rem -= qty
@@ -429,7 +574,19 @@ export function InboundDetailPage({ mode, basePath }: Props) {
         receivedQuantity: receivedDraft[item.inboundRequestItemId] ?? 0,
       }))
       await inboundApi.completeReceiving(inboundRequestId, { items: payload })
-    }, 'Đã ghi nhận số lượng nhận')
+      setReceivingCommitted(true)
+      setReceivingEditing(false)
+      setReceivingDirty(false)
+    }, 'Đã hoàn tất kiểm đếm')
+
+  const startReceivingEdit = () => {
+    setReceivingEditing(true)
+    setReceivingDirty(true)
+  }
+
+  const receivingFieldsLocked = receivingCommitted && !receivingEditing
+  const showCompleteReceivingBtn =
+    inbound?.status === 'RECEIVING' && receivingEditing && (!receivingCommitted || receivingDirty)
 
   const handleCancel = () =>
     runAction(async () => {
@@ -497,20 +654,62 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                   {DELIVERY_MODE_OPTIONS.find((o) => o.value === inbound.deliveryMode)?.label ??
                     inbound.deliveryMode ??
                     '—'}
-                  {inbound.status === 'APPROVED' && !inbound.delivery && isWarehouse && (
+                  {inbound.status === 'APPROVED' && !inbound.delivery && isWarehouse && !isWarehouseTransport && (
                     <span className="ml-2 text-amber-300">
                       · Cần lưu biển số trước khi &quot;Xe đã đến&quot;
                     </span>
                   )}
+                  {inbound.status === 'APPROVED' && isWarehouseTransport && isWarehouse && !isTransporter && (
+                    <span className="ml-2 text-slate-400">
+                      · Tài xế kho sẽ báo &quot;Xe đã đến&quot; sau khi tới cổng
+                    </span>
+                  )}
                 </p>
+
+                {isWarehouseTransport && (
+                  <InboundTransportRoutePanel delivery={inbound.delivery} warehouse={warehouse} />
+                )}
+
+                {canEditPickup && (
+                  <div className="mb-4 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                    <p className="mb-2 text-sm font-medium text-emerald-200">Điểm lấy hàng của bạn</p>
+                    <InboundPickupForm
+                      value={pickupForm}
+                      onChange={(next) => {
+                        setPickupForm(next)
+                        setPickupDirty(true)
+                      }}
+                    />
+                    {pickupDirty ? (
+                      <button
+                        type="button"
+                        onClick={savePickup}
+                        className="mt-3 rounded bg-emerald-600 px-3 py-1.5 text-sm hover:bg-emerald-500"
+                      >
+                        Lưu điểm lấy hàng
+                      </button>
+                    ) : inbound.delivery?.pickupAddress ? (
+                      <p className="mt-3 text-xs text-emerald-300">✓ Đã lưu điểm lấy hàng</p>
+                    ) : null}
+                  </div>
+                )}
+
                 {canAssignTransporter && (
                   <div className="mb-3">
                     <label className="mb-1 block text-xs text-slate-500">Tài xế kho được gán</label>
                     <select
                       aria-label="Tài xế kho được gán"
                       value={assignedDriverUserId}
+                      disabled={deliveryFieldsLocked}
                       onChange={(e) => {
-                        setAssignedDriverUserId(e.target.value)
+                        const nextId = e.target.value
+                        setAssignedDriverUserId(nextId)
+                        const picked = transporters.find((t) => t.userId === nextId)
+                        if (picked) {
+                          setDeliveryForm((prev) =>
+                            fillDeliveryFromTransporterProfile(picked, prev, { overwrite: true })
+                          )
+                        }
                         setDeliveryDirty(true)
                       }}
                       className="w-full max-w-md rounded border border-white/10 bg-black/30 px-3 py-2 text-sm"
@@ -518,10 +717,15 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                       <option value="">— Chưa gán —</option>
                       {transporters.map((t) => (
                         <option key={t.userId} value={t.userId}>
-                          {t.fullName} ({t.email})
+                          {t.fullName}
+                          {t.defaultVehiclePlate ? ` · ${t.defaultVehiclePlate}` : ''} ({t.email})
                         </option>
                       ))}
                     </select>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Chọn tài xế để tự điền biển số, SĐT, CCCD từ hồ sơ — có thể gán ngay khi duyệt
+                      inbound.
+                    </p>
                     {transporters.length === 0 && (
                       <p className="mt-1 text-xs text-amber-300">
                         Chưa có tài khoản WH_TRANSPORTER — WH Admin tạo trong Quản lý tài khoản.
@@ -529,42 +733,82 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                     )}
                   </div>
                 )}
-                {canEditDelivery ? (
+                {tenantDeliveryLocked ? (
                   <>
+                    <p className="mb-3 text-xs text-amber-200/90">
+                      Bạn đã chọn <strong>vận chuyển do kho đi lấy</strong> — thông tin xe, tài xế và
+                      ghi chú cổng sẽ do kho / tài xế cập nhật. Tenant không cần (và không thể) nhập
+                      tại đây.
+                    </p>
                     <InboundDeliveryForm
-                      deliveryMode={(inbound.deliveryMode as DeliveryMode) ?? 'TENANT_SELF'}
+                      deliveryMode="WAREHOUSE_TRANSPORT"
                       value={deliveryForm}
-                      onChange={(next) => {
-                        setDeliveryForm(next)
-                        setDeliveryDirty(true)
-                      }}
+                      onChange={() => {}}
+                      disabled
                       compact
                     />
-                    <button
-                      type="button"
-                      disabled={!deliveryDirty}
-                      onClick={saveDelivery}
-                      className="mt-3 rounded bg-cyan-600 px-3 py-1.5 text-sm disabled:opacity-40"
-                    >
-                      {isTransporter ? 'Lưu thông tin xe' : 'Lưu vận chuyển'}
-                    </button>
-                    {isTransporter && inbound.status === 'APPROVED' && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAlert({
-                            open: true,
-                            type: 'confirm',
-                            title: 'Xe đã đến kho?',
-                            message: `Xác nhận ${inbound.inboundCode} đã tới cổng kho.`,
-                            onConfirm: reportArrival,
-                          })
-                        }
-                        className="ml-2 mt-3 rounded bg-violet-600 px-3 py-1.5 text-sm"
-                      >
-                        Báo đã đến kho
-                      </button>
+                  </>
+                ) : canEditDelivery || canAssignTransporter ? (
+                  <>
+                    {(canEditDelivery || canAssignTransporter) && (
+                      <InboundDeliveryForm
+                        deliveryMode={(inbound.deliveryMode as DeliveryMode) ?? 'TENANT_SELF'}
+                        value={deliveryForm}
+                        onChange={(next) => {
+                          setDeliveryForm(next)
+                          setDeliveryDirty(true)
+                        }}
+                        disabled={!canEditDelivery || deliveryFieldsLocked}
+                        compact
+                      />
                     )}
+                    {(canEditDelivery || (canAssignTransporter && assignedDriverUserId)) &&
+                      (deliveryDirty ? (
+                        <button
+                          type="button"
+                          onClick={saveDelivery}
+                          className="mt-3 rounded bg-cyan-600 px-3 py-1.5 text-sm hover:bg-cyan-500"
+                        >
+                          {canAssignTransporter && !canEditDelivery
+                            ? 'Lưu gán tài xế'
+                            : isTransporter
+                              ? 'Lưu thông tin xe'
+                              : 'Lưu vận chuyển'}
+                        </button>
+                      ) : hasSavedDispatch && deliveryFieldsLocked ? (
+                        <div className="mt-3 flex flex-wrap items-center gap-3">
+                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-sm text-emerald-300">
+                            <span className="material-symbols-outlined text-base">check_circle</span>
+                            Đã lưu thông tin vận chuyển
+                          </span>
+                          {(canEditDelivery || canAssignTransporter) && (
+                            <button
+                              type="button"
+                              onClick={startDeliveryEdit}
+                              className="rounded-lg border border-cyan-500/40 px-3 py-1.5 text-xs font-medium text-cyan-300 hover:bg-cyan-500/10"
+                            >
+                              Sửa lại
+                            </button>
+                          )}
+                          {isTransporter && inbound.status === 'APPROVED' && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setAlert({
+                                  open: true,
+                                  type: 'confirm',
+                                  title: 'Xe đã đến kho?',
+                                  message: `Xác nhận ${inbound.inboundCode} đã tới cổng kho.`,
+                                  onConfirm: reportArrival,
+                                })
+                              }
+                              className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-medium hover:bg-violet-500"
+                            >
+                              Xe đã đến
+                            </button>
+                          )}
+                        </div>
+                      ) : null)}
                   </>
                 ) : inbound.delivery ? (
                   <dl className="grid gap-2 text-sm sm:grid-cols-2">
@@ -629,19 +873,21 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                       </button>
                     </>
                   )}
+                  {inbound.status === 'APPROVED' && !isWarehouseTransport && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        patchStatus('ARRIVED', {
+                          actualArrivalAt: new Date().toISOString(),
+                        })
+                      }
+                      className="rounded bg-violet-600 px-3 py-1.5 text-sm"
+                    >
+                      Xe đã đến
+                    </button>
+                  )}
                   {inbound.status === 'APPROVED' && (
                     <>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          patchStatus('ARRIVED', {
-                            actualArrivalAt: new Date().toISOString(),
-                          })
-                        }
-                        className="rounded bg-violet-600 px-3 py-1.5 text-sm"
-                      >
-                        Xe đã đến
-                      </button>
                       {readiness?.canRevokeApproval && (
                         <button
                           type="button"
@@ -699,15 +945,6 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                       </button>
                     </>
                   )}
-                  {['ARRIVED', 'RECEIVING'].includes(inbound.status) && (
-                    <button
-                      type="button"
-                      onClick={handleCompleteReceiving}
-                      className="rounded bg-amber-600 px-3 py-1.5 text-sm"
-                    >
-                      Hoàn tất kiểm đếm
-                    </button>
-                  )}
                   {inbound.status === 'RECEIVING' && (
                     <button
                       type="button"
@@ -737,11 +974,46 @@ export function InboundDetailPage({ mode, basePath }: Props) {
 
               {/* Items */}
               <section className="mb-8 rounded-xl border border-white/10 bg-white/5 p-4">
-                <h2 className="mb-3 font-semibold">Dòng hàng</h2>
-                {isWarehouse && ['ARRIVED', 'RECEIVING'].includes(inbound.status) && (
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="font-semibold">Dòng hàng</h2>
+                  {isWarehouse &&
+                    !isTransporter &&
+                    inbound.status === 'RECEIVING' &&
+                    (showCompleteReceivingBtn ? (
+                      <button
+                        type="button"
+                        onClick={handleCompleteReceiving}
+                        className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium hover:bg-amber-500"
+                      >
+                        Hoàn tất kiểm đếm
+                      </button>
+                    ) : receivingFieldsLocked ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-sm text-emerald-300">
+                          <span className="material-symbols-outlined text-base">check_circle</span>
+                          Đã hoàn tất kiểm đếm
+                        </span>
+                        <button
+                          type="button"
+                          onClick={startReceivingEdit}
+                          className="rounded-lg border border-amber-500/40 px-3 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-500/10"
+                        >
+                          Sửa lại
+                        </button>
+                      </div>
+                    ) : null)}
+                </div>
+                {isWarehouse && inbound.status === 'ARRIVED' && (
                   <p className="mb-3 text-xs text-slate-500">
-                    Nhập số thực nhận, sau đó bấm <strong className="text-amber-400/90">Hoàn tất kiểm đếm</strong>{' '}
-                    để lưu (không cần nút Lưu từng dòng).
+                    Bấm <strong className="text-cyan-400/90">Bắt đầu nhận hàng</strong> phía trên để
+                    nhập số thực nhận.
+                  </p>
+                )}
+                {isWarehouse && inbound.status === 'RECEIVING' && receivingEditing && (
+                  <p className="mb-3 text-xs text-slate-500">
+                    Nhập số thực nhận, sau đó bấm{' '}
+                    <strong className="text-amber-400/90">Hoàn tất kiểm đếm</strong> để lưu (không cần
+                    nút Lưu từng dòng).
                   </p>
                 )}
                 <table className="w-full text-sm">
@@ -756,7 +1028,10 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                   <tbody>
                     {items.map((item: ApiInboundRequestItem) => {
                       const canEditReceived =
-                        isWarehouse && ['ARRIVED', 'RECEIVING'].includes(inbound.status)
+                        isWarehouse &&
+                        inbound.status === 'RECEIVING' &&
+                        receivingEditing &&
+                        !receivingFieldsLocked
                       const received = canEditReceived
                         ? (receivedDraft[item.inboundRequestItemId] ?? 0)
                         : (item.receivedQuantity ?? 0)
@@ -780,12 +1055,13 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                               placeholder="0"
                               className="w-20 rounded border border-white/10 bg-[#0f172a] px-2 py-1 text-right"
                               value={receivedDraft[item.inboundRequestItemId] ?? 0}
-                              onChange={(e) =>
+                              onChange={(e) => {
                                 setReceivedDraft((d) => ({
                                   ...d,
                                   [item.inboundRequestItemId]: Number(e.target.value),
                                 }))
-                              }
+                                setReceivingDirty(true)
+                              }}
                             />
                           ) : (
                             received
@@ -829,6 +1105,8 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                   lpnDetails={lpnDetails}
                   receivedDraft={receivedDraft}
                   readiness={readiness}
+                  productCatalogByKind={productCatalogByKind}
+                  sizeFactors={sizeFactors}
                   batchCode={batchCode}
                   onBatchCodeChange={setBatchCode}
                   onCreateBatch={handleCreateBatch}

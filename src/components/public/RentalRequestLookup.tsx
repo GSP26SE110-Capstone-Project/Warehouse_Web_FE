@@ -248,7 +248,10 @@ function LookupResult({ result }: { result: RentalRequestPublicLookup }) {
           />
         )}
         {result.estimatedSkuCount != null && (
-          <DetailRow label="Số mã SKU" value={result.estimatedSkuCount.toLocaleString('vi-VN')} />
+          <DetailRow
+            label="Tổng số cái (peak inventory)"
+            value={result.estimatedSkuCount.toLocaleString('vi-VN')}
+          />
         )}
         {result.estimatedInboundPerWeek != null && (
           <DetailRow

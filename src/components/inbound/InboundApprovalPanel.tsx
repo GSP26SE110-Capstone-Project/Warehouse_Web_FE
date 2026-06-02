@@ -1,136 +1,9 @@
-import type {
-  ApiInboundApprovalReadiness,
-  ApiInboundEstimateUsage,
-} from '../../api/inboundRequests'
-import { formatLpnSize } from '../../data/lpnTerminology'
+import type { ApiInboundApprovalReadiness } from '../../api/inboundRequests'
+import { formatBoxTypeName } from '../../data/lpnTerminology'
+import { formatBoxAllocation } from '../../utils/volumeUnits'
 
 type Props = {
   readiness: ApiInboundApprovalReadiness
-}
-
-const SEVERITY_STYLE: Record<
-  ApiInboundEstimateUsage['severity'],
-  { ring: string; bg: string; text: string; bar: string; label: string }
-> = {
-  ok: {
-    ring: 'border-emerald-500/30',
-    bg: 'bg-emerald-500/5',
-    text: 'text-emerald-300',
-    bar: 'bg-emerald-400',
-    label: 'Trong ngưỡng estimate',
-  },
-  near: {
-    ring: 'border-cyan-500/30',
-    bg: 'bg-cyan-500/5',
-    text: 'text-cyan-200',
-    bar: 'bg-cyan-400',
-    label: 'Sắp chạm trần estimate',
-  },
-  soft: {
-    ring: 'border-amber-500/40',
-    bg: 'bg-amber-500/10',
-    text: 'text-amber-200',
-    bar: 'bg-amber-400',
-    label: 'Vượt estimate — cảnh báo mềm',
-  },
-  hard: {
-    ring: 'border-red-500/40',
-    bg: 'bg-red-500/10',
-    text: 'text-red-200',
-    bar: 'bg-red-500',
-    label: 'Vượt xa estimate — cần xử lý',
-  },
-}
-
-function EstimateUsagePanel({ usage }: { usage: ApiInboundEstimateUsage }) {
-  const style = SEVERITY_STYLE[usage.severity]
-  const boxPct = usage.boxUtilizationPercent ?? 0
-  const barWidth = Math.min(100, boxPct)
-  const overflow = Math.max(0, boxPct - 100)
-
-  return (
-    <div className={`mt-4 rounded-lg border ${style.ring} ${style.bg} px-3 py-3`}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Mức sử dụng so với estimate hợp đồng
-          </p>
-          <p className={`mt-1 text-sm font-semibold ${style.text}`}>{style.label}</p>
-        </div>
-        {usage.requestCode && (
-          <span className="rounded border border-white/10 bg-black/30 px-2 py-0.5 font-mono text-[10px] text-slate-400">
-            {usage.requestCode}
-          </span>
-        )}
-      </div>
-
-      {usage.estimatedBoxCount != null && (
-        <div className="mt-3">
-          <div className="flex items-baseline justify-between text-xs text-slate-300">
-            <span>
-              <strong className="text-white">
-                {usage.cumulativePieces.toLocaleString('vi-VN')}
-              </strong>
-              {' / '}
-              {usage.estimatedBoxCount.toLocaleString('vi-VN')} cái{' '}
-              <span className="text-slate-500">(lũy kế / estimate)</span>
-            </span>
-            <span className={`font-mono font-semibold ${style.text}`}>{boxPct}%</span>
-          </div>
-          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/10">
-            <div
-              className={`h-full ${style.bar} transition-all`}
-              style={{ width: `${barWidth}%` }}
-            />
-          </div>
-          {overflow > 0 && (
-            <p className={`mt-1 text-[11px] ${style.text}`}>
-              Vượt thêm {usage.overageBoxes.toLocaleString('vi-VN')} cái so với estimate.
-            </p>
-          )}
-        </div>
-      )}
-
-      <div className="mt-3 grid gap-2 text-[11px] text-slate-400 sm:grid-cols-3">
-        <div>
-          <p className="text-slate-500">Đợt inbound này</p>
-          <p className="mt-0.5 text-slate-200">
-            +{usage.currentInboundPieces.toLocaleString('vi-VN')} cái
-          </p>
-        </div>
-        <div>
-          <p className="text-slate-500">Các đợt trước</p>
-          <p className="mt-0.5 text-slate-200">
-            {usage.previousInboundPieces.toLocaleString('vi-VN')} cái
-          </p>
-        </div>
-        <div>
-          <p className="text-slate-500">SKU đang dùng</p>
-          <p className="mt-0.5 text-slate-200">
-            {usage.distinctSkus}
-            {usage.estimatedSkuCount != null && ` / ${usage.estimatedSkuCount}`}
-            {usage.skuUtilizationPercent != null && (
-              <span className="ml-1 text-slate-500">
-                ({usage.skuUtilizationPercent}%)
-              </span>
-            )}
-          </p>
-        </div>
-      </div>
-
-      {usage.severity === 'hard' && (
-        <p className="mt-3 rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] text-red-200">
-          Khuyến nghị: liên hệ tenant để ký phụ lục hợp đồng (mở rộng estimate) hoặc tạo
-          rental request mới trước khi duyệt thêm inbound.
-        </p>
-      )}
-      {usage.severity === 'soft' && (
-        <p className="mt-3 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-200">
-          Vẫn cho phép duyệt, nhưng nên thông báo cho tenant để cập nhật quy mô lưu kho.
-        </p>
-      )}
-    </div>
-  )
 }
 
 export function InboundApprovalPanel({ readiness }: Props) {
@@ -142,6 +15,29 @@ export function InboundApprovalPanel({ readiness }: Props) {
       : `${value.toLocaleString('vi-VN')} ${p.currency}`
 
   const days = p.billingDaysPerMonth ?? 30
+  const pricingBoxLabel = formatBoxTypeName(a.boxType)
+  const lpnCount = readiness.estimatedLpnNeeded
+  const lpnBreakdown =
+    readiness.boxAllocation?.length &&
+    formatBoxAllocation(readiness.boxAllocation, formatBoxTypeName)
+  const totalLpnFromBreakdown = readiness.boxAllocation?.reduce((s, r) => s + r.count, 0) ?? 0
+  const inboundLpnUnit = p.inboundLpnUnitPrice ?? 0
+  const handlingUnit = p.handlingUnitPrice ?? 0
+  const storageDayUnit = p.storageBoxDayUnitPrice ?? 0
+  const avgLpnMonth = p.estimatedAvgBoxesForMonth ?? lpnCount
+
+  const inboundLpnSubtotal =
+    p.estimatedInboundLpnCost ?? (lpnCount > 0 ? lpnCount * inboundLpnUnit : null)
+  const handlingSubtotal =
+    p.estimatedHandlingCost ?? (lpnCount > 0 ? lpnCount * handlingUnit : null)
+  const oneTimeTotal = p.estimatedOneTimeOpsCost ?? p.estimatedTotalCost
+  const storageSubtotal =
+    p.estimatedMonthlyStorageCost ??
+    (avgLpnMonth > 0 ? avgLpnMonth * storageDayUnit * days : null)
+  const firstMonthTotal = p.estimatedFirstMonthTotal
+
+  const formatSubtotal = (value: number | null | undefined) =>
+    value == null ? '—' : formatMoney(value)
 
   return (
     <section
@@ -153,13 +49,7 @@ export function InboundApprovalPanel({ readiness }: Props) {
     >
       <h2 className="mb-2 font-semibold text-white">Kiểm tra chỗ trống (ước tính)</h2>
       <p className="mb-3 text-xs text-slate-400">
-        Trước khi duyệt: so sánh hàng dự kiến với bin còn trống. Giả định{' '}
-        <strong className="text-slate-300">{a.piecesPerLpn} cái/LPN</strong>, kích cỡ{' '}
-        <strong className="text-slate-300">{formatLpnSize(a.boxType)}</strong> ({a.volumeUnitsPerLpn}{' '}
-        volume units/LPN). Bin: tối đa{' '}
-        <strong className="text-slate-300">{a.binMaxLpnCount ?? 4} LPN</strong> và{' '}
-        <strong className="text-slate-300">{a.binMaxVolumeUnits ?? 16} volume</strong> — ví dụ tối
-        đa 2 EXTRA hoặc 4 MEDIUM/bin.
+        Trước khi duyệt: so sánh hàng dự kiến với bin còn trống.
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -170,13 +60,32 @@ export function InboundApprovalPanel({ readiness }: Props) {
             {readiness.inboundLineCount} dòng SKU
           </p>
           <p className="mt-1 text-xs text-cyan-300/90">
-            ≈ {readiness.estimatedLpnNeeded} LPN · ≈ {readiness.estimatedVolumeUnitsNeeded}{' '}
-            volume units
-            {readiness.estimatedBinsNeeded != null && (
+            {lpnBreakdown ? (
               <>
-                {' '}
-                · ≈ {readiness.estimatedBinsNeeded} bin cần putaway
+                <strong className="text-cyan-200">{lpnBreakdown}</strong>
+                <span className="text-slate-400">
+                  {' '}
+                  — {totalLpnFromBreakdown} LPN · {readiness.estimatedVolumeUnitsNeeded} U hàng
+                </span>
               </>
+            ) : (
+              <>
+                {lpnCount} LPN ({formatBoxTypeName(a.boxType)}) · {readiness.estimatedVolumeUnitsNeeded}{' '}
+                volume units
+              </>
+            )}
+            {a.volumeBasedEstimate && (a.totalVolumeUnitsFromPieces ?? 0) > 0 && (
+              <span className="block mt-1 text-slate-500">
+                Tổng U = Σ(cái × U/cái){' '}
+                {a.avgVolumeUnitsPerPiece
+                  ? ` · ~${a.avgVolumeUnitsPerPiece} U/cái trung bình`
+                  : ''}
+              </span>
+            )}
+            {readiness.estimatedBinsNeeded != null && (
+              <span className="block mt-0.5 text-slate-500">
+                Cần {readiness.estimatedBinsNeeded} bin putaway
+              </span>
             )}
           </p>
         </div>
@@ -211,45 +120,68 @@ export function InboundApprovalPanel({ readiness }: Props) {
         </ul>
       )}
 
-      {readiness.estimateUsage && <EstimateUsagePanel usage={readiness.estimateUsage} />}
-
       <div className="mt-4 rounded-lg border border-white/10 bg-black/20 px-3 py-3">
         <p className="text-xs text-slate-500">Ước tính chi phí (tham khảo, theo hợp đồng)</p>
+        <p className="mt-1 text-[11px] text-slate-400">
+          Dùng thùng {pricingBoxLabel} — loại lớn nhất mà zone trong HĐ có thể chứa (tối ưu số
+          LPN / chi phí cho tenant).
+        </p>
         {p.hasPricing ? (
           <>
             <p className="mt-2 text-xs font-medium text-slate-400">Nhập kho — một lần</p>
-            <div className="mt-1 grid gap-1 text-xs text-slate-300 sm:grid-cols-2">
-              <p>
-                LPN/lần nhập ({formatLpnSize(a.boxType)}): {readiness.estimatedLpnNeeded} ×{' '}
-                <strong>{formatMoney(p.inboundLpnUnitPrice)}</strong>
-              </p>
-              <p>
-                Xử lý hàng: {readiness.estimatedLpnNeeded.toLocaleString('vi-VN')} LPN ×{' '}
-                <strong>{formatMoney(p.handlingUnitPrice)}</strong>
-              </p>
-            </div>
-            <p className="mt-1 text-sm text-slate-200">
-              Tổng nhập kho:{' '}
-              <strong className="text-cyan-300">
-                {formatMoney(p.estimatedOneTimeOpsCost ?? p.estimatedTotalCost)}
-              </strong>
+            <ul className="mt-2 space-y-2 text-xs text-slate-300">
+              <li className="rounded border border-white/5 bg-black/20 px-3 py-2">
+                <p className="text-slate-400">
+                  Phí nhập LPN ({lpnBreakdown ?? formatBoxTypeName(a.boxType)})
+                </p>
+                <p className="mt-1 font-mono text-slate-200">
+                  {lpnCount} LPN × {inboundLpnUnit.toLocaleString('vi-VN')} {p.currency}
+                  {' = '}
+                  <strong className="text-white">{formatSubtotal(inboundLpnSubtotal)}</strong>
+                </p>
+              </li>
+              <li className="rounded border border-white/5 bg-black/20 px-3 py-2">
+                <p className="text-slate-400">Phí xử lý hàng (mỗi LPN)</p>
+                <p className="mt-1 font-mono text-slate-200">
+                  {lpnCount} LPN × {handlingUnit.toLocaleString('vi-VN')} {p.currency}
+                  {' = '}
+                  <strong className="text-white">{formatSubtotal(handlingSubtotal)}</strong>
+                </p>
+              </li>
+            </ul>
+            <p className="mt-2 text-sm text-slate-200">
+              <span className="text-slate-400">Tổng nhập kho: </span>
+              {inboundLpnSubtotal != null && handlingSubtotal != null ? (
+                <span className="font-mono text-xs text-slate-400">
+                  {inboundLpnSubtotal.toLocaleString('vi-VN')} +{' '}
+                  {handlingSubtotal.toLocaleString('vi-VN')} {p.currency} ={' '}
+                </span>
+              ) : null}
+              <strong className="text-cyan-300">{formatSubtotal(oneTimeTotal)}</strong>
             </p>
 
             <p className="mt-3 text-xs font-medium text-slate-400">Lưu kho — ước tính 1 tháng</p>
-            <p className="mt-1 text-xs text-slate-300">
-              LPN/ngày ({formatLpnSize(a.boxType)}): ~
-              {p.estimatedAvgBoxesForMonth ?? readiness.estimatedLpnNeeded} LPN ×{' '}
-              <strong>{formatMoney(p.storageBoxDayUnitPrice)}</strong>/ngày × {days} ngày
-            </p>
-            <p className="mt-1 text-sm text-slate-200">
-              Phí lưu kho tháng:{' '}
-              <strong className="text-violet-300">
-                {formatMoney(p.estimatedMonthlyStorageCost)}
-              </strong>
-            </p>
+            <div className="mt-2 rounded border border-white/5 bg-black/20 px-3 py-2 text-xs text-slate-300">
+              <p className="text-slate-400">
+                Phí lưu LPN/ngày ({lpnBreakdown ?? formatBoxTypeName(a.boxType)})
+              </p>
+              <p className="mt-1 font-mono text-slate-200">
+                {avgLpnMonth} LPN × {storageDayUnit.toLocaleString('vi-VN')} {p.currency}/ngày ×{' '}
+                {days} ngày
+                {' = '}
+                <strong className="text-violet-300">{formatSubtotal(storageSubtotal)}</strong>
+              </p>
+            </div>
 
-            <p className="mt-3 border-t border-white/10 pt-2 text-sm font-medium text-emerald-300">
-              Tổng tháng đầu (nhập + lưu): {formatMoney(p.estimatedFirstMonthTotal)}
+            <p className="mt-3 border-t border-white/10 pt-2 text-sm text-slate-200">
+              <span className="text-slate-400">Tổng tháng đầu (nhập + lưu): </span>
+              {oneTimeTotal != null && storageSubtotal != null ? (
+                <span className="font-mono text-xs text-slate-400">
+                  {oneTimeTotal.toLocaleString('vi-VN')} +{' '}
+                  {storageSubtotal.toLocaleString('vi-VN')} {p.currency} ={' '}
+                </span>
+              ) : null}
+              <strong className="text-emerald-300">{formatSubtotal(firstMonthTotal)}</strong>
             </p>
             {p.usedFallback && (
               <p className="mt-1 text-[10px] text-amber-300/80">

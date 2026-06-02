@@ -15,6 +15,9 @@ export interface ApiUser {
   fullName: string
   email: string
   phone?: string | null
+  defaultVehiclePlate?: string | null
+  defaultDriverIdNumber?: string | null
+  defaultCarrierName?: string | null
   role: UserRole
   status: UserStatus
   createdAt?: string
@@ -135,10 +138,51 @@ export interface ApiRentalRequest {
 export type ContractStatus =
   | 'DRAFT'
   | 'PENDING_APPROVAL'
+  | 'PENDING_PAYMENT'
   | 'ACTIVE'
   | 'EXPIRED'
   | 'TERMINATED'
   | 'CANCELLED'
+
+export type InvoiceCategory =
+  | 'INITIAL'
+  | 'RECURRING_RENT'
+  | 'OPERATIONAL'
+  | 'TERMINATION_SETTLEMENT'
+
+export type InvoicePaymentStatus = 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED'
+
+export interface ApiContractInvoice {
+  invoiceId: string
+  tenantId: string
+  contractId: string
+  invoiceCode: string
+  billingStartDate: string
+  billingEndDate: string
+  subtotal?: number | string | null
+  tax?: number | string | null
+  totalAmount?: number | string | null
+  paymentStatus?: InvoicePaymentStatus
+  invoiceCategory?: InvoiceCategory | null
+  issuedAt?: string | null
+  dueDate?: string | null
+}
+
+export interface ContractTerminationPreview {
+  contractId: string
+  contractStatus: ContractStatus
+  billingCycle: string
+  hasInbound: boolean
+  totalPaid: number
+  monthlyRate: number
+  contractMonths: number
+  usedMonths: number
+  unusedMonths: number
+  processingFee: number
+  terminationFee: number
+  refundAmount: number
+  processingRatePercent?: number
+}
 
 export interface ApiContract {
   contractId: string

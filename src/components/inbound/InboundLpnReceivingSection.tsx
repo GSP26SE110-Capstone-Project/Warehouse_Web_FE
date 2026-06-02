@@ -1,9 +1,13 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import type { ApiInboundRequestItem } from '../../api/inboundRequests'
 import type { ApiInboundApprovalReadiness } from '../../api/inboundRequests'
 import type { ApiBatch } from '../../api/batches'
 import type { ApiLpn, ApiLpnDetail, BoxType } from '../../api/lpns'
-import { BOX_TYPE_OPTIONS } from '../../data/inboundStatus'
+import type { ApiProductKind, ApiSizeFactor } from '../../api/productCatalog'
+import { pickLargestBoxTypeForZoneTypes } from '../../data/binCapacityDefaults'
+import { filterBoxTypeOptionsForMax } from '../../data/inboundStatus'
+import { formatBoxTypeName } from '../../data/lpnTerminology'
+import { computePiecesPerLpnForSku } from '../../utils/volumeUnits'
 
 type Props = {
   inboundCode: string
@@ -13,6 +17,8 @@ type Props = {
   lpnDetails: ApiLpnDetail[]
   receivedDraft: Record<string, number>
   readiness: ApiInboundApprovalReadiness | null
+  productCatalogByKind: Map<string, ApiProductKind>
+  sizeFactors: ApiSizeFactor[]
   batchCode: string
   onBatchCodeChange: (v: string) => void
   onCreateBatch: () => void
@@ -51,6 +57,8 @@ export function InboundLpnReceivingSection({
   lpnDetails,
   receivedDraft,
   readiness,
+  productCatalogByKind,
+  sizeFactors,
   batchCode,
   onBatchCodeChange,
   onCreateBatch,
@@ -72,7 +80,47 @@ export function InboundLpnReceivingSection({
   onAddLpnDetail,
   putawaySlot,
 }: Props) {
-  const piecesPerLpn = readiness?.assumptions.piecesPerLpn ?? 25
+  const maxBoxType = pickLargestBoxTypeForZoneTypes(
+    readiness?.boxTypeSuggestion?.contractZoneTypes
+  )
+  const allowedBoxTypeOptions = useMemo(
+    () => filterBoxTypeOptionsForMax(maxBoxType),
+    [maxBoxType]
+  )
+
+  const selectedItem = useMemo(
+    () => items.find((i) => i.skuId === detailSkuId),
+    [items, detailSkuId]
+  )
+
+  const packInfo = useMemo(
+    () =>
+      computePiecesPerLpnForSku(
+        boxType,
+        selectedItem?.sku?.productKind,
+        selectedItem?.sku?.size,
+        productCatalogByKind,
+        sizeFactors
+      ),
+    [boxType, selectedItem, productCatalogByKind, sizeFactors]
+  )
+
+  const piecesPerLpn = packInfo.pieces
+
+  useEffect(() => {
+    if (allowedBoxTypeOptions.some((o) => o.value === boxType)) return
+    const fallback = allowedBoxTypeOptions[allowedBoxTypeOptions.length - 1]?.value as
+      | BoxType
+      | undefined
+    if (fallback) onBoxTypeChange(fallback)
+  }, [allowedBoxTypeOptions, boxType, onBoxTypeChange])
+
+  useEffect(() => {
+    if (!detailSkuId) return
+    const rem = remainingForSku(detailSkuId)
+    onDetailQtyChange(Math.min(piecesPerLpn, Math.max(rem, 1)))
+  }, [boxType, piecesPerLpn, detailSkuId])
+
   const allocated = useMemo(() => allocatedBySkuId(lpnDetails), [lpnDetails])
 
   const targetQty = (item: ApiInboundRequestItem) =>
@@ -143,8 +191,31 @@ export function InboundLpnReceivingSection({
       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
         <h2 className="mb-3 font-semibold">LPN &amp; đóng thùng</h2>
         <p className="mb-3 text-xs text-slate-500">
-          Gán SKU vào LPN theo số đã nhận. Mỗi thùng ~{piecesPerLpn} cái (theo box type). Tự dừng khi
-          đủ số lượng SKU.
+          Gán SKU vào LPN theo số đã nhận.
+          {detailSkuId ? (
+            <>
+              {' '}
+              Mỗi thùng <strong className="text-slate-300">{formatBoxTypeName(boxType)}</strong>: ~
+              <strong className="text-cyan-300">{piecesPerLpn}</strong> cái
+              {packInfo.skuVolume ? (
+                <>
+                  {' '}
+                  ({packInfo.skuVolume.finalVolumeUnitsPerPiece} U/cái
+                  {selectedItem?.sku?.size ? ` · size ${selectedItem.sku.size}` : ''}
+                  {packInfo.skuVolume.displayName
+                    ? ` · ${packInfo.skuVolume.displayName}`
+                    : ''}
+                  )
+                </>
+              ) : (
+                <span className="text-amber-300/90"> (chưa có productKind/size — dùng ước tính cũ)</span>
+              )}
+              .
+            </>
+          ) : (
+            <> Chọn SKU để xem số cái/thùng theo loại hàng + size.</>
+          )}{' '}
+          Tự dừng khi đủ số lượng SKU.
         </p>
 
         <select
@@ -228,7 +299,7 @@ export function InboundLpnReceivingSection({
             aria-label="Chọn box type"
             className="rounded border border-white/10 bg-[#0f172a] px-2 text-sm"
           >
-            {BOX_TYPE_OPTIONS.map((o) => (
+            {allowedBoxTypeOptions.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
@@ -236,7 +307,17 @@ export function InboundLpnReceivingSection({
           </select>
         </div>
 
-        {readiness?.boxTypeSuggestion?.recommendedBoxType && (
+        {readiness?.boxTypeSuggestion?.contractZoneTypes?.length ? (
+          <p className="mb-2 text-[11px] text-slate-500">
+            Zone HĐ: {readiness.boxTypeSuggestion.contractZoneTypes.join(', ')} — tối đa{' '}
+            <strong className="text-slate-400">{formatBoxTypeName(maxBoxType)}</strong>
+          </p>
+        ) : null}
+
+        {readiness?.boxTypeSuggestion?.recommendedBoxType &&
+          allowedBoxTypeOptions.some(
+            (o) => o.value === readiness.boxTypeSuggestion.recommendedBoxType
+          ) && (
           <p className="mb-2 text-xs text-slate-400">
             Gợi ý:{' '}
             <button

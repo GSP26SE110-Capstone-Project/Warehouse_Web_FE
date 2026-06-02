@@ -29,6 +29,27 @@ export function listEmptyBinSlotsForLevel(
   return slots
 }
 
+/** Bin có thể xóa (không LPN, không volume, không tồn kho — backend kiểm tra lại). */
+export function isBinDeletable(bin: ApiBin): boolean {
+  return (bin.usedVolumeUnits ?? 0) === 0 && (bin.currentLpnCount ?? 0) === 0
+}
+
+export function listDeletableBinsForLevel(bins: ApiBin[]): ApiBin[] {
+  return [...bins]
+    .filter(isBinDeletable)
+    .sort((a, b) => a.binCode.localeCompare(b.binCode, 'vi'))
+}
+
+/** Tất cả bin có thể xóa trên mọi tầng của rack. */
+export function listDeletableBinsForRack(
+  levels: { rackLevelId: string; levelNumber: number }[],
+  binsByLevel: Record<string, ApiBin[]>
+): ApiBin[] {
+  return [...levels]
+    .sort((a, b) => a.levelNumber - b.levelNumber)
+    .flatMap((level) => listDeletableBinsForLevel(binsByLevel[level.rackLevelId] ?? []))
+}
+
 /** Tất cả ô bin trống trên mọi tầng của rack. */
 export function listEmptyBinSlotsForRack(
   rackCode: string,

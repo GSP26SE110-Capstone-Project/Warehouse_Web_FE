@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ApiError } from '../../api/client'
 
@@ -55,13 +55,15 @@ function statusBadgeClass(status: ApiContract['status']) {
 
   if (status === 'PENDING_APPROVAL') return 'bg-amber-400/10 text-amber-300 ring-amber-400/20'
 
+  if (status === 'PENDING_PAYMENT') return 'bg-orange-400/10 text-orange-300 ring-orange-400/20'
+
   if (status === 'DRAFT') return 'bg-slate-400/10 text-slate-300 ring-slate-400/20'
 
   return 'bg-white/5 text-slate-400 ring-white/10'
 
 }
 
-
+const PAYOS_WINDOW_NAME = 'smartwarehouse_payos_checkout'
 
 export function TenantContractsPage() {
 
@@ -84,9 +86,9 @@ export function TenantContractsPage() {
   const [warehouseNames, setWarehouseNames] = useState<Map<string, string>>(new Map())
 
   const [signContractId, setSignContractId] = useState<string | null>(null)
+  const [payingContractId, setPayingContractId] = useState<string | null>(null)
+  const payOsInFlightRef = useRef(false)
   const [detailContractId, setDetailContractId] = useState<string | null>(null)
-
-
 
   const load = useCallback(async () => {
 
@@ -181,6 +183,61 @@ export function TenantContractsPage() {
     [contracts, signingContextFor]
   )
 
+  const pendingPaymentContracts = useMemo(
+    () => contracts.filter((c) => c.status === 'PENDING_PAYMENT'),
+    [contracts]
+  )
+
+  const handlePayWithPayOS = useCallback(
+    async (contractId: string) => {
+      if (payOsInFlightRef.current) return
+      payOsInFlightRef.current = true
+      setPayingContractId(contractId)
+      setError('')
+
+      const payTab = window.open('about:blank', PAYOS_WINDOW_NAME)
+      if (!payTab) {
+        payOsInFlightRef.current = false
+        setPayingContractId(null)
+        setError('Trình duyệt chặn cửa sổ mới — cho phép popup cho site này rồi bấm lại.')
+        return
+      }
+
+      try {
+        const invoices = await contractsApi.listContractInvoices(contractId)
+        const initial =
+          invoices.find((i) => i.invoiceCategory === 'INITIAL') ?? invoices[0]
+        if (!initial) {
+          payTab.close()
+          setError('Chưa có invoice đầu — liên hệ kho')
+          return
+        }
+        const link = await contractsApi.createContractInvoicePayOSLink(
+          contractId,
+          initial.invoiceId
+        )
+        if (!link.checkoutUrl) {
+          payTab.close()
+          setError('PayOS không trả checkout URL')
+          return
+        }
+        payTab.location.href = link.checkoutUrl
+        payTab.focus()
+      } catch (e) {
+        payTab.close()
+        const msg = e instanceof ApiError ? e.message : 'Không tạo được link PayOS'
+        setError(msg)
+        if (e instanceof ApiError && e.code === 'INVOICE_ALREADY_PAID') {
+          void load()
+        }
+      } finally {
+        payOsInFlightRef.current = false
+        setPayingContractId(null)
+      }
+    },
+    []
+  )
+
 
 
   return (
@@ -211,6 +268,21 @@ export function TenantContractsPage() {
           </div>
         )}
 
+        {!loading && pendingPaymentContracts.length > 0 && (
+          <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 px-5 py-4">
+            <p className="flex items-start gap-2 text-sm text-orange-100">
+              <span className="material-symbols-outlined shrink-0 text-lg text-orange-400">
+                payments
+              </span>
+              <span>
+                <strong>{pendingPaymentContracts.length}</strong> hợp đồng chờ thanh toán invoice
+                đầu qua <strong className="text-white">PayOS</strong>. Sau khi trả, HĐ ACTIVE và mở
+                inbound.
+              </span>
+            </p>
+          </div>
+        )}
+
         {!loading && pendingSignContracts.length > 0 && (
 
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-4">
@@ -227,7 +299,7 @@ export function TenantContractsPage() {
 
                 Bạn có <strong>{pendingSignContracts.length}</strong> hợp đồng chờ ký (bước cuối
 
-                của tenant). Ký xong hợp đồng mới{' '}
+                của tenant).                 Ký xong cần thanh toán invoice đầu; khi đã trả, HĐ{' '}
 
                 <strong className="text-white">ACTIVE</strong> và có thể tạo yêu cầu nhập kho.
 
@@ -358,6 +430,21 @@ export function TenantContractsPage() {
                               className="rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-cyan-400"
                             >
                               Ký HĐ
+                            </button>
+                          ) : null}
+                          {c.status === 'PENDING_PAYMENT' ? (
+                            <button
+                              type="button"
+                              disabled={payingContractId === c.contractId}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                void handlePayWithPayOS(c.contractId)
+                              }}
+                              className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-orange-400 disabled:opacity-50"
+                            >
+                              {payingContractId === c.contractId
+                                ? 'Đang mở PayOS…'
+                                : 'Thanh toán PayOS'}
                             </button>
                           ) : null}
                         </div>

@@ -54,6 +54,33 @@ export function getMaxLpnBoxTypeForZone(zoneType?: string | null): LpnBoxType {
   return 'SMALL'
 }
 
+/** Loại thùng lớn nhất trong các zone được cấp (đồng bộ BE pickLargestBoxTypeForZoneTypes). */
+export function pickLargestBoxTypeForZoneTypes(zoneTypes?: string[] | null): LpnBoxType {
+  const types = zoneTypes?.length ? zoneTypes : ['SHARED']
+  let best: LpnBoxType = 'SMALL'
+  let bestVol = 0
+  for (const zt of types) {
+    const t = getMaxLpnBoxTypeForZone(zt)
+    const vol = LPN_BOX_VOLUME[t]
+    if (vol > bestVol) {
+      bestVol = vol
+      best = t
+    }
+  }
+  return best
+}
+
+export function lpnBoxVolumeUnits(boxType: LpnBoxType | string): number {
+  return LPN_BOX_VOLUME[boxType as LpnBoxType] ?? 1
+}
+
+export function isBoxTypeWithinMax(
+  boxType: string,
+  maxBoxType: LpnBoxType | string
+): boolean {
+  return lpnBoxVolumeUnits(boxType) <= lpnBoxVolumeUnits(maxBoxType)
+}
+
 export function getDefaultBinCapacity(zoneType?: string | null): BinCapacityPreset {
   if (!zoneType) return FALLBACK
   return PRESETS[zoneType] ?? FALLBACK

@@ -43,6 +43,7 @@ export function waitingForStorageAssignment(
 const STATUS_LABELS: Record<ContractStatus, string> = {
   DRAFT: 'Nháp',
   PENDING_APPROVAL: 'Chờ bạn ký',
+  PENDING_PAYMENT: 'Chờ thanh toán invoice đầu',
   ACTIVE: 'Đang hiệu lực',
   EXPIRED: 'Hết hạn',
   TERMINATED: 'Chấm dứt',
@@ -57,8 +58,11 @@ export function contractSigningStepLabel(
   contract: Pick<ApiContract, 'status' | 'tenantSignature' | 'warehouseSignature'>,
   context?: ContractSigningContext
 ): string {
+  if (contract.status === 'PENDING_PAYMENT') {
+    return 'Đã ký — chờ thanh toán invoice đầu'
+  }
   if (contract.status === 'ACTIVE' && hasTenantSignature(contract)) {
-    return 'Đã ký đủ hai bên'
+    return 'Đã ký đủ hai bên — HĐ đang hiệu lực'
   }
   if (waitingForStorageAssignment(contract, context)) {
     return 'Chờ kho cấp vị trí lưu trữ'
