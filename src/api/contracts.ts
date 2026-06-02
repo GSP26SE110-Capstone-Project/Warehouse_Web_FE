@@ -1,5 +1,9 @@
 import { apiRequest, apiPaginated, buildQuery } from './client'
-import type { ApiContract } from './types'
+import type {
+  ApiContract,
+  ApiContractInvoice,
+  ContractTerminationPreview,
+} from './types'
 
 export function getContract(contractId: string) {
   return apiRequest<ApiContract>(`/contracts/${contractId}`)
@@ -30,6 +34,61 @@ export function updateContract(
   }
 ) {
   return apiRequest<ApiContract>(`/contracts/${contractId}`, { method: 'PATCH', body })
+}
+
+export function listContractInvoices(contractId: string) {
+  return apiRequest<ApiContractInvoice[]>(`/contracts/${contractId}/invoices`)
+}
+
+export interface PayOSPaymentLinkResult {
+  orderCode: number
+  amount: number
+  checkoutUrl: string
+  paymentLinkId?: string
+  returnUrl: string
+  cancelUrl: string
+  invoiceId: string
+  contractId: string
+  /** true khi mở lại link PayOS đã tạo trước đó (không tạo đơn mới) */
+  reusedExistingLink?: boolean
+  /** Số tiền trên invoice (khi devMode, khác amount gửi PayOS) */
+  invoiceAmount?: number
+  devMode?: boolean
+}
+
+export function createContractInvoicePayOSLink(
+  contractId: string,
+  invoiceId: string,
+  body?: { returnUrl?: string; cancelUrl?: string }
+) {
+  return apiRequest<PayOSPaymentLinkResult>(
+    `/contracts/${contractId}/invoices/${invoiceId}/payos/create-link`,
+    { method: 'POST', body: body ?? {} }
+  )
+}
+
+/** Chỉ dùng khi test / WH xác nhận thủ công — production dùng PayOS webhook. */
+export function markContractInvoicePaid(contractId: string, invoiceId: string) {
+  return apiRequest<{ invoice: ApiContractInvoice; contract: ApiContract }>(
+    `/contracts/${contractId}/invoices/${invoiceId}/mark-paid`,
+    { method: 'POST' }
+  )
+}
+
+export function previewContractTermination(contractId: string) {
+  return apiRequest<ContractTerminationPreview>(
+    `/contracts/${contractId}/termination/preview`
+  )
+}
+
+export function requestContractTermination(
+  contractId: string,
+  body?: { reason?: string; requestedBy?: string }
+) {
+  return apiRequest<{ request: unknown; settlement: ContractTerminationPreview }>(
+    `/contracts/${contractId}/termination/request`,
+    { method: 'POST', body: body ?? {} }
+  )
 }
 
 export function createContract(body: {

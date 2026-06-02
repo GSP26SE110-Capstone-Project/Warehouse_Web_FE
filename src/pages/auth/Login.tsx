@@ -12,7 +12,7 @@ export const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState<{ message: string; code?: string } | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -23,13 +23,17 @@ export const Login: React.FC = () => {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    setError('')
+    setError(null)
     setLoading(true)
     try {
       const loggedIn = await login({ email: email.trim(), password })
       navigate(getHomePathForRole(loggedIn.role), { replace: true })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Đăng nhập thất bại')
+      if (err instanceof ApiError) {
+        setError({ message: err.message, code: err.code })
+      } else {
+        setError({ message: 'Đăng nhập thất bại' })
+      }
     } finally {
       setLoading(false)
     }
@@ -71,10 +75,21 @@ export const Login: React.FC = () => {
             <div className="p-8 pt-6 flex flex-col gap-6">
               {error && (
                 <InlineAlert
-                  variant="error"
-                  title="Đăng nhập thất bại"
-                  message={error}
-                  onDismiss={() => setError('')}
+                  variant={
+                    error.code === 'TENANT_ACCOUNT_NOT_PROVISIONED' ||
+                    error.code === 'ACCOUNT_INACTIVE'
+                      ? 'warning'
+                      : 'error'
+                  }
+                  title={
+                    error.code === 'TENANT_ACCOUNT_NOT_PROVISIONED'
+                      ? 'Chưa được cấp tài khoản'
+                      : error.code === 'ACCOUNT_INACTIVE'
+                        ? 'Tài khoản chưa kích hoạt'
+                        : 'Đăng nhập thất bại'
+                  }
+                  message={error.message}
+                  onDismiss={() => setError(null)}
                 />
               )}
 

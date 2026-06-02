@@ -1,5 +1,7 @@
 import type { ChangeEvent } from 'react'
 import { UserAvatarMenu } from './UserAvatarMenu'
+import { TransporterNotificationBell } from './TransporterNotificationBell'
+import { TenantTransportNotificationBell } from './TenantTransportNotificationBell'
 
 type StaffHeaderProps = {
   title?: string
@@ -41,14 +43,8 @@ export const StaffHeader: React.FC<StaffHeaderProps> = ({
           </div>
         )}
 
-        <button
-          type="button"
-          className="relative p-2 text-slate-400 transition-colors hover:text-white"
-          aria-label="Thông báo"
-        >
-          <span className="material-symbols-outlined">notifications</span>
-          <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-[#06edf9] shadow-[0_0_8px_rgba(6,237,249,0.8)]" />
-        </button>
+        <TenantTransportNotificationBell />
+        <TransporterNotificationBell />
 
         <UserAvatarMenu />
       </div>

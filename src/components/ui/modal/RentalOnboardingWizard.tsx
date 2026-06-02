@@ -186,7 +186,7 @@ export function RentalOnboardingWizard({
   const allowsMultiZone = storagePlan.needsZone && !storagePlan.needsBin
   const requiredZoneType = requiredZoneTypeForContract(contractType)
   const eligibleZones = useMemo(
-    () => zones.filter((z) => isZoneEligibleForContract(contractType, z.zoneType)),
+    () => zones.filter((z) => isZoneEligibleForContract(contractType, z)),
     [zones, contractType]
   )
 
@@ -194,7 +194,7 @@ export function RentalOnboardingWizard({
     setSelectedZoneIds((prev) =>
       prev.filter((id) => {
         const z = zones.find((x) => x.zoneId === id)
-        return z != null && isZoneEligibleForContract(contractType, z.zoneType)
+        return z != null && isZoneEligibleForContract(contractType, z)
       })
     )
   }, [contractType, zones])
@@ -838,11 +838,11 @@ export function RentalOnboardingWizard({
           return
         }
         const ineligible = selectedZones.filter(
-          (z) => !isZoneEligibleForContract(contractType, z.zoneType)
+          (z) => !isZoneEligibleForContract(contractType, z)
         )
         if (ineligible.length > 0) {
           setError(
-            `Thuê khu riêng chỉ được chọn zone PRIVATE. Bỏ chọn: ${ineligible.map((z) => z.zoneCode).join(', ')}.`
+            `Thuê khu riêng chỉ được chọn zone PRIVATE hoặc zone dedicated. Bỏ chọn: ${ineligible.map((z) => z.zoneCode).join(', ')}.`
           )
           return
         }
@@ -1110,19 +1110,19 @@ export function RentalOnboardingWizard({
                         Pre-allocation preview (nháp trước hợp đồng)
                       </p>
                       <p className="mt-1 text-xs text-slate-400">
-                        Chọn zone PRIVATE dự kiến ngay ở bước duyệt để ước tính giá sát thực tế. Zone
-                        SHARED / FAST_MOVING / PREMIUM không áp dụng cho thuê khu riêng.
+                        Chọn zone PRIVATE hoặc zone đánh dấu khu riêng (dedicated) ngay ở bước duyệt để ước tính giá sát thực tế. Zone
+                        SHARED / FAST_MOVING / PREMIUM không dedicated không áp dụng cho thuê khu riêng.
                       </p>
                       {eligibleZones.length === 0 && (
                         <p className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-100">
-                          Kho chưa có zone PRIVATE — tạo zone loại &quot;Khu riêng (PRIVATE)&quot; trong
-                          quản lý kho trước khi duyệt.
+                          Kho chưa có zone PRIVATE hoặc zone dedicated — tạo zone loại &quot;Khu riêng (PRIVATE)&quot; hoặc bật
+                          &quot;Khu riêng (dedicated)&quot; trong quản lý kho trước khi duyệt.
                         </p>
                       )}
                       <div className="dark-scrollbar-inset mt-2 grid max-h-44 grid-cols-1 gap-2 overflow-y-auto rounded border border-white/10 p-2 pr-1">
                         {zones.map((z) => {
                           const checked = selectedZoneIds.includes(z.zoneId)
-                          const eligible = isZoneEligibleForContract(contractType, z.zoneType)
+                          const eligible = isZoneEligibleForContract(contractType, z)
                           return (
                             <label
                               key={z.zoneId}
@@ -1152,7 +1152,7 @@ export function RentalOnboardingWizard({
                                 {formatZoneOptionLabel(z)}
                                 {!eligible && (
                                   <span className="mt-0.5 block text-[10px] text-slate-500">
-                                    Không chọn — cần zone PRIVATE
+                                    Không chọn — cần zone PRIVATE hoặc dedicated
                                   </span>
                                 )}
                               </span>
@@ -1320,7 +1320,7 @@ export function RentalOnboardingWizard({
                         >
                           <option value="">— Chọn zone —</option>
                           {zones.map((z) => {
-                            const eligible = isZoneEligibleForContract(contractType, z.zoneType)
+                            const eligible = isZoneEligibleForContract(contractType, z)
                             return (
                               <option key={z.zoneId} value={z.zoneId} disabled={!eligible}>
                                 {formatZoneOptionLabel(z)}
@@ -1683,7 +1683,9 @@ function TenantAreaRequirementCard({
 function formatZoneOptionLabel(z: zonesApi.ApiZone) {
   const za = Number(z.areaM2) || 0
   const lpn = estimateZoneLpnCapacity(z)
-  return `${z.zoneCode}${z.zoneName ? ` — ${z.zoneName}` : ''} (${z.zoneType}${za > 0 ? ` · ${za} m²` : ''} · ${formatZoneRackSummary(z)}${lpn > 0 ? ` · ~${lpn} thùng` : ''})`
+  const dedicatedTag =
+    z.isDedicated && (z.zoneType ?? '').toUpperCase() !== 'PRIVATE' ? ' · dedicated' : ''
+  return `${z.zoneCode}${z.zoneName ? ` — ${z.zoneName}` : ''} (${z.zoneType}${dedicatedTag}${za > 0 ? ` · ${za} m²` : ''} · ${formatZoneRackSummary(z)}${lpn > 0 ? ` · ~${lpn} thùng` : ''})`
 }
 
 function ZoneMultiSelectList({
@@ -1703,7 +1705,7 @@ function ZoneMultiSelectList({
 }) {
   const requiredZoneType = requiredZoneTypeForContract(contractType)
   const eligibleCount = zones.filter((z) =>
-    isZoneEligibleForContract(contractType, z.zoneType)
+    isZoneEligibleForContract(contractType, z)
   ).length
 
   const toggle = (zoneId: string, eligible: boolean) => {
@@ -1734,7 +1736,7 @@ function ZoneMultiSelectList({
       <div className="dark-scrollbar-inset max-h-64 space-y-2 overflow-y-auto rounded-lg border border-white/10 p-2 pr-1">
         {zones.map((z) => {
           const checked = selectedIds.includes(z.zoneId)
-          const eligible = isZoneEligibleForContract(contractType, z.zoneType)
+          const eligible = isZoneEligibleForContract(contractType, z)
         const area = Number(z.areaM2) || 0
         const lpnCap = estimateZoneLpnCapacity(z)
         const cap = computeZoneStorageCapacity(z.areaM2)
@@ -1783,7 +1785,7 @@ function ZoneMultiSelectList({
               )}
               {!eligible && requiredZoneType && (
                 <p className="mt-1 text-slate-500">
-                  Không chọn — loại hình thuê khu riêng chỉ dùng zone {requiredZoneType}
+                  Không chọn — loại hình thuê khu riêng chỉ dùng zone PRIVATE hoặc dedicated
                 </p>
               )}
             </div>
@@ -2284,7 +2286,9 @@ function SummaryBlock({
               )}
             </div>
           )}
-          {row.estimatedSkuCount != null && <p>SKU: {row.estimatedSkuCount}</p>}
+          {row.estimatedSkuCount != null && (
+            <p>Tổng cái (peak): {row.estimatedSkuCount.toLocaleString('vi-VN')}</p>
+          )}
           {row.estimatedInboundPerWeek != null && (
             <p>Nhập/tuần: {row.estimatedInboundPerWeek}</p>
           )}

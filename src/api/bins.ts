@@ -76,3 +76,17 @@ export function updateBin(
 ) {
   return apiRequest<ApiBin>(`/bins/${binId}`, { method: 'PATCH', body })
 }
+
+export function deleteBin(binId: string) {
+  return apiRequest<ApiBin>(`/bins/${binId}`, { method: 'DELETE' })
+}
+
+export type BulkDeleteBinsResult = {
+  items: ApiBin[]
+  meta: { deleted: number; failed: number }
+  failed?: { binId: string; message: string; code?: string }[]
+}
+
+export function deleteBinsBulk(body: { binIds: string[] }) {
+  return apiRequest<BulkDeleteBinsResult>('/bins/bulk-delete', { method: 'POST', body })
+}

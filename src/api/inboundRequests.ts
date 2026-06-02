@@ -40,6 +40,7 @@ export interface ApiInboundRequestItem {
     skuId: string
     skuCode: string
     productName: string
+    productKind?: string | null
     color?: string | null
     size?: string | null
   }
@@ -91,7 +92,13 @@ export interface ApiInboundApprovalReadiness {
     boxType: string
     binMaxLpnCount?: number
     binMaxVolumeUnits?: number
+    /** Tổng U = Σ (số cái × U/cái theo loại hàng + size SKU). */
+    totalVolumeUnitsFromPieces?: number
+    volumeBasedEstimate?: boolean
+    avgVolumeUnitsPerPiece?: number
   }
+  /** Phân bổ thùng cụ thể, vd. [{ boxType: 'LARGE', count: 188 }, { boxType: 'SMALL', count: 1 }]. */
+  boxAllocation?: { boxType: string; count: number }[]
   estimatedLpnNeeded: number
   estimatedVolumeUnitsNeeded: number
   estimatedBinsNeeded?: number
@@ -117,6 +124,7 @@ export interface ApiInboundApprovalReadiness {
   boxTypeSuggestion: {
     recommendedBoxType: string
     reason: string
+    contractZoneTypes?: string[]
   }
   pricingEstimate: {
     hasPricing: boolean

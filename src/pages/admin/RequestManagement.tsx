@@ -9,11 +9,15 @@ import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { ApiError } from '../../api/client'
 import * as rentalRequestsApi from '../../api/rentalRequests'
-import { fetchGuestAccountAlerts, fetchWhPendingRentalAlerts, type GuestAccountAlerts, type WhPendingRentalAlerts } from '../../api/adminNotifications'
+import { fetchGuestAccountAlerts, fetchWhPendingInboundAlerts, fetchWhPendingRentalAlerts, type GuestAccountAlerts, type WhPendingInboundAlerts, type WhPendingRentalAlerts } from '../../api/adminNotifications'
 import * as tenantsApi from '../../api/tenants'
 import * as warehousesApi from '../../api/warehouses'
 import { rentalRequestToRow, type RentalRequestRow } from '../../mappers'
 import { CONTRACT_TYPE_LABELS, type ContractTypeValue } from '../../data/contractTypes'
+import {
+  rentalRequestStatusClass,
+  rentalRequestStatusLabel,
+} from '../../data/rentalRequestStatus'
 import { useAuth } from '../../auth/AuthContext'
 import { resolveClaimWarehouseId as resolveClaimWh } from '../../utils/warehouseRegion'
 import type { OnboardingOperator } from '../../components/ui/modal/RentalOnboardingWizard'
@@ -39,6 +43,7 @@ export const RequestManagement = () => {
   const [notifyBusy, setNotifyBusy] = useState(false)
   const [guestAlerts, setGuestAlerts] = useState<GuestAccountAlerts | null>(null)
   const [whPendingAlerts, setWhPendingAlerts] = useState<WhPendingRentalAlerts | null>(null)
+  const [whInboundAlerts, setWhInboundAlerts] = useState<WhPendingInboundAlerts | null>(null)
 
   const operator: OnboardingOperator = useMemo(
     () => ({
@@ -109,6 +114,9 @@ export const RequestManagement = () => {
       void fetchWhPendingRentalAlerts()
         .then(setWhPendingAlerts)
         .catch(() => setWhPendingAlerts(null))
+      void fetchWhPendingInboundAlerts()
+        .then(setWhInboundAlerts)
+        .catch(() => setWhInboundAlerts(null))
     }
   }, [currentUser?.role, requests.length])
 
@@ -230,7 +238,34 @@ export const RequestManagement = () => {
                   </button>
                 </div>
               )}
-            {currentUser?.role === 'WH_ADMIN' && currentUser.warehouseId && (
+              {currentUser?.role === 'WH_ADMIN' &&
+                whInboundAlerts &&
+                whInboundAlerts.pendingCount > 0 && (
+                <div className="flex flex-col gap-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-2">
+                    <span className="material-symbols-outlined shrink-0 text-amber-300">
+                      inventory_2
+                    </span>
+                    <p>
+                      Có <strong>{whInboundAlerts.pendingCount}</strong> yêu cầu nhập kho chờ duyệt
+                      {whInboundAlerts.warehouseName ? (
+                        <>
+                          {' '}
+                          tại <strong>{whInboundAlerts.warehouseName}</strong>
+                        </>
+                      ) : null}
+                      .
+                    </p>
+                  </div>
+                  <Link
+                    to="/admin/inbound"
+                    className="shrink-0 rounded-lg border border-amber-400/40 bg-amber-400/15 px-4 py-2 text-xs font-semibold text-amber-100 no-underline hover:bg-amber-400/25"
+                  >
+                    Xem nhập kho
+                  </Link>
+                </div>
+              )}
+              {currentUser?.role === 'WH_ADMIN' && currentUser.warehouseId && (
               <p className="rounded-lg border border-cyan-400/20 bg-cyan-400/5 px-4 py-2 text-sm text-cyan-200">
                 Hộp thư vùng <strong>{operatorWithWhName.warehouseName ?? 'kho của bạn'}</strong>: yêu cầu
                 chưa claim trong cùng quận/thành phố. Duyệt = claim cho kho bạn — kho khác cùng vùng cạnh tranh,
@@ -304,15 +339,9 @@ export const RequestManagement = () => {
                         </td>
                         <td>
                           <span
-                            className={`px-2 py-1 rounded text-xs ${
-                              r.status === 'pending'
-                                ? 'bg-yellow-500/20 text-yellow-400'
-                                : r.status === 'approved'
-                                  ? 'bg-green-500/20 text-green-400'
-                                  : 'bg-red-500/20 text-red-400'
-                            }`}
+                            className={`rounded px-2 py-1 text-xs ${rentalRequestStatusClass(r.apiStatus)}`}
                           >
-                            {r.apiStatus === 'CONVERTED' ? 'converted' : r.status}
+                            {rentalRequestStatusLabel(r.apiStatus)}
                           </span>
                         </td>
                         <td className="flex items-center gap-1">

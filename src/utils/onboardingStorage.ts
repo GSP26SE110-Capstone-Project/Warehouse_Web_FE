@@ -31,7 +31,7 @@ export function getOnboardingStoragePlan(contractType: string): OnboardingStorag
         needsZone: true,
         needsRack: false,
         needsBin: false,
-        hint: 'Chọn zone PRIVATE (khu riêng) trong kho đã claim.',
+        hint: 'Chọn zone PRIVATE hoặc zone đánh dấu khu riêng (dedicated) trong kho đã claim.',
       }
     case 'RESERVED_STORAGE':
       return {
@@ -64,6 +64,15 @@ export function getOnboardingStoragePlan(contractType: string): OnboardingStorag
   }
 }
 
+export type ZoneEligibilityInput =
+  | string
+  | null
+  | undefined
+  | {
+      zoneType?: string | null
+      isDedicated?: boolean | null
+    }
+
 /** Loại zone bắt buộc khi chọn zone theo hình thức thuê (null = không giới hạn). */
 export function requiredZoneTypeForContract(contractType: string): string | null {
   if (contractType === 'DEDICATED_ZONE') return 'PRIVATE'
@@ -72,10 +81,20 @@ export function requiredZoneTypeForContract(contractType: string): string | null
 
 export function isZoneEligibleForContract(
   contractType: string,
-  zoneType: string | null | undefined
+  zone: ZoneEligibilityInput
 ): boolean {
   const required = requiredZoneTypeForContract(contractType)
   if (!required) return true
+
+  const zoneType =
+    zone != null && typeof zone === 'object' ? zone.zoneType : zone
+  const isDedicated =
+    zone != null && typeof zone === 'object' ? Boolean(zone.isDedicated) : false
+
+  if (required === 'PRIVATE') {
+    return (zoneType ?? 'SHARED').toUpperCase() === 'PRIVATE' || isDedicated
+  }
+
   return (zoneType ?? 'SHARED').toUpperCase() === required
 }
 

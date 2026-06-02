@@ -38,6 +38,7 @@ export function listInventories(params?: {
   binId?: string
   inboundRequestId?: string
   status?: string
+  search?: string
   page?: number
   limit?: number
 }) {

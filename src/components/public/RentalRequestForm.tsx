@@ -1,4 +1,4 @@
-import { InlineAlert } from '../ui/FeedbackAlert'
+import { AlertModal } from '../ui/modal/AlertModal'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   estimateMonthCount,
@@ -524,39 +524,6 @@ export function RentalRequestForm({
     <>
       <LoadingOverlay show={loading} text="Đang gửi yêu cầu..." />
       <form onSubmit={handleSubmit} className="glass-panel rounded-2xl p-6 sm:p-8 space-y-8">
-        {error && (
-          <InlineAlert
-            variant={errorVariant}
-            title={
-              errorVariant === 'warning'
-                ? 'Thông tin đã đăng ký trước đó'
-                : undefined
-            }
-            message={
-              errorVariant === 'warning' ? (
-                <>
-                  {error}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      document.getElementById('lookup')?.scrollIntoView({ behavior: 'smooth' })
-                    }
-                    className="mt-2 block text-left text-sm font-medium text-amber-200 underline underline-offset-2 hover:text-white"
-                  >
-                    Tra cứu yêu cầu đã gửi (mã RR + email)
-                  </button>
-                </>
-              ) : (
-                error
-              )
-            }
-            onDismiss={() => {
-              setError('')
-              setErrorVariant('error')
-            }}
-          />
-        )}
-
         <div>
           <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
             <span className="material-symbols-outlined text-[#06edf9]">business</span>
@@ -882,6 +849,31 @@ export function RentalRequestForm({
           </span>
         </button>
       </form>
+
+      {error && (
+        <AlertModal
+          type={errorVariant}
+          title={
+            errorVariant === 'warning'
+              ? 'Thông tin đã đăng ký trước đó'
+              : 'Không thể gửi yêu cầu'
+          }
+          message={
+            errorVariant === 'warning'
+              ? `${error} Bạn có thể tra cứu yêu cầu đã gửi (mã RR + email) ở mục Tra cứu trên trang.`
+              : error
+          }
+          onConfirm={() => {
+            if (errorVariant === 'warning') {
+              document.getElementById('lookup')?.scrollIntoView({ behavior: 'smooth' })
+            }
+          }}
+          onClose={() => {
+            setError('')
+            setErrorVariant('error')
+          }}
+        />
+      )}
     </>
   )
 }

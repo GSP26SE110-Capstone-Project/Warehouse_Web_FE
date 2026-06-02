@@ -1,8 +1,8 @@
 export const ZONE_TYPE_OPTIONS = [
-  { value: 'SHARED', label: 'Chia sẻ (SHARED)' },
+  { value: 'SHARED', label: 'Chia sẻ' },
   { value: 'FAST_MOVING', label: 'Hàng đi nhanh' },
   { value: 'PREMIUM', label: 'Premium' },
-  { value: 'PRIVATE', label: 'Khu riêng (PRIVATE)' },
+  { value: 'PRIVATE', label: 'Khu riêng' },
 ] as const
 
 export const ZONE_STATUS_OPTIONS = [

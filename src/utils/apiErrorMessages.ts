@@ -23,6 +23,10 @@ const CODE_MESSAGES: Record<string, string> = {
   OTP_LOCKED: 'Nhập sai OTP quá nhiều lần. Vui lòng yêu cầu gửi lại mã mới.',
   OTP_MISMATCH: 'Mã OTP không đúng. Vui lòng kiểm tra lại.',
   INVALID_CREDENTIALS: 'Email hoặc mật khẩu không đúng',
+  TENANT_ACCOUNT_NOT_PROVISIONED:
+    'Email đã đăng ký trên hệ thống nhưng tài khoản đăng nhập chưa được cấp. Chờ kho duyệt yêu cầu thuê hoặc tra cứu mã RR + email trên trang chủ.',
+  ACCOUNT_INACTIVE:
+    'Tài khoản chưa được kích hoạt. Kiểm tra email kích hoạt hoặc liên hệ quản trị viên.',
   INVALID_CURRENT_PASSWORD: 'Mật khẩu hiện tại không đúng',
   ZONE_ALREADY_ASSIGNED:
     'Zone này đã được cấp riêng hoặc đang bị khóa DEDICATED — chọn zone khác.',
@@ -37,6 +41,10 @@ const CODE_MESSAGES: Record<string, string> = {
   STORAGE_NOT_ASSIGNED:
     'Kho chưa cấp vị trí lưu trữ — bạn chỉ ký sau khi kho hoàn tất cấp bin/zone.',
   ALREADY_CLAIMED: 'Yêu cầu đã được kho khác duyệt trước.',
+  INVOICE_ALREADY_PAID:
+    'Invoice đã thanh toán — hợp đồng đã ACTIVE. Làm mới trang, không cần thanh toán lại.',
+  PAYOS_LINK_NOT_PAYABLE:
+    'Link PayOS cũ đã hủy hoặc hết hạn. Bấm thanh toán lại để tạo link mới.',
 }
 
 export function translateApiErrorMessage(message?: string | null, code?: string | null): string {

@@ -16,7 +16,13 @@ import {
   emptyDeliveryForm,
   type DeliveryFormState,
 } from '../../components/inbound/InboundDeliveryForm'
+import {
+  InboundPickupForm,
+  emptyPickupForm,
+  type PickupFormState,
+} from '../../components/inbound/InboundPickupForm'
 import { DELIVERY_MODE_OPTIONS, type DeliveryMode } from '../../data/deliveryMode'
+import * as tenantsApi from '../../api/tenants'
 import { DateTimePickerField } from '../../components/ui/DateTimePickerField'
 import {
   contractStartDatetimeLocal,
@@ -44,6 +50,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
   const [expectedArrivalDate, setExpectedArrivalDate] = useState('')
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('TENANT_SELF')
   const [deliveryForm, setDeliveryForm] = useState<DeliveryFormState>(emptyDeliveryForm())
+  const [pickupForm, setPickupForm] = useState<PickupFormState>(emptyPickupForm())
   const [lines, setLines] = useState<LineDraft[]>([{ skuId: '', expectedQuantity: 1 }])
 
   const [alert, setAlert] = useState<{
@@ -84,6 +91,26 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
     load()
   }, [load])
 
+  useEffect(() => {
+    if (deliveryMode !== 'WAREHOUSE_TRANSPORT' || !tenantId) return
+    let cancelled = false
+    tenantsApi
+      .getTenant(tenantId)
+      .then((tenant) => {
+        if (cancelled) return
+        setPickupForm((prev) => ({
+          pickupAddress: prev.pickupAddress || tenant.address || '',
+          pickupContactName: prev.pickupContactName || tenant.contactName || '',
+          pickupContactPhone: prev.pickupContactPhone || tenant.contactPhone || '',
+          pickupNotes: prev.pickupNotes ?? '',
+        }))
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [deliveryMode, tenantId])
+
   const selectedContract = contracts.find((c) => c.contractId === contractId)
   const contractStartMin = contractStartDatetimeLocal(selectedContract?.startDate)
 
@@ -97,6 +124,21 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
     if (validLines.length === 0) {
       setAlert({ open: true, type: 'warning', message: 'Thêm ít nhất một dòng SKU' })
       return
+    }
+
+    if (deliveryMode === 'WAREHOUSE_TRANSPORT') {
+      if (!pickupForm.pickupAddress.trim()) {
+        setAlert({ open: true, type: 'warning', message: 'Nhập địa chỉ lấy hàng' })
+        return
+      }
+      if (!pickupForm.pickupContactName.trim() || !pickupForm.pickupContactPhone.trim()) {
+        setAlert({
+          open: true,
+          type: 'warning',
+          message: 'Nhập người liên hệ và SĐT tại điểm lấy hàng',
+        })
+        return
+      }
     }
 
     if (
@@ -133,6 +175,15 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
           driverIdNumber: deliveryForm.driverIdNumber?.trim() || undefined,
           carrierName: deliveryForm.carrierName?.trim() || undefined,
           notes: deliveryForm.notes?.trim() || undefined,
+        })
+      }
+
+      if (deliveryMode === 'WAREHOUSE_TRANSPORT') {
+        await deliveryApi.upsertInboundDelivery(inbound.inboundRequestId, {
+          pickupAddress: pickupForm.pickupAddress.trim(),
+          pickupContactName: pickupForm.pickupContactName.trim(),
+          pickupContactPhone: pickupForm.pickupContactPhone.trim(),
+          pickupNotes: pickupForm.pickupNotes?.trim() || undefined,
         })
       }
 
@@ -266,6 +317,13 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                   onChange={setDeliveryForm}
                   compact
                 />
+              </div>
+            )}
+
+            {deliveryMode === 'WAREHOUSE_TRANSPORT' && (
+              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4">
+                <p className="mb-3 text-sm font-medium text-emerald-200">Điểm lấy hàng</p>
+                <InboundPickupForm value={pickupForm} onChange={setPickupForm} />
               </div>
             )}
 

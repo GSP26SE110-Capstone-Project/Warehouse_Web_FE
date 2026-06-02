@@ -288,7 +288,7 @@ export const ZoneManagement = () => {
                   Zone đã phân bổ: <strong>{formatArea(zonePlanning.usedZoneAreaM2)} m²</strong>
                   {' · '}
                   Còn lại: <strong className="text-cyan-300">
-                    {formatArea(zonePlanning.remainingZoneAreaM2)}
+                    {formatArea(zonePlanning.remainingZoneAreaM2)} m²
                   </strong>
                 </p>
                 {zonePlanning.suggestedMinZoneCount != null && (

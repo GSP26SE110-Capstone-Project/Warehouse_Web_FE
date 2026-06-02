@@ -7,6 +7,10 @@ import type { ApiRentalRequest, RentalRequestStatus } from '../../api/types'
 import { fetchLocationTree } from '../../api/locations'
 import { useAuth } from '../../auth/AuthContext'
 import { CONTRACT_TYPE_LABELS, CONTRACT_TYPE_OPTIONS } from '../../data/contractTypes'
+import {
+  RENTAL_REQUEST_STATUS_CLASS,
+  RENTAL_REQUEST_STATUS_LABEL,
+} from '../../data/rentalRequestStatus'
 import { DatePickerField } from '../../components/ui/DatePickerField'
 import { DarkDropdownSelect } from '../../components/ui/DarkDropdownSelect'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
@@ -52,22 +56,6 @@ const INPUT_WRAP =
 const TEXT_INPUT_CLASS =
   'block w-full bg-transparent px-3 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none'
 
-const RENTAL_STATUS_LABEL: Record<RentalRequestStatus, string> = {
-  PENDING: 'Chờ xử lý',
-  UNDER_REVIEW: 'Đang xem xét',
-  APPROVED: 'Đã duyệt',
-  REJECTED: 'Từ chối',
-  CONVERTED: 'Đã chuyển HĐ',
-}
-
-const RENTAL_STATUS_CLASS: Record<RentalRequestStatus, string> = {
-  PENDING: 'bg-amber-400/10 text-amber-300 ring-amber-400/25',
-  UNDER_REVIEW: 'bg-sky-400/10 text-sky-300 ring-sky-400/25',
-  APPROVED: 'bg-emerald-400/10 text-emerald-300 ring-emerald-400/25',
-  REJECTED: 'bg-red-400/10 text-red-300 ring-red-400/25',
-  CONVERTED: 'bg-violet-400/10 text-violet-300 ring-violet-400/25',
-}
-
 function FieldLabel({
   htmlFor,
   children,
@@ -94,10 +82,10 @@ function RentalStatusBadge({ status }: { status: RentalRequestStatus }) {
   return (
     <span
       className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${
-        RENTAL_STATUS_CLASS[status] ?? RENTAL_STATUS_CLASS.PENDING
+        RENTAL_REQUEST_STATUS_CLASS[status] ?? RENTAL_REQUEST_STATUS_CLASS.PENDING
       }`}
     >
-      {RENTAL_STATUS_LABEL[status] ?? status}
+      {RENTAL_REQUEST_STATUS_LABEL[status] ?? status}
     </span>
   )
 }

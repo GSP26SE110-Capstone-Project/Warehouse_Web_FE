@@ -184,6 +184,7 @@ export function rentalRequestToRow(
 const CONTRACT_STATUS_FE: Record<string, Contract['status']> = {
   DRAFT: 'Pending',
   PENDING_APPROVAL: 'Pending',
+  PENDING_PAYMENT: 'Pending',
   ACTIVE: 'Active',
   EXPIRED: 'Expired',
   TERMINATED: 'Expired',

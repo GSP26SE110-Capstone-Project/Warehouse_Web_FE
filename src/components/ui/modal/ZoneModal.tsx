@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { InlineAlert } from '../FeedbackAlert'
+import { AlertModal } from './AlertModal'
 import type { ApiZone } from '../../../api/zones'
 import * as warehousesApi from '../../../api/warehouses'
 import type { ApiWarehouseZonePlanning } from '../../../api/warehouses'
@@ -187,7 +187,12 @@ export function ZoneModal({
         zoneCode: form.zoneCode.trim(),
         zoneName: form.zoneName.trim(),
         areaM2: area,
-        isDedicated: form.zoneType === 'PRIVATE' ? true : form.isDedicated,
+        isDedicated:
+          form.zoneType === 'PRIVATE'
+            ? true
+            : form.zoneType === 'SHARED'
+              ? false
+              : form.isDedicated,
       })
       onClose()
     } catch (e) {
@@ -212,10 +217,6 @@ export function ZoneModal({
         </div>
 
         <div className="dark-scrollbar space-y-4 overflow-y-auto p-6">
-          {error && (
-            <InlineAlert compact hideTitle message={error} onDismiss={() => setError('')} />
-          )}
-
           <div>
             <label className={labelStyle} htmlFor="zone-warehouse">
               Kho (warehouse)
@@ -373,7 +374,12 @@ export function ZoneModal({
                 setForm({
                   ...form,
                   zoneType,
-                  isDedicated: zoneType === 'PRIVATE' ? true : form.isDedicated,
+                  isDedicated:
+                    zoneType === 'PRIVATE'
+                      ? true
+                      : zoneType === 'SHARED'
+                        ? false
+                        : form.isDedicated,
                 })
               }}
             >
@@ -404,7 +410,7 @@ export function ZoneModal({
               </p>
             )}
           </div>
-          {form.zoneType !== 'PRIVATE' && (
+          {form.zoneType !== 'PRIVATE' && form.zoneType !== 'SHARED' && (
             <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
               <input
                 type="checkbox"
@@ -452,6 +458,15 @@ export function ZoneModal({
           )}
         </div>
       </div>
+
+      {error && (
+        <AlertModal
+          type="error"
+          title={mode === 'create' ? 'Không thể tạo zone' : 'Không thể lưu zone'}
+          message={error}
+          onClose={() => setError('')}
+        />
+      )}
     </div>
   )
 }

@@ -5,7 +5,7 @@ import type { ApiProductKindTreeNode, ApiSizeFactor } from '../../../api/product
 import type { ApiCollection } from '../../../api/collections'
 import type { ApiSeason } from '../../../api/seasons'
 import { DarkDropdownSelect } from '../DarkDropdownSelect'
-import { buildFlatSizeOptions } from '../../../utils/volumeUnits'
+import { buildFlatSizeOptions, buildSizeToGroupMap, roundVolumeUnits } from '../../../utils/volumeUnits'
 import { MOVEMENT_CATEGORY_OPTIONS, SKU_STATUS_OPTIONS } from '../../../data/skuOptions'
 
 type Mode = 'create' | 'edit' | 'view'
@@ -95,12 +95,37 @@ export function SkuModal({
   const selectedKind = form.productKind ? catalogByKind.get(form.productKind) : null
   const requiresSize = selectedKind?.hasSize !== false
 
+  const sizeMap = useMemo(() => buildSizeToGroupMap(sizeFactors), [sizeFactors])
+
+  const selectedSizeMeta = useMemo(() => {
+    if (!form.size?.trim()) return null
+    return sizeMap.get(form.size.trim().toUpperCase()) ?? null
+  }, [form.size, sizeMap])
+
+  const finalVolumePerPiece = useMemo(() => {
+    if (!selectedKind) return null
+    const base = Number(selectedKind.baseVolumeUnitsPerPiece)
+    if (!Number.isFinite(base) || base <= 0) return null
+    let factor = 1
+    if (selectedKind.hasSize !== false && form.size?.trim()) {
+      factor = selectedSizeMeta?.factor ?? 1
+    }
+    return roundVolumeUnits(base * factor)
+  }, [selectedKind, form.size, selectedSizeMeta])
+
   const sizeOptions = useMemo(() => {
-    const options = buildFlatSizeOptions(sizeFactors).map((opt) => ({
-      value: opt.value,
-      label: opt.value,
-      hint: opt.label.split('(')[1]?.replace(')', '') ?? opt.sizeGroup,
-    }))
+    const options = buildFlatSizeOptions(sizeFactors).map((opt) => {
+      const meta = sizeMap.get(opt.value.trim().toUpperCase())
+      const factor = meta ? Number(meta.factor) : null
+      return {
+        value: opt.value,
+        label: opt.value,
+        hint:
+          factor != null
+            ? `×${factor} U`
+            : opt.label.split('(')[1]?.replace(')', '') ?? opt.sizeGroup,
+      }
+    })
     if (
       form.size &&
       !options.some((opt) => opt.value === form.size) &&
@@ -113,7 +138,7 @@ export function SkuModal({
       })
     }
     return options
-  }, [sizeFactors, form.size, mode])
+  }, [sizeFactors, sizeMap, form.size, mode])
 
   const defaultSize = sizeOptions.find((opt) => opt.value === 'M')?.value ?? sizeOptions[0]?.value ?? ''
 
@@ -319,6 +344,11 @@ export function SkuModal({
               {isView ? (
                 <p className="rounded-lg border border-white/10 bg-[#1a2333] px-4 py-2.5 text-sm text-white">
                   {form.size || 'One-size'}
+                  {selectedSizeMeta && (
+                    <span className="ml-2 text-slate-500">
+                      (×{Number(selectedSizeMeta.factor)} U)
+                    </span>
+                  )}
                 </p>
               ) : (
                 <DarkDropdownSelect
@@ -338,6 +368,13 @@ export function SkuModal({
               {requiresSize && (
                 <p className="mt-1 text-[11px] text-slate-500">
                   Cùng bảng size với yêu cầu thuê (XS–S / M–L / XL–3XL).
+                  {isView && finalVolumePerPiece != null && selectedKind && (
+                    <>
+                      {' '}
+                      U/cái = {Number(selectedKind.baseVolumeUnitsPerPiece)} × hệ số size ={' '}
+                      {finalVolumePerPiece} U.
+                    </>
+                  )}
                 </p>
               )}
             </div>

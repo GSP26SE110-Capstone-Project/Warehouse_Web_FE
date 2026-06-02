@@ -30,6 +30,8 @@ import { InboundCreatePage } from './pages/inbound/InboundCreatePage'
 import { InboundDetailPage } from './pages/inbound/InboundDetailPage'
 import { InventoryListPage } from './pages/inventory/InventoryListPage'
 import { TenantContractsPage } from './pages/staff/TenantContractsPage'
+import { ContractPaymentReturnPage } from './pages/staff/ContractPaymentReturnPage'
+import { ContractPaymentCancelPage } from './pages/staff/ContractPaymentCancelPage'
 import { TenantRentalRequestsPage } from './pages/staff/TenantRentalRequestsPage'
 import { MyDeliveriesPage } from './pages/transporter/MyDeliveriesPage'
 import { ProtectedRoute } from './auth/ProtectedRoute'
@@ -97,6 +99,14 @@ export const Router: React.FC = () => {
               <Route path="/staff" element={<Navigate to="/staff/dashboard" replace />} />
               <Route path="/staff/dashboard" element={<StaffDashboard />} />
               <Route path="/staff/contracts" element={<TenantContractsPage />} />
+              <Route
+                path="/staff/contracts/payment/return"
+                element={<ContractPaymentReturnPage />}
+              />
+              <Route
+                path="/staff/contracts/payment/cancel"
+                element={<ContractPaymentCancelPage />}
+              />
               <Route path="/staff/rental-requests" element={<TenantRentalRequestsPage />} />
               <Route element={<ProtectedRoute allowedRoles={['TENANT_ADMIN']} />}>
                 <Route path="/staff/accounts" element={<AccountManagement />} />

@@ -19,7 +19,7 @@ const STATUS_LABELS: Record<string, string> = {
   SHIPPED: 'Đã xuất',
 }
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 
 type Props = {
   /** Tenant chỉ xem hàng của mình */
@@ -41,15 +41,24 @@ export function InventoryListPage({ scope }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
 
   const [detail, setDetail] = useState<ApiInventory | null>(null)
   const [movements, setMovements] = useState<ApiInventoryMovement[]>([])
   const [movementsLoading, setMovementsLoading] = useState(false)
 
   const warehouseId =
-    scope === 'warehouse' && user?.role === 'WH_ADMIN' ? user.warehouseId ?? undefined : undefined
+    scope === 'warehouse' &&
+    (user?.role === 'WH_ADMIN' || user?.role === 'WH_STAFF')
+      ? user.warehouseId ?? undefined
+      : undefined
   const tenantId =
     scope === 'tenant' ? user?.tenantId ?? undefined : searchParams.get('tenantId') ?? undefined
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearchQuery(search.trim()), 300)
+    return () => window.clearTimeout(timer)
+  }, [search])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -62,6 +71,7 @@ export function InventoryListPage({ scope }: Props) {
         batchId: batchId || undefined,
         lpnId: lpnId || undefined,
         status: statusFilter || undefined,
+        search: searchQuery || undefined,
         page,
         limit: PAGE_SIZE,
       })
@@ -81,6 +91,7 @@ export function InventoryListPage({ scope }: Props) {
     batchId,
     lpnId,
     statusFilter,
+    searchQuery,
     page,
   ])
 
@@ -90,27 +101,16 @@ export function InventoryListPage({ scope }: Props) {
 
   useEffect(() => {
     setPage(1)
-  }, [inboundRequestId, batchId, lpnId, statusFilter, tenantId, warehouseId])
-
-  const filtered = useMemo(() => {
-    if (!search.trim()) return items
-    const q = search.toLowerCase()
-    return items.filter(
-      (row) =>
-        row.sku?.skuCode?.toLowerCase().includes(q) ||
-        row.sku?.productName?.toLowerCase().includes(q) ||
-        row.lpnCode?.toLowerCase().includes(q) ||
-        row.batchCode?.toLowerCase().includes(q) ||
-        row.binCode?.toLowerCase().includes(q)
-    )
-  }, [items, search])
+  }, [inboundRequestId, batchId, lpnId, statusFilter, tenantId, warehouseId, searchQuery])
 
   const totalQty = useMemo(
-    () => filtered.reduce((sum, row) => sum + (row.quantity ?? 0), 0),
-    [filtered]
+    () => items.reduce((sum, row) => sum + (row.quantity ?? 0), 0),
+    [items]
   )
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
+  const rangeEnd = Math.min(page * PAGE_SIZE, total)
 
   const setFilter = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams)
@@ -181,7 +181,7 @@ export function InventoryListPage({ scope }: Props) {
         )}
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <StatsCard title="Dòng tồn (trang)" value={filtered.length} icon="inventory_2" accentColor="emerald" />
+          <StatsCard title="Dòng tồn (trang)" value={items.length} icon="inventory_2" accentColor="emerald" />
           <StatsCard title="Tổng SL (trang)" value={totalQty} icon="pin" accentColor="primary" />
           <StatsCard title="Tổng bản ghi" value={total} icon="database" accentColor="emerald" />
         </div>
@@ -225,15 +225,16 @@ export function InventoryListPage({ scope }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {filtered.length === 0 && !loading ? (
+                {items.length === 0 && !loading ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
                       Chưa có tồn kho
                       {inboundRequestId ? ' cho đợt inbound này (cần putaway xong).' : '.'}
+                      {searchQuery ? ' Không khớp từ khóa tìm kiếm.' : ''}
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((row) => (
+                  items.map((row) => (
                     <tr key={row.inventoryId} className="hover:bg-white/[0.02]">
                       <td className="px-4 py-3">
                         <span className="font-mono text-cyan-400">{row.sku?.skuCode}</span>
@@ -269,12 +270,29 @@ export function InventoryListPage({ scope }: Props) {
             </table>
           </div>
 
-          {totalPages > 1 && (
-            <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
+          {total > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/5 bg-[#131b29] px-6 py-4">
+              <p className="font-mono text-xs text-slate-400">
+                Hiển thị{' '}
+                <span className="text-white">
+                  {rangeStart}–{rangeEnd}
+                </span>{' '}
+                / <span className="text-white">{total}</span> bản ghi
+                {totalPages > 1 && (
+                  <>
+                    {' '}
+                    · Trang <span className="text-white">{page}</span> / {totalPages}
+                  </>
+                )}
+              </p>
+              {totalPages > 1 && (
+                <Pagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                />
+              )}
+            </div>
           )}
         </section>
       </div>

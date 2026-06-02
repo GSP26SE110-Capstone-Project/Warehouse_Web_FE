@@ -4,6 +4,10 @@ import {
   CONTRACT_TYPE_LABELS,
   type ContractTypeValue,
 } from '../../../data/contractTypes'
+import {
+  rentalRequestStatusClass,
+  rentalRequestStatusLabel,
+} from '../../../data/rentalRequestStatus'
 import type { RentalRequestRow } from '../../../mappers'
 
 type Props = {
@@ -207,17 +211,11 @@ export const RequestDetailModal: React.FC<Props> = ({
             )}
 
             <div>
-              <label className={labelStyle}>Trạng thái API</label>
+              <label className={labelStyle}>Trạng thái</label>
               <span
-                className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ring-1 ring-inset ${
-                  data.status === 'pending'
-                    ? 'text-yellow-400 bg-yellow-400/10 ring-yellow-400/20'
-                    : data.status === 'approved'
-                      ? 'text-emerald-400 bg-emerald-400/10 ring-emerald-400/20'
-                      : 'text-red-400 bg-red-400/10 ring-red-400/20'
-                }`}
+                className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset ${rentalRequestStatusClass(data.apiStatus)}`}
               >
-                {data.apiStatus}
+                {rentalRequestStatusLabel(data.apiStatus)}
               </span>
             </div>
           </div>

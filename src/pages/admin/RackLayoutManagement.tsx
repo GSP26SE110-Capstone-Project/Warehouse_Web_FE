@@ -20,8 +20,11 @@ import {
 } from '../../components/rack/rackLayoutUtils'
 import { BulkRackModal } from '../../components/ui/modal/BulkRackModal'
 import { BulkBinModal } from '../../components/ui/modal/BulkBinModal'
+import { BulkBinDeleteModal } from '../../components/ui/modal/BulkBinDeleteModal'
 import { CinemaSeatGrid } from '../../components/rack/CinemaSeatGrid'
 import {
+  listDeletableBinsForLevel,
+  listDeletableBinsForRack,
   listEmptyBinSlotsForLevel,
   listEmptyBinSlotsForRack,
 } from '../../components/rack/binLayoutUtils'
@@ -127,6 +130,7 @@ export const RackLayoutManagement = () => {
 
   const [bulkRackModalOpen, setBulkRackModalOpen] = useState(false)
   const [bulkBinModalOpen, setBulkBinModalOpen] = useState(false)
+  const [bulkBinDeleteModalOpen, setBulkBinDeleteModalOpen] = useState(false)
   const [bulkCreating, setBulkCreating] = useState(false)
 
   const [binModal, setBinModal] = useState<{
@@ -140,7 +144,7 @@ export const RackLayoutManagement = () => {
 
   const [alert, setAlert] = useState<{
     open: boolean
-    type: 'success' | 'confirm'
+    type: 'success' | 'confirm' | 'error'
     message: string
     onConfirm?: () => void
   }>({ open: false, type: 'success', message: '' })
@@ -196,6 +200,27 @@ export const RackLayoutManagement = () => {
     }
     return map
   }, [selectedRack, levels, binsByLevel, capacity.hasArea, capacity.binsPerLevel])
+
+  const deletableBinsForRack = useMemo(() => {
+    if (!selectedRack || !levels.length) return []
+    return listDeletableBinsForRack(
+      levels.map((l) => ({ rackLevelId: l.rackLevelId, levelNumber: l.levelNumber })),
+      binsByLevel
+    )
+  }, [selectedRack, levels, binsByLevel])
+
+  const deletableBinsByLevel = useMemo(() => {
+    const map: Record<string, ReturnType<typeof listDeletableBinsForLevel>> = {}
+    for (const lv of levels) {
+      map[lv.rackLevelId] = listDeletableBinsForLevel(binsByLevel[lv.rackLevelId] ?? [])
+    }
+    return map
+  }, [levels, binsByLevel])
+
+  const totalBinCountForRack = useMemo(
+    () => Object.values(binsByLevel).reduce((sum, bins) => sum + bins.length, 0),
+    [binsByLevel]
+  )
 
   useEffect(() => {
     if (!isWhAdmin) {
@@ -455,12 +480,64 @@ export const RackLayoutManagement = () => {
       if (payload.status) body.status = payload.status
       await binsApi.updateBin(binModal.bin.binId, body)
     }
-    await loadRackDetail(selectedRack.rackId)
+    await Promise.all([loadRackDetail(selectedRack.rackId), loadRacks()])
     setAlert({
       open: true,
       type: 'success',
       message: binModal.mode === 'create' ? 'Đã tạo bin' : 'Đã lưu cấu hình bin',
     })
+  }
+
+  const requestDeleteBin = () => {
+    const bin = binModal?.bin
+    if (!bin || !selectedRack) return
+    setAlert({
+      open: true,
+      type: 'confirm',
+      message: `Xóa bin ${bin.binCode}? Chỉ xóa được bin trống (không có LPN/hàng tồn).`,
+      onConfirm: async () => {
+        try {
+          await binsApi.deleteBin(bin.binId)
+          setBinModal(null)
+          await loadRackDetail(selectedRack.rackId)
+          await loadRacks()
+          setAlert({ open: true, type: 'success', message: 'Đã xóa bin' })
+        } catch (err) {
+          setAlert({
+            open: true,
+            type: 'error',
+            message: err instanceof ApiError ? err.message : 'Không xóa được bin',
+          })
+        }
+      },
+    })
+  }
+
+  const submitBulkDeleteBins = async (bins: ApiBin[]) => {
+    if (!selectedRack) return
+    setBulkCreating(true)
+    setError('')
+    try {
+      const { meta, failed } = await binsApi.deleteBinsBulk({
+        binIds: bins.map((b) => b.binId),
+      })
+      await Promise.all([loadRackDetail(selectedRack.rackId), loadRacks()])
+      const partial =
+        (failed?.length ?? meta.failed) > 0
+          ? ` · ${failed?.length ?? meta.failed} bin bỏ qua (còn hàng/LPN)`
+          : ''
+      setAlert({
+        open: true,
+        type: 'success',
+        message: `Đã xóa ${meta.deleted} bin${partial}`,
+      })
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Xóa bin hàng loạt thất bại'
+      setError(msg)
+      throw err
+    } finally {
+      setBulkCreating(false)
+    }
   }
 
   const submitBulkBins = async (
@@ -481,7 +558,7 @@ export const RackLayoutManagement = () => {
         reservationType: 'SHARED',
         status: 'EMPTY',
       })
-      await loadRackDetail(selectedRack.rackId)
+      await Promise.all([loadRackDetail(selectedRack.rackId), loadRacks()])
       setAlert({
         open: true,
         type: 'success',
@@ -539,15 +616,44 @@ export const RackLayoutManagement = () => {
         status: payload.status,
       })
       await ensureRackLevels(rack.rackId, capacity.binsPerLevel)
-    } else if (rackModal.data) {
-      await racksApi.updateRack(rackModal.data.rackId, {
-        rackType: RACK_FIXED_TYPE,
-        maxLevels: RACK_FIXED_LEVEL_COUNT,
-        status: payload.status,
-      })
+      await loadRacks()
+      setAlert({ open: true, type: 'success', message: 'Đã lưu rack (3 tầng)' })
     }
-    await loadRacks()
-    setAlert({ open: true, type: 'success', message: 'Đã lưu rack (3 tầng)' })
+  }
+
+  const requestToggleRackLock = () => {
+    if (!selectedRack) return
+    const isBlocked = selectedRack.status === 'BLOCKED'
+    const nextStatus = isBlocked ? 'ACTIVE' : 'BLOCKED'
+    setAlert({
+      open: true,
+      type: 'confirm',
+      message: isBlocked
+        ? `Mở khóa rack ${selectedRack.rackCode}? Rack sẽ chuyển sang trạng thái hoạt động.`
+        : `Khóa rack ${selectedRack.rackCode}? Rack khóa sẽ hiển thị trên sơ đồ và không dùng cho thao tác mới.`,
+      onConfirm: async () => {
+        try {
+          await racksApi.updateRack(selectedRack.rackId, {
+            rackType: RACK_FIXED_TYPE,
+            maxLevels: RACK_FIXED_LEVEL_COUNT,
+            status: nextStatus,
+          })
+          await loadRacks()
+          setAlert({
+            open: true,
+            type: 'success',
+            message: isBlocked ? 'Đã mở khóa rack' : 'Đã khóa rack',
+          })
+        } catch (err) {
+          setAlert({
+            open: true,
+            type: 'error',
+            message:
+              err instanceof ApiError ? err.message : 'Không cập nhật được trạng thái rack',
+          })
+        }
+      },
+    })
   }
 
   const zoneScreenLabel = activeZone
@@ -562,7 +668,7 @@ export const RackLayoutManagement = () => {
         show={(loading && !racks.length) || bulkCreating}
         text={
           bulkCreating
-            ? 'Đang tạo hàng loạt…'
+            ? 'Đang xử lý hàng loạt…'
             : 'Đang tải sơ đồ rack…'
         }
       />
@@ -717,22 +823,49 @@ export const RackLayoutManagement = () => {
                   Tạo bin hàng loạt
                 </button>
               )}
+              {totalBinCountForRack > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setBulkBinDeleteModalOpen(true)}
+                  disabled={deletableBinsForRack.length === 0}
+                  title={
+                    deletableBinsForRack.length === 0
+                      ? 'Không có bin trống — cần dời hết LPN/hàng trước'
+                      : `Xóa tối đa ${deletableBinsForRack.length} bin trống`
+                  }
+                  className="flex items-center gap-1 rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-1.5 text-xs font-bold text-red-300 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <span className="material-symbols-outlined text-base">delete_sweep</span>
+                  Xóa bin hàng loạt
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() =>
-                  setRackModal({ open: true, mode: 'edit', data: selectedRack })
+                title={
+                  selectedRack.status === 'BLOCKED'
+                    ? `Mở khóa rack ${selectedRack.rackCode}`
+                    : `Khóa rack ${selectedRack.rackCode} (chỉ đổi trạng thái)`
                 }
-                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5"
+                onClick={requestToggleRackLock}
+                className={`flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-bold ${
+                  selectedRack.status === 'BLOCKED'
+                    ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
+                    : 'border-amber-400/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+                }`}
               >
-                Sửa rack
+                <span className="material-symbols-outlined text-base">
+                  {selectedRack.status === 'BLOCKED' ? 'lock_open' : 'lock'}
+                </span>
+                {selectedRack.status === 'BLOCKED' ? 'Mở khóa rack' : 'Khóa rack'}
               </button>
               <button
                 type="button"
+                title={`Xóa rack ${selectedRack.rackCode} và toàn bộ tầng/bin bên trong`}
                 onClick={() =>
                   setAlert({
                     open: true,
                     type: 'confirm',
-                    message: `Xóa rack ${selectedRack.rackCode}?`,
+                    message: `Xóa rack ${selectedRack.rackCode}? Toàn bộ tầng và bin thuộc rack sẽ bị xóa.`,
                     onConfirm: async () => {
                       await racksApi.deleteRack(selectedRack.rackId)
                       setSelectedRackId(null)
@@ -741,9 +874,10 @@ export const RackLayoutManagement = () => {
                     },
                   })
                 }
-                className="rounded-lg border border-red-500/30 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10"
+                className="flex items-center gap-1 rounded-lg border border-red-500/30 px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/10"
               >
-                Xóa
+                <span className="material-symbols-outlined text-base">shelves</span>
+                Xóa rack
               </button>
             </div>
           </div>
@@ -796,6 +930,7 @@ export const RackLayoutManagement = () => {
           data={binModal.bin}
           onClose={() => setBinModal(null)}
           onSubmit={submitBin}
+          onDelete={binModal.mode === 'edit' ? requestDeleteBin : undefined}
         />
       )}
 
@@ -833,6 +968,21 @@ export const RackLayoutManagement = () => {
           binsPerLevel={capacity.binsPerLevel}
           onClose={() => setBulkBinModalOpen(false)}
           onSubmit={submitBulkBins}
+        />
+      )}
+
+      {bulkBinDeleteModalOpen && selectedRack && (
+        <BulkBinDeleteModal
+          rackCode={selectedRack.rackCode}
+          levels={levels.map((l) => ({
+            rackLevelId: l.rackLevelId,
+            levelNumber: l.levelNumber,
+          }))}
+          allDeletableBins={deletableBinsForRack}
+          deletableByLevel={deletableBinsByLevel}
+          totalBinCount={totalBinCountForRack}
+          onClose={() => setBulkBinDeleteModalOpen(false)}
+          onSubmit={submitBulkDeleteBins}
         />
       )}
 

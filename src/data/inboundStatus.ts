@@ -26,3 +26,12 @@ export const BOX_TYPE_OPTIONS = [
   { value: 'LARGE', label: 'Large (4 units)', volumeUnits: 4 },
   { value: 'EXTRA', label: 'Extra (8 units)', volumeUnits: 8 },
 ] as const
+
+export type BoxTypeOption = (typeof BOX_TYPE_OPTIONS)[number]
+
+export function filterBoxTypeOptionsForMax(maxBoxType: string) {
+  const maxVol =
+    BOX_TYPE_OPTIONS.find((o) => o.value === maxBoxType)?.volumeUnits ??
+    BOX_TYPE_OPTIONS[BOX_TYPE_OPTIONS.length - 1].volumeUnits
+  return BOX_TYPE_OPTIONS.filter((o) => o.volumeUnits <= maxVol)
+}

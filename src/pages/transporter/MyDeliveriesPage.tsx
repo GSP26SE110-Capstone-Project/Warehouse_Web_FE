@@ -72,6 +72,11 @@ export function MyDeliveriesPage() {
                     </span>
                   )}
                 </p>
+                {row.delivery?.pickupAddress && (
+                  <p className="mt-1 text-xs text-emerald-300/90">
+                    Lấy hàng: {row.delivery.pickupAddress}
+                  </p>
+                )}
               </div>
               <InboundStatusBadge status={row.status} />
             </div>
