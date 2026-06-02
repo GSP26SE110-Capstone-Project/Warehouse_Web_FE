@@ -52,44 +52,46 @@ export const SeasonModal: React.FC<Props> = ({
         onClose()
     }
 
-
-    const labelStyle = 'text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5 block'
-    const inputStyle = 'w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20 transition-all disabled:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed'
+    // Các biến style cho Dark Mode
+    const labelStyle = 'text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 block'
+    const inputStyle = 'w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20 transition-all disabled:bg-slate-950 disabled:opacity-40 disabled:cursor-not-allowed'
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+            {/* Backdrop phủ mờ */}
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-            <div className="relative z-10 w-full max-w-2xl max-h-[80vh] overflow-hidden rounded-xl border border-slate-100 bg-white shadow-xl flex flex-col">
+            {/* Modal Container */}
+            <div className="relative z-10 w-full max-w-2xl max-h-[80vh] overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-2xl flex flex-col text-slate-200">
 
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/50">
                     <div>
-                        <h2 className="text-lg font-bold text-slate-950 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-cyan-600">
+                        <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-cyan-500 text-xl">
                                 {isCreate ? 'add_box' : isView ? 'info' : 'edit'}
                             </span>
-                            {isCreate ? 'Tạo sản phẩm mới' : isView ? 'Chi tiết sản phẩm' : 'Cập nhật sản phẩm'}
+                            {isCreate ? 'Tạo mùa mới' : isView ? 'Chi tiết mùa vụ' : 'Cập nhật mùa vụ'}
                         </h2>
                     </div>
-                    <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors">
-                        <span className="material-symbols-outlined">close</span>
+                    <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors">
+                        <span className="material-symbols-outlined text-xl">close</span>
                     </button>
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white">
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-900">
 
                     {/* Section: Thông tin cơ bản */}
-                    <div className="p-5 rounded-xl bg-slate-50 border border-slate-100 space-y-4">
-                        <h3 className="text-[10px] font-black text-cyan-700 tracking-[2px]">THÔNG TIN CƠ BẢN</h3>
+                    <div className="p-5 rounded-xl bg-slate-950/40 border border-slate-800/60 space-y-4">
+                        <h3 className="text-[10px] font-black text-cyan-500 tracking-[2px]">THÔNG TIN CƠ BẢN</h3>
                         <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
                             <div>
                                 <label className={labelStyle}>Tên mùa *</label>
                                 <input
                                     disabled={isView}
                                     className={inputStyle}
-                                    placeholder="Tên mùa"
+                                    placeholder="Nhập tên mùa (Ví dụ: Mùa Xuân 2026)..."
                                     value={form.seasonName}
                                     onChange={(e) => setForm({ ...form, seasonName: e.target.value })}
                                 />
@@ -99,17 +101,17 @@ export const SeasonModal: React.FC<Props> = ({
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-end items-center gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
-                    <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+                <div className="flex justify-end items-center gap-3 px-6 py-4 border-t border-slate-800 bg-slate-900/50">
+                    <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors">
                         Hủy bỏ
                     </button>
                     {!isView && (
                         <button
                             onClick={handleSubmit}
-                            className="bg-cyan-600 hover:bg-cyan-700 px-6 py-2.5 rounded-lg text-sm font-bold text-white flex items-center gap-2 shadow-sm shadow-cyan-500/20 transition-all active:scale-95"
+                            className="bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 px-5 py-2 rounded-lg text-sm font-bold text-white flex items-center gap-2 shadow-lg shadow-cyan-950/50 transition-all active:scale-95"
                         >
                             <span className="material-symbols-outlined text-[18px]">save</span>
-                            {isCreate ? 'Tạo sản phẩm' : 'Lưu thay đổi'}
+                            {isCreate ? 'Tạo mùa vụ' : 'Lưu thay đổi'}
                         </button>
                     )}
                 </div>

@@ -11,7 +11,7 @@ export const AboutUs: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full bg-[#f4f6f9] text-slate-700 flex flex-col font-sans">
-       <PublicHeader mode="aboutus" showBackButton title="Hồ Sơ Năng Lực" />
+       <PublicHeader mode="aboutus" showBackButton title="về chúng tôi" />
 
       {/* THÂN TRANG TRẮNG SÁNG SẠCH SẼ */}
       <main className="flex-1 w-full max-w-5xl mx-auto px-6 py-12 space-y-12">

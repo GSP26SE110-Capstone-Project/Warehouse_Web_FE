@@ -1,4 +1,5 @@
 export type TenantStatus = 'ACTIVE' | 'SUSPENDED' ;
+
 export interface TenantCompanyResponse {
   tenantId: string;
   companyName: string;
@@ -21,11 +22,11 @@ export interface GetAllTenantsResponse {
 
 export interface TenantRequest {
   companyName: string;
-  companyCode: string;
+  companyCode?: string;
   taxCode: string;
   contactName: string;
   contactEmail: string;
   contactPhone: string;
   address: string;
-  status: TenantStatus;
+  status?: TenantStatus;
 }

@@ -103,55 +103,89 @@ export const TenantManageInbound: React.FC = () => {
         fetchInboundRequests()
     }, [tenantId])
 
-    const handleSubmitInboundRequest = async (data: InboundRequestRequest) => {
-        try {
-            setIsSubmitting(true)
+ const handleSubmitInboundRequest = async (formData: any) => {
+    try {
+        setIsSubmitting(true)
 
-            if (modalMode === 'create') {
-                const response = await inboundApi.create(data)
-                if (response.data.success) {
-                    setAlert({
-                        open: true,
-                        type: 'success',
-                        message: 'Tạo yêu cầu nhập kho thành công'
-                    })
-                    // Reload inbound requests
-                    if (tenantId) {
-                        const refreshResponse = await inboundApi.getAllInboundRequestsByTenant(tenantId)
-                        if (refreshResponse.data.success && refreshResponse.data.data) {
-                            setInboundRequests(refreshResponse.data.data)
-                        }
-                    }
-                }
-            } else if (modalMode === 'edit' && selectedRequest) {
-                const response = await inboundApi.update(selectedRequest.inboundRequestId, data)
-                if (response.data.success) {
-                    setAlert({
-                        open: true,
-                        type: 'success',
-                        message: 'Cập nhật yêu cầu nhập kho thành công'
-                    })
-                    // Reload inbound requests
-                    if (tenantId) {
-                        const refreshResponse = await inboundApi.getAllInboundRequestsByTenant(tenantId)
-                        if (refreshResponse.data.success && refreshResponse.data.data) {
-                            setInboundRequests(refreshResponse.data.data)
-                        }
-                    }
-                }
+        if (modalMode === 'create') {
+            // 1. Tách thông tin phiếu tổng quan (phiếu cha) để gửi lên trước
+            const inboundPayload = {
+                tenantId: formData.tenantId,
+                contractId: formData.contractId,
+                warehouseId: formData.warehouseId,
+                inboundCode: formData.inboundCode,
+                expectedArrivalDate: formData.expectedArrivalDate,
+                actualArrivalAt: formData.actualArrivalAt,
+                status: formData.status,
+                createdBy: formData.createdBy,
+                approvedBy: formData.approvedBy,
+                receivedBy: formData.receivedBy,
             }
-        } catch (err) {
-            console.error('Lỗi:', err)
-            setAlert({
-                open: true,
-                type: 'error',
-                message: 'Có lỗi xảy ra, vui lòng thử lại'
-            })
-        } finally {
-            setIsSubmitting(false)
-        }
-    }
 
+            // 2. Gọi API tạo phiếu tổng quan
+            const response = await inboundApi.create(inboundPayload)
+            
+            if (response.data.success && response.data.data) {
+                // Lấy ID phiếu cha từ kết quả Server trả về
+                const newInboundRequestId = response.data.data.inboundRequestId;
+                
+                // Danh sách hàng hóa tạm thời đang lưu trong formData.skus
+                const pendingSkus = formData.skus || [];
+
+                // 3. Chạy vòng lặp lưu từng mặt hàng một cách tuần tự vào DB
+                for (const item of pendingSkus) {
+                    await inboundApi.createItem({
+                        inboundRequestId: newInboundRequestId, // Truyền ID cha vừa sinh ra vào đây
+                        skuId: item.skuId,
+                        expectedQuantity: item.expectedQuantity
+                    });
+                }
+
+                // 4. Thông báo thành công và cập nhật lại danh sách hiển thị
+                setAlert({
+                    open: true,
+                    type: 'success',
+                    message: 'Tạo phiếu nhập và thêm danh sách hàng hóa thành công!'
+                })
+                
+                // Tải lại danh sách
+                if (tenantId) {
+                    const refreshResponse = await inboundApi.getAllInboundRequestsByTenant(tenantId)
+                    if (refreshResponse.data.success && refreshResponse.data.data) {
+                        setInboundRequests(refreshResponse.data.data)
+                    }
+                }
+                setShowModal(false)
+            }
+        } else if (modalMode === 'edit' && selectedRequest) {
+            // Chế độ chỉnh sửa (Edit) giữ nguyên hoặc gọi API cập nhật thông tin phiếu tổng quan
+            const response = await inboundApi.update(selectedRequest.inboundRequestId, formData)
+            if (response.data.success) {
+                setAlert({
+                    open: true,
+                    type: 'success',
+                    message: 'Cập nhật yêu cầu nhập kho thành công'
+                })
+                if (tenantId) {
+                    const refreshResponse = await inboundApi.getAllInboundRequestsByTenant(tenantId)
+                    if (refreshResponse.data.success && refreshResponse.data.data) {
+                        setInboundRequests(refreshResponse.data.data)
+                    }
+                }
+                setShowModal(false)
+            }
+        }
+    } catch (err) {
+        console.error('Lỗi quy trình lưu dữ liệu liên hoàn:', err)
+        setAlert({
+            open: true,
+            type: 'error',
+            message: 'Có lỗi xảy ra khi lưu phiếu hoặc danh sách hàng hóa. Vui lòng kiểm tra lại!'
+        })
+    } finally {
+        setIsSubmitting(false)
+    }
+}
 
     const handleDeleteInboundRequest = async (inboundRequestId: string) => {
         setAlert({

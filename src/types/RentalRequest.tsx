@@ -7,7 +7,6 @@ export interface RentalRequestRequest {
   tenantId: string,
   city: string,
   district: string,
-  requestCode: string,
   contractType: ContractType,
   pricingModel: PricingModel,
   billingCycle: string,

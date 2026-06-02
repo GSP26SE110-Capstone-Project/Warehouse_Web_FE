@@ -8,6 +8,7 @@ import { ScrollToTopButton } from './ScrollToTopButton'
 import { WarehouseStructureExplorer } from './WarehouseStructureExplorer'
 import type { ContractType } from '../../types/RentalRequest'
 import type {PricingModel} from '../../types/RentalRequest'
+import { PublicHeader } from '../../components/common/header/PublicHeader'
 
 const HERO_BG = 'https://lh3.googleusercontent.com/aida-public/AB6AXuAXarldI6DEHoSyQKxf1Ij69kQAgFbbWOCmHHQXVURcOZC0E6a1dH6LEAyfUU_oE9ExY25IE5kjckyS_qB7w--6UAG7g3dUQqV0gb1mW1sT2HqUNdDtiNFeXbe4NVBgRxHURhim9jCe7WybzvyVwHF-E6tAOpEgfWGFtE5k5hoEHHfHpfW8pHvHQU1gJX3WzbgK3uatQp5u4GQKaAq0LnqXAyCntFjWf63OpUayjGo48M9ntC8x9RLq1Hoze4o28I_jQRyG1r9Ljck'
 
@@ -257,65 +258,12 @@ export const Landing: React.FC = () => {
       className="font-['Inter',sans-serif] relative min-h-screen overflow-x-hidden"
       style={{ background: '#f8fafc', color: '#1e293b' }}
     >
-      {/* Background Decor */}
-      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-        <img className="w-full h-full object-cover opacity-5 blur-sm scale-105" src={HERO_BG} alt="" />
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-100/50 via-slate-50/30 to-[#f8fafc]" />
-      </div>
-
-      {/* Header */}
-      <header className="relative z-20 sticky top-0 border-b border-gray-200/80 backdrop-blur-md bg-white/80 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
-          <Link to="/" className="flex items-center gap-2 no-underline">
-            <img src={logo} alt="NEXSPACE" className="h-9 w-9" />
-            <span className="text-xl font-black tracking-tight text-gray-900">NEXSPACE</span>
-          </Link>
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
-            <a href="#explore" className="hover:text-[#0077b6] transition-colors no-underline">
-              Cấu trúc kho
-            </a>
-            <a href="#warehouse" className="hover:text-[#0077b6] transition-colors no-underline">
-              Kho
-            </a>
-            <a href="#zone" className="hover:text-[#0077b6] transition-colors no-underline">
-              Zone
-            </a>
-            <a href="#rack" className="hover:text-[#0077b6] transition-colors no-underline">
-              Rack
-            </a>
-            <a href="#bin" className="hover:text-[#0077b6] transition-colors no-underline">
-              Bin
-            </a>
-            <a href="#request" className="hover:text-[#0077b6] transition-colors no-underline">
-              Gửi yêu cầu
-            </a>
-            <a href="#lookup" className="hover:text-[#0077b6] transition-colors no-underline">
-              Tra cứu
-            </a>
-          </nav>
-          <Link
-            to="/login"
-            className="bg-[#0077b6] hover:bg-[#0096c7] text-white rounded-lg font-semibold py-2.5 px-5 text-sm no-underline shrink-0 shadow-sm transition-colors"
-          >
-            Đăng nhập
-          </Link>
-        </div>
-      </header>
+           <PublicHeader mode="aboutus" showBackButton title="Tham Khảo Giá Thuê" />
 
       {/* Main Content */}
       <main className="relative z-10">
         {/* Hero Section */}
-        <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-16 pb-20 text-center">
-          <p className="text-sm font-bold tracking-widest uppercase text-[#0077b6] mb-4">
-            Next-Gen Warehouse
-          </p>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-gray-900 max-w-3xl mx-auto leading-tight">
-            Giải pháp lưu trữ linh hoạt theo từng cấp độ
-          </h1>
-          <p className="mt-6 text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            Từ lưu hàng linh hoạt (kho xếp kệ giúp bạn) đến thuê khu riêng hoặc nguyên kho — bảng giá minh bạch,
-            hóa đơn theo <strong className="text-gray-900 font-semibold">tháng hoặc năm</strong>.
-          </p>
+
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
               href="#request"
@@ -338,16 +286,15 @@ export const Landing: React.FC = () => {
               Truy cập hệ thống
             </Link>
           </div>
-        </section>
 
         {/* Explorer Section */}
-        <section id="explore" className="max-w-6xl mx-auto px-4 sm:px-6 pb-20 scroll-mt-24">
+        {/* <section id="explore" className="max-w-6xl mx-auto px-4 sm:px-6 pb-20 scroll-mt-24">
           <WarehouseStructureExplorer />
-        </section>
+        </section> */}
 
         {/* Request & Lookup Section */}
         <section id="request" className="max-w-6xl mx-auto px-4 sm:px-6 pb-20 scroll-mt-24">
-          <div className="text-center mb-8">
+          <div className="text-center mb-8 mt-10">
             <p className="text-sm font-bold tracking-widest uppercase text-[#0077b6] mb-2">
               Bắt đầu thuê kho
             </p>
@@ -357,7 +304,7 @@ export const Landing: React.FC = () => {
               trạng thái bất cứ lúc nào — trước khi System Admin cấp tài khoản.
             </p>
           </div>
-          <ContractTypeGuide selected={contractType} onSelect={setContractType} />
+          {/* <ContractTypeGuide selected={contractType} onSelect={setContractType} /> */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start mt-8">
             <RentalRequestForm
               contractType={contractType}
@@ -519,11 +466,6 @@ export const Landing: React.FC = () => {
           </div>
         </section>
       </main>
-
-      {/* Footer */}
-      <footer className="relative z-10 border-t border-gray-200 bg-white py-8 text-center text-sm text-gray-500">
-        <p>© {new Date().getFullYear()} NEXSPACE — Next-Gen Warehouse Management</p>
-      </footer>
 
       <ScrollToTopButton />
     </div>

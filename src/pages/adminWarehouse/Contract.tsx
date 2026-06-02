@@ -22,7 +22,6 @@ interface TableFilters {
 }
 
 export const ManageContracts: React.FC = () => {
-  // Get warehouseId from localStorage (only for WH_ADMIN)
   const [warehouseId, setWarehouseId] = useState<string | null>(null)
   const [requests, setRequests] = useState<ContractResponse[]>([])
   const [loading, setLoading] = useState(true)
@@ -32,349 +31,388 @@ export const ManageContracts: React.FC = () => {
     search: '',
     status: 'all',
     pricingModel: 'all',
-    billingCycle: 'all'
+    billingCycle: 'all',
   })
 
   const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 5
+  const itemsPerPage = 8
 
+  const [showModal, setShowModal] = useState(false)
+  const [modalMode, setModalMode] = useState<'view' | 'edit' | 'create'>('view')
+  const [selectedContract, setSelectedContract] = useState<ContractResponse | undefined>(undefined)
 
   const [alert, setAlert] = useState<{
     open: boolean
-    type: 'success' | 'confirm' | 'error'
+    title: string
     message: string
+    type: 'success' | 'error' | 'warning'
     onConfirm?: () => void
-  }>({ open: false, type: 'success', message: '' })
+  }>({
+    open: false,
+    title: '',
+    message: '',
+    type: 'success',
+  })
 
-  const [showModal, setShowModal] = useState(false)
-  const [modalMode, setModalMode] = useState<'view' | 'edit' | 'create'>('create')
-  const [selectedContract, setSelectedContract] = useState<ContractResponse | undefined>()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const handleOpenModal = (mode: 'view' | 'edit' | 'create', contract?: ContractResponse) => {
-    setModalMode(mode)
-    setSelectedContract(contract)
-    setShowModal(true)
-  }
-
-  const handleSubmitContract = async (data: ContractRequest) => {
-    try {
-      setIsSubmitting(true)
-
-      if (modalMode === 'create') {
-        const response = await contractApi.create(data)
-        if (response.data.success) {
-          setAlert({
-            open: true,
-            type: 'success',
-            message: 'Tạo hợp đồng thành công'
-          })
-          // Reload contracts
-          if (warehouseId) {
-            const refreshResponse = await contractApi.getAllContractsByWarehouse(warehouseId)
-            if (refreshResponse.data.success && refreshResponse.data.data) {
-              setRequests(refreshResponse.data.data)
-            }
-          }
-        }
-      } else if (modalMode === 'edit' && selectedContract) {
-        const response = await contractApi.update(selectedContract.contractId, data)
-        if (response.data.success) {
-          setAlert({
-            open: true,
-            type: 'success',
-            message: 'Cập nhật hợp đồng thành công'
-          })
-          // Reload contracts
-          if (warehouseId) {
-            const refreshResponse = await contractApi.getAllContractsByWarehouse(warehouseId)
-            if (refreshResponse.data.success && refreshResponse.data.data) {
-              setRequests(refreshResponse.data.data)
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Lỗi:', err)
-      setAlert({
-        open: true,
-        type: 'error',
-        message: 'Có lỗi xảy ra, vui lòng thử lại'
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleDeleteContract = async (contractId: string) => {
-    setAlert({
-      open: true,
-      type: 'confirm',
-      message: 'Bạn có chắc muốn xóa hợp đồng này?',
-      onConfirm: async () => {
-        try {
-          const response = await contractApi.delete(contractId)
-          if (response.data.success) {
-            // Reload contracts
-            if (warehouseId) {
-              const refreshResponse = await contractApi.getAllContractsByWarehouse(warehouseId)
-              if (refreshResponse.data.success && refreshResponse.data.data) {
-                setRequests(refreshResponse.data.data)
-              }
-            }
-          }
-        } catch (err) {
-          console.error('Lỗi xóa:', err)
-        }
-      }
-    })
-  }
-
-  // Get warehouseId from localStorage
   useEffect(() => {
     const userString = localStorage.getItem('user')
     if (userString) {
-      try {
-        const user: User = JSON.parse(userString)
-        if (user.role === 'WH_ADMIN' && user.warehouseId) {
-          setWarehouseId(user.warehouseId)
-        } else {
-          setError('Bạn không có quyền quản lý các yêu cầu thuê này')
-          setLoading(false)
-        }
-      } catch (e) {
-        console.error('Lỗi phân tích dữ liệu user:', e)
-        setError('Lỗi xác thực người dùng')
-        setLoading(false)
+      const user: User = JSON.parse(userString)
+      if (user.role === 'WH_ADMIN' && user.warehouseId) {
+        setWarehouseId(user.warehouseId)
       }
-    } else {
-      setError('Vui lòng đăng nhập lại')
-      setLoading(false)
     }
   }, [])
 
-  // Fetch rental requests for this warehouse
-  useEffect(() => {
-    const fetchContracts = async () => {
-      if (!warehouseId) return
-
-      try {
-        setLoading(true)
-        setError(null)
-        const response = await contractApi.getAllContractsByWarehouse(warehouseId)
-        if (response.data.success && response.data.data) {
-          setRequests(response.data.data)
-        } else {
-          setError(response.data.message || 'Không thể tải dữ liệu yêu cầu')
+  const fetchContracts = async () => {
+    try {
+      setLoading(true)
+      const response = await contractApi.getAllContracts()
+      if (response.data.success && response.data.data) {
+        let data = response.data.data
+        if (warehouseId) {
+          data = data.filter((item) => item.warehouseId === warehouseId)
         }
-      } catch (err) {
-        console.error('Lỗi tải yêu cầu thuê:', err)
-        setError('Lỗi kết nối khi tải dữ liệu')
-      } finally {
-        setLoading(false)
+        setRequests(data)
+      } else {
+        setError(response.data.message || 'Không thể lấy dữ liệu hợp đồng.')
       }
+    } catch (err) {
+      console.error('Lỗi khi lấy danh sách hợp đồng:', err)
+      setError('Hệ thống gặp sự cố khi tải danh sách hợp đồng.')
+    } finally {
+      setLoading(false)
     }
+  }
 
+  useEffect(() => {
     fetchContracts()
   }, [warehouseId])
 
-  // Filter requests
-  const filteredContracts = useMemo(() => {
+  // CHỈNH SỬA CHÍNH: Tối ưu hóa chuỗi lưu liên hoàn & xử lý rollback an toàn dữ liệu
+  const handleSubmitContract = async (formData: any) => {
+    let createdContractId: string | null = null;
+    try {
+      setLoading(true)
+
+      if (modalMode === 'create') {
+        // Bước 1: Khởi tạo Hợp đồng tổng quan (Gốc)
+        const contractPayload: ContractRequest = {
+          tenantId: formData.tenantId,
+          warehouseId: formData.warehouseId,
+          contractCode: formData.contractCode,
+          contractName: formData.contractName,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          status: formData.status || 'DRAFT',
+          pricingModel: formData.pricingModel,
+          billingCycle: formData.billingCycle,
+          contractType: formData.contractType,
+          allowDynamicRelocation: formData.allowDynamicRelocation,
+          autoRenew: formData.autoRenew,
+          minimumBillingDays: formData.minimumBillingDays,
+          minimumReservedCapacity: formData.minimumReservedCapacity,
+          estimatedTotalAmount: formData.estimatedTotalAmount,
+          tenantSignature: formData.tenantSignature,
+          warehouseSignature: formData.warehouseSignature,
+          createdBy: formData.createdBy,
+          approvedBy: formData.approvedBy,
+          rentalRequestId: formData.rentalRequestId,
+        }
+
+        const contractResponse = await contractApi.create(contractPayload)
+
+        if (contractResponse.data.success && contractResponse.data.data) {
+          createdContractId = contractResponse.data.data.contractId
+
+          // Bước 2: Tạo hạng mục phụ lục (Contract Item) đính kèm mã ID vừa sinh ra
+          try {
+            const itemPayload = {
+              ...formData.contractItem,
+              contractId: createdContractId
+            }
+            await contractApi.createContractItem?.(itemPayload)
+          } catch (itemErr) {
+            throw new Error(`Lỗi khởi tạo mục phụ lục giá: ${itemErr instanceof Error ? itemErr.message : ''}`);
+          }
+
+          // Bước 3: Đặt chỗ diện tích & sơ đồ kho (Storage Reservation)
+          try {
+            const reservationPayload = {
+              ...formData.storageReservation,
+              contractId: createdContractId
+            }
+            await contractApi.createStorageReservation?.(reservationPayload)
+          } catch (reserveErr) {
+            throw new Error(`Lỗi cấu hình vị trí đặt chỗ kho: ${reserveErr instanceof Error ? reserveErr.message : ''}`);
+          }
+
+          setAlert({
+            open: true,
+            title: 'Thành công hoàn toàn',
+            message: 'Đã hoàn thành khởi tạo chuỗi đồng bộ thành công: Hợp đồng gốc, Biểu phí hạng mục và Vị trí lưu kho!',
+            type: 'success',
+          })
+          fetchContracts()
+          setShowModal(false)
+        } else {
+          throw new Error(contractResponse.data.message || 'Không thể khởi tạo hợp đồng gốc.')
+        }
+      } else if (modalMode === 'edit' && selectedContract) {
+        // Xử lý cập nhật thông tin chỉnh sửa thông thường
+        const response = await contractApi.update(selectedContract.contractId, formData)
+        if (response.data.success) {
+          setAlert({
+            open: true,
+            title: 'Thành công',
+            message: 'Cập nhật thông tin hợp đồng thành công.',
+            type: 'success',
+          })
+          fetchContracts()
+          setShowModal(false)
+        } else {
+          throw new Error(response.data.message || 'Cập nhật thất bại.')
+        }
+      }
+    } catch (err: any) {
+      console.error('Lỗi nghiêm trọng trong chuỗi lưu liên hoàn:', err)
+
+      // Kịch bản Rollback dữ liệu lỗi: Nếu đã tạo Contract thành công nhưng các bước cấu hình sau lỗi, xóa bỏ contract rác
+      if (createdContractId && modalMode === 'create') {
+        try {
+          await contractApi.delete(createdContractId);
+          console.log(`Đã thực hiện rollback xóa hợp đồng lỗi ID: ${createdContractId}`);
+        } catch (cleanupErr) {
+          console.error('Không thể dọn dẹp dữ liệu lỗi sau sự cố:', cleanupErr);
+        }
+      }
+
+      setAlert({
+        open: true,
+        title: 'Tiến trình thất bại',
+        message: err.message || 'Có sự cố phát sinh khiến dữ liệu chuỗi không được đồng bộ. Hệ thống đã tự động hủy bỏ tác vụ an toàn.',
+        type: 'error',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    setAlert({
+      open: true,
+      title: 'Xác nhận xóa',
+      message: 'Bạn có chắc chắn muốn xóa hợp đồng này? Tất cả các danh mục lưu kho liên quan sẽ bị hủy bỏ.',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          setLoading(true)
+          const response = await contractApi.delete(id)
+          if (response.data.success) {
+            setAlert({
+              open: true,
+              title: 'Thành công',
+              message: 'Đã xóa hợp đồng khỏi hệ thống thành công.',
+              type: 'success',
+            })
+            fetchContracts()
+          } else {
+            setAlert({
+              open: true,
+              title: 'Lỗi',
+              message: response.data.message || 'Không thể thực thi xóa hợp đồng.',
+              type: 'error',
+            })
+          }
+        } catch (err) {
+          console.error(err)
+          setAlert({
+            open: true,
+            title: 'Lỗi hệ thống',
+            message: 'Gặp lỗi trong quá trình thực thi xóa dữ liệu cấu trúc.',
+            type: 'error',
+          })
+        } finally {
+          setLoading(false)
+        }
+      },
+    })
+  }
+
+  const filteredRequests = useMemo(() => {
     return requests.filter((req) => {
-      const matchSearch =
-        req.contractName.toLowerCase().includes(filters.search.toLowerCase()) ||
-        req.contractCode.toLowerCase().includes(filters.search.toLowerCase())
+      const matchesSearch =
+        req.contractCode.toLowerCase().includes(filters.search.toLowerCase()) ||
+        (req.contractName && req.contractName.toLowerCase().includes(filters.search.toLowerCase()))
+      const matchesStatus = filters.status === 'all' || req.status === filters.status
+      const matchesPricing = filters.pricingModel === 'all' || req.pricingModel === filters.pricingModel
+      const matchesBilling = filters.billingCycle === 'all' || req.billingCycle === filters.billingCycle
 
-      const matchStatus = filters.status === 'all' || req.status === filters.status
-      const matchPricingModel = filters.pricingModel === 'all' || req.pricingModel === filters.pricingModel
-      const matchBillingCycle = filters.billingCycle === 'all' || req.billingCycle === filters.billingCycle
-
-      return matchSearch && matchStatus && matchPricingModel && matchBillingCycle
+      return matchesSearch && matchesStatus && matchesPricing && matchesBilling
     })
   }, [requests, filters])
 
-  // Pagination
-  const totalItems = filteredContracts.length
-  const totalPages = Math.ceil(totalItems / pageSize)
+  const totalItems = filteredRequests.length
+  const totalPages = Math.ceil(totalItems / itemsPerPage)
+  const start = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1
+  const end = Math.min(currentPage * itemsPerPage, totalItems)
 
-  const paginatedContracts = filteredContracts.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  )
+  const paginatedRequests = useMemo(() => {
+    return filteredRequests.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+  }, [filteredRequests, currentPage])
 
-  const start = (currentPage - 1) * pageSize + 1
-  const end = Math.min(currentPage * pageSize, totalItems)
-
-
-  const getStatusBadge = (status: status) => {
-    const statusMap = {
-      DRAFT: { label: 'Chờ xử lý', className: 'bg-amber-50 text-amber-600 ring-amber-500/20' },
-      PENDING_APPROVAL: { label: 'Đang xem xét', className: 'bg-blue-50 text-blue-600 ring-blue-500/20' },
-      ACTIVE: { label: 'Đã phê duyệt', className: 'bg-emerald-50 text-emerald-600 ring-emerald-500/20' },
-      EXPIRED: { label: 'Đã từ chối', className: 'bg-red-50 text-red-600 ring-red-500/20' },
-      TERMINATED: { label: 'Đã chuyển đổi', className: 'bg-purple-50 text-purple-600 ring-purple-500/20' },
-      CANCELLED: { label: 'Đã hủy', className: 'bg-slate-50 text-slate-600 ring-slate-500/20' },
+  const getStatusClass = (status: status) => {
+    switch (status) {
+      case 'ACTIVE': return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      case 'DRAFT': return 'bg-slate-100 text-slate-700 border-slate-300'
+      case 'PENDING_APPROVAL': return 'bg-amber-50 text-amber-700 border-amber-200'
+      case 'TERMINATED': return 'bg-rose-50 text-rose-700 border-rose-200'
+      case 'EXPIRED': return 'bg-amber-50 text-amber-700 border-amber-200'
+      default: return 'bg-slate-50 text-slate-700 border-slate-200'
     }
-    return statusMap[status] || statusMap.DRAFT
-  }
-
-  const getPricingModelBadge = (pricingModel: pricingModel) => {
-    const pricingModelMap = {
-      USAGE_BASED: { label: 'Dựa trên mức sử dụng', className: 'bg-blue-50 text-blue-600 ring-blue-500/20' },
-      HYBRID: { label: 'Kết hợp', className: 'bg-purple-50 text-purple-600 ring-purple-500/20' },
-      FIXED: { label: 'Giá cố định', className: 'bg-green-50 text-green-600 ring-green-500/20' },
-    }
-    return pricingModelMap[pricingModel] || pricingModelMap.FIXED
-  }
-
-  const getBillingCycleBadge = (billingCycle: billingCycle) => {
-    const billingCycleMap = {
-      MONTHLY: { label: 'Tháng', className: 'bg-blue-50 text-blue-600 ring-blue-500/20' },
-      QUARTERLY: { label: 'Quý', className: 'bg-green-50 text-green-600 ring-green-500/20' },
-      DAILY: { label: 'Ngày', className: 'bg-purple-50 text-purple-600 ring-purple-500/20' },
-    }
-    return billingCycleMap[billingCycle] || billingCycleMap.MONTHLY
-
-  }
-
-  if (loading && !warehouseId) {
-    return <LoadingOverlay show />
-  }
-
-  if (error && !warehouseId) {
-    return (
-      <div className="p-8 bg-slate-50 min-h-screen">
-        <div className="max-w-[1200px] mx-auto">
-          <div className="p-6 rounded-2xl bg-red-50 border border-red-200 shadow-sm">
-            <p className="text-red-600 text-center font-medium">{error}</p>
-          </div>
-        </div>
-      </div>
-    )
   }
 
   return (
-    <div className="overflow-y-auto overflow-x-hidden p-6 md:p-8 bg-slate-50 min-h-screen text-slate-800">
-      <div className="max-w-[1400px] mx-auto flex flex-col gap-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-1">Quản lý Hợp đồng</h1>
-            <p className="text-slate-500 text-sm">Xem xét và phê duyệt các hợp đồng</p>
-          </div>
-          <button
-            onClick={() => handleOpenModal('create')}
-            className="px-4 py-2 bg-cyan-500 text-white rounded-lg font-bold hover:bg-cyan-600 transition-all flex items-center gap-2"
-          >
-            <span className="material-symbols-outlined">add</span>
-            Tạo hợp đồng
-          </button>
+    <div className="p-6 space-y-6 max-w-[1600px] mx-auto min-h-screen bg-slate-50/50">
+      <LoadingOverlay show={loading} text="ĐANG XỬ LÝ CHUỖI HỢP ĐỒNG..." />
+
+      {/* Giao diện Header Điều hướng */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Quản lý Hợp đồng kho</h1>
+          <p className="text-sm text-slate-500">Thiết lập cấu trúc liên hoàn: Hợp đồng gốc → Biểu phí lưu trữ → Giữ chỗ không gian kho bãi.</p>
+        </div>
+        <button
+          onClick={() => {
+            setModalMode('create')
+            setSelectedContract(undefined)
+            setShowModal(true)
+          }}
+          className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 shadow-sm transition-colors self-start md:self-auto"
+        >
+          <span className="material-symbols-outlined text-[20px]">add</span>
+          Tạo chuỗi hợp đồng mới
+        </button>
+      </div>
+
+      {/* Thanh bộ lọc dữ liệu đồng bộ chuẩn API Enum */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Tìm mã hoặc tên hợp đồng..."
+            className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-cyan-500 transition-colors"
+            value={filters.search}
+            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+          />
+          <span className="material-symbols-outlined absolute left-2.5 top-2.5 text-slate-400 text-[18px]">search</span>
         </div>
 
-        {/* Filters */}
-        <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
-              <input
-                type="text"
-                placeholder="Tìm kiếm theo tên công ty, mã, hoặc liên hệ..."
-                value={filters.search}
-                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-cyan-500 transition-all text-sm"
-              />
-            </div>
+        <select
+          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 transition-colors"
+          value={filters.status}
+          onChange={(e) => setFilters({ ...filters, status: e.target.value as status | 'all' })}
+        >
+          <option value="all">Tất cả trạng thái</option>
+          <option value="DRAFT">DRAFT (Bản nháp)</option>
+          <option value="PENDING_APPROVAL">PENDING APPROVAL (Chờ duyệt)</option>
+          <option value="ACTIVE">ACTIVE (Đang hoạt động)</option>
+          <option value="EXPIRED">EXPIRED (Hết hạn)</option>
+          <option value="TERMINATED">TERMINATED (Đã hủy/chấm dứt)</option>
+        </select>
 
-            <select
-              value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value as status | 'all' })}
-              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:bg-white focus:border-cyan-500 transition-all text-sm"
-            >
-              <option value="all">Tất cả trạng thái</option>
-              <option value="DRAFT">Chờ xử lý</option>
-              <option value="PENDING_APPROVAL">Đang xem xét</option>
-              <option value="ACTIVE">Đã phê duyệt</option>
-              <option value="EXPIRED">Đã từ chối</option>
-              <option value="TERMINATED">Đã chuyển đổi</option>
-              <option value="CANCELLED">Đã hủy</option>
-            </select>
+        <select
+          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 transition-colors"
+          value={filters.pricingModel}
+          onChange={(e) => setFilters({ ...filters, pricingModel: e.target.value as pricingModel | 'all' })}
+        >
+          <option value="all">Tất cả mô hình giá</option>
+          <option value="USAGE_BASED">USAGE_BASED (Theo lượng sử dụng)</option>
+          <option value="FIXED_RATE">FIXED_RATE (Thuê bao cố định)</option>
+          <option value="TIERED">TIERED (Bậc thang phân cấp)</option>
+        </select>
 
-            <select
-              value={filters.pricingModel}
-              onChange={(e) => setFilters({ ...filters, pricingModel: e.target.value as pricingModel | 'all' })}
-              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:bg-white focus:border-cyan-500 transition-all text-sm"
-            >
-              <option value="all">Tất cả mô hình định giá</option>
-              <option value="USAGE_BASED">Dựa trên sử dụng</option>
-              <option value="HYBRID">Kết hợp</option>
-              <option value="FIXED">Cố định</option>
-            </select>
-          </div>
-        </div>
+        <select
+          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 transition-colors"
+          value={filters.billingCycle}
+          onChange={(e) => setFilters({ ...filters, billingCycle: e.target.value as billingCycle | 'all' })}
+        >
+          <option value="all">Tất cả chu kỳ thanh toán</option>
+          <option value="DAILY">DAILY (Theo ngày)</option>
+          <option value="WEEKLY">WEEKLY (Hàng tuần)</option>
+          <option value="MONTHLY">MONTHLY (Hàng tháng)</option>
+          <option value="YEARLY">YEARLY (Hàng năm)</option>
+        </select>
+      </div>
 
-        {/* Table */}
-        {loading ? (
-          <LoadingOverlay show={loading} />
-        ) : filteredContracts.length === 0 ? (
-          <div className="p-12 rounded-xl bg-white border border-slate-200 text-center shadow-sm">
-            <span className="material-symbols-outlined text-5xl text-slate-300 mb-3 block">inbox</span>
-            <p className="text-slate-500 text-base font-medium">Không có hợp đồng nào</p>
-          </div>
+      {/* Danh sách dữ liệu */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        {error ? (
+          <div className="p-8 text-center text-rose-600 font-medium">{error}</div>
+        ) : filteredRequests.length === 0 ? (
+          <div className="p-8 text-center text-slate-400">Không tìm thấy dữ liệu chuỗi hợp đồng thích hợp.</div>
         ) : (
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+          <div>
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Mã hợp đồng</th>
-                    <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Mô hình định giá</th>
-                    <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Chu kỳ thanh toán</th>
-                    <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Trạng thái</th>
-                    <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Bắt đầu - Kết thúc</th>
-                    <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Hành động</th>
+                  <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-600 text-xs font-bold uppercase tracking-wider">
+                    <th className="px-6 py-3.5">Mã hợp đồng</th>
+                    <th className="px-6 py-3.5">Tên hợp đồng</th>
+                    <th className="px-6 py-3.5">Mô hình tính giá</th>
+                    <th className="px-6 py-3.5">Thời hạn hiệu lực</th>
+                    <th className="px-6 py-3.5">Trạng thái</th>
+                    <th className="px-6 py-3.5 text-right">Hành động</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {paginatedContracts.map((contract) => (
-                    <tr key={contract.contractId} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="px-6 py-4 text-sm text-slate-900 font-mono font-medium">{contract.contractCode}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600 font-medium">
-                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ring-inset ${getBillingCycleBadge(contract.billingCycle).className}`}>
-                          {getBillingCycleBadge(contract.billingCycle).label}
+                <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
+                  {paginatedRequests.map((req) => (
+                    <tr key={req.contractId} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4 font-semibold text-slate-900">{req.contractCode}</td>
+                      <td className="px-6 py-4 max-w-[250px] truncate">{req.contractName || '---'}</td>
+                      <td className="px-6 py-4">
+                        <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-mono">
+                          {req.pricingModel}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600 font-medium">
-                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ring-inset ${getPricingModelBadge(contract.pricingModel).className}`}>
-                          {getPricingModelBadge(contract.pricingModel).label}
+                      <td className="px-6 py-4 text-slate-500">
+                        {new Date(req.startDate).toLocaleDateString('vi-VN')} - {new Date(req.endDate).toLocaleDateString('vi-VN')}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusClass(req.status)}`}>
+                          {req.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm">
-                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ring-inset ${getStatusBadge(contract.status).className}`}>
-                          {getStatusBadge(contract.status).label}
-                        </span>
-                      </td>
-                      <td className="text-center px-6 py-4 text-sm text-slate-800">
-                        {new Date(contract.startDate).toLocaleDateString('vi-VN')} - {new Date(contract.endDate).toLocaleDateString('vi-VN')}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <div className="flex gap-2">
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-1">
                           <button
-                            onClick={() => handleOpenModal('view', contract)}
-                            className="px-3 py-1.5 bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold hover:bg-blue-200 transition-all"
+                            onClick={() => {
+                              setSelectedContract(req)
+                              setModalMode('view')
+                              setShowModal(true)
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-cyan-600 rounded-md hover:bg-slate-100 transition-colors"
+                            title="Xem chi tiết toàn bộ chuỗi"
                           >
-                            <span className="material-symbols-outlined ">visibility</span>
+                            <span className="material-symbols-outlined text-[18px]">visibility</span>
                           </button>
                           <button
-                            onClick={() => handleOpenModal('edit', contract)}
-                            className="px-3 py-1.5 bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold hover:bg-amber-200 transition-all"
+                            onClick={() => {
+                              setSelectedContract(req)
+                              setModalMode('edit')
+                              setShowModal(true)
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-amber-600 rounded-md hover:bg-slate-100 transition-colors"
+                            title="Sửa thông tin hợp đồng"
                           >
-                            <span className="material-symbols-outlined ">edit</span>
+                            <span className="material-symbols-outlined text-[18px]">edit</span>
                           </button>
                           <button
-                            onClick={() => handleDeleteContract(contract.contractId)}
-                            className="px-3 py-1.5 bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-200 transition-all"
+                            onClick={() => handleDelete(req.contractId)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 rounded-md hover:bg-slate-100 transition-colors"
+                            title="Xóa bỏ mục này"
                           >
-                            <span className="material-symbols-outlined ">delete</span>
+                            <span className="material-symbols-outlined text-[18px]">delete</span>
                           </button>
                         </div>
                       </td>
@@ -383,25 +421,20 @@ export const ManageContracts: React.FC = () => {
                 </tbody>
               </table>
             </div>
-            <div className="flex items-center justify-between border-t border-white/5 bg-white px-6 py-2">
-              <p className="font-medium text-sm text-slate-500">
-                Hiển thị <span className="text-slate-500">{start}-{end}</span> trong{' '}
-                <span className="text-slate-500">{totalItems}</span> yêu cầu
-              </p>
 
-              <WPagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
+            {/* Điều hướng phân trang */}
+            <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-3">
+              <p className="text-sm text-slate-500">
+                Hiển thị <span className="font-semibold text-slate-700">{start}-{end}</span> trong tổng số{' '}
+                <span className="font-semibold text-slate-700">{totalItems}</span> chuỗi hợp đồng hệ thống
+              </p>
+              <WPagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
             </div>
           </div>
         )}
-
-
       </div>
 
-
+      {/* Gọi hiển thị Modal quản trị viên liên hoàn */}
       {showModal && (
         <ContractModal
           mode={modalMode}
@@ -413,9 +446,11 @@ export const ManageContracts: React.FC = () => {
           onSubmit={handleSubmitContract}
         />
       )}
+
+      {/* Quản lý thông báo hệ thống */}
       {alert.open && (
         <AlertModal
-          title="Thông báo"
+          title={alert.title || 'Thông báo trạng thái'}
           message={alert.message}
           type={alert.type}
           onConfirm={alert.onConfirm}

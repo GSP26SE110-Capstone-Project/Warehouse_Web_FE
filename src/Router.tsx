@@ -40,7 +40,8 @@ import { TenantManageInbound } from './pages/adminTenant/ManageInbound'
 import { TenantManageOutbound } from './pages/adminTenant/ManageOutbound'
 import { ManageContract } from './pages/adminTenant/ManageContract'
 import { Rental } from './pages/public/Rental'
-import {Landing} from './pages/public/RequestRental'
+// import {Landing} from './pages/public/RequestRental'
+import { ManageProduct } from './pages/admin/ManageProduct'
 
 export const Router: React.FC = () => {
     return (
@@ -55,7 +56,7 @@ export const Router: React.FC = () => {
                     <Route path="/home" element={<HomePage />} />
                     <Route path="/about-us" element={<AboutUs />} />
                     <Route path="/warehouses" element={<Rental />} />
-                    <Route path="/rentalRequest" element={<Landing />} />
+                    {/* <Route path="/rentalRequest" element={<Landing />} /> */}
 
 
 
@@ -77,6 +78,7 @@ export const Router: React.FC = () => {
                         <Route path='/admin-system/settings' element={<AdminSettings />} />
                         <Route path='/admin-system/requests' element={<RequestManagement />} />
                         <Route path='/admin-system/tenants' element={<TenantCompany />} />
+                        <Route path='/admin-system/manageProduct' element={<ManageProduct />} />
                     </Route>
 
                     {/* ==================Admin Warehouse Routes with Layout=============== */}

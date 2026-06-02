@@ -1,5 +1,29 @@
 export type Status = 'DRAFT' | 'PENDING' | 'APPROVED' | 'ARRIVED' | 'RECEIVED' | 'COMPLETED' | 'CANCELED';
 
+export interface InboundRequestDetailRequest {
+    inboundRequestId: string;
+    skuId: string;
+    expectedQuantity: number;
+}
+
+export interface InboundRequestDetailResponse {
+    inboundRequestItemId: string,
+    inboundRequestId: string,
+    skuId: string,
+    expectedQuantity: number,
+    receivedQuantity: number,
+    discrepancyQuantity: number,
+    createdAt: string,
+    sku: {
+        skuId: string,
+        skuCode: string,
+        productName: string,
+        color: string,
+        size: string
+    }
+
+}
+
 export interface InboundRequestRequest {
     tenantId: string;
     contractId: string;
@@ -40,3 +64,8 @@ export interface GetAllInboundRequestsResponse {
         totalPages: number;
     };
 }
+
+
+
+
+

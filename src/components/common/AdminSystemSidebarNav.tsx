@@ -16,6 +16,8 @@ const navItems: NavItem[] = [
   { label: 'Quản lý Tài khoản', icon: 'people', key: 'accounts', href: '/admin-system/accounts' },
   { label: 'Quản lý Kho', icon: 'warehouse', key: 'warehouse', href: '/admin-system/warehouse' },
   { label: 'Quản lý Công ty', icon: 'apartment', key: 'tenants', href: '/admin-system/tenants' },
+    { label: 'Quản lý Sản phẩm', icon: 'inventory', key: 'manageProduct', href: '/admin-system/manageProduct' },
+
 ]
 
 type BottomAction = {

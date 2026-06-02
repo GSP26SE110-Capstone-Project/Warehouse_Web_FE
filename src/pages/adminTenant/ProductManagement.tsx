@@ -1,11 +1,10 @@
 import { useState } from 'react'
 
 import { Sku } from './Sku'
-import { Season } from './SeasonCategory'
 import { Collections } from './Collections'
 
 
-type Tab = 'sku' | 'seasons & categories' | 'collections' 
+type Tab = 'sku' | 'seasons & categories' | 'collections'
 
 export const ProductManagement = () => {
   const [activeTab, setActiveTab] = useState<Tab>('sku')
@@ -24,24 +23,15 @@ export const ProductManagement = () => {
               <button
                 onClick={() => setActiveTab('sku')}
                 className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${activeTab === 'sku'
-                  ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/20' 
-                  : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900' 
+                  ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/20'
+                  : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
               >
                 SKU
               </button>
 
-              <button
-                onClick={() => setActiveTab('seasons & categories')}
-                className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${activeTab === 'seasons & categories'
-                  ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/20'
-                  : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                  }`}
-              >
-                Mùa thời trang & Danh mục
-              </button>
 
-               <button
+              <button
                 onClick={() => setActiveTab('collections')}
                 className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${activeTab === 'collections'
                   ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/20'
@@ -58,15 +48,11 @@ export const ProductManagement = () => {
                 <Sku />
               )}
 
-               {activeTab === 'seasons & categories' && (
-                <Season />
-              )}
-
               {activeTab === 'collections' && (
                 <Collections />
               )}
 
-              
+
             </section>
           </div>
         </div>

@@ -91,7 +91,7 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
                         <nav className="hidden md:flex items-center gap-6 text-xs font-bold uppercase tracking-wider">
 
                              <Link to="/rentalRequest" className="text-slate-600 hover:text-cyan-600 transition-colors">
-                                Kho hàng
+                                Tham khảo giá thuê
                             </Link>
 
                             <Link to="/warehouses" className="text-slate-600 hover:text-cyan-600 transition-colors">
@@ -149,11 +149,7 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
                         </nav>
                     )}
 
-                    {mode === 'aboutus' && (
-                        <span className="text-xs px-2.5 py-0.5 bg-orange-50 border border-orange-200 text-orange-700 font-mono rounded-md font-bold">
-                            INFO v2.0
-                        </span>
-                    )}
+
 
                     {mode === 'login' && (
                         <Link to="/" className="text-xs px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors">
