@@ -69,6 +69,13 @@ const navItems: NavItem[] = [
     roles: ['WH_ADMIN'],
   },
   {
+    label: 'AI Putaway',
+    icon: 'psychology',
+    key: 'ai-putaway',
+    href: '/admin/ai-putaway',
+    roles: ['WH_ADMIN'],
+  },
+  {
     label: 'Xuất kho',
     icon: 'outbound',
     key: 'outbound',

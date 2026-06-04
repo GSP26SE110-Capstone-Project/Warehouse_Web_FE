@@ -6,6 +6,7 @@ import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { InboundApprovalPanel } from '../../components/inbound/InboundApprovalPanel'
 import { InboundStatusBadge } from '../../components/inbound/InboundStatusBadge'
 import { PutawayBinPicker } from '../../components/inbound/PutawayBinPicker'
+import { AiPutawayPanel } from '../../components/ai/AiPutawayPanel'
 import { InboundLpnReceivingSection } from '../../components/inbound/InboundLpnReceivingSection'
 import {
   InboundDeliveryForm,
@@ -84,6 +85,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   const [detailSkuId, setDetailSkuId] = useState('')
   const [detailQty, setDetailQty] = useState(1)
   const [putawayBinId, setPutawayBinId] = useState('')
+  const [aiRecommendationId, setAiRecommendationId] = useState<string | undefined>()
 
   const [receivedDraft, setReceivedDraft] = useState<Record<string, number>>({})
   const [receivingDirty, setReceivingDirty] = useState(false)
@@ -557,6 +559,16 @@ export function InboundDetailPage({ mode, basePath }: Props) {
     return selected?.boxType ?? boxType
   }, [lpns, selectedLpnId, boxType])
 
+  const selectedLpnHasDetails = useMemo(
+    () => Boolean(selectedLpnId && lpnDetails.some((d) => d.lpnId === selectedLpnId)),
+    [selectedLpnId, lpnDetails]
+  )
+
+  const selectedLpnCode = useMemo(
+    () => lpns.find((l) => l.lpnId === selectedLpnId)?.lpnCode,
+    [lpns, selectedLpnId]
+  )
+
   const handlePutaway = () =>
     runAction(async () => {
       if (!selectedLpnId || !putawayBinId.trim()) {
@@ -564,9 +576,11 @@ export function InboundDetailPage({ mode, basePath }: Props) {
       }
       await lpnsApi.putawayLpn(selectedLpnId, {
         binId: putawayBinId.trim(),
+        recommendationId: aiRecommendationId,
         movedBy: user?.userId,
       })
       setPutawayBinId('')
+      setAiRecommendationId(undefined)
     }, 'Putaway thành công')
 
   const handleCompleteReceiving = () =>
@@ -1138,19 +1152,37 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                   detailQty={detailQty}
                   onDetailQtyChange={setDetailQty}
                   selectedLpnId={selectedLpnId}
-                  onSelectedLpnIdChange={setSelectedLpnId}
+                  onSelectedLpnIdChange={(id) => {
+                    setSelectedLpnId(id)
+                    setPutawayBinId('')
+                    setAiRecommendationId(undefined)
+                  }}
                   onCreateNextLpn={handleCreateNextLpn}
                   onFillSkuLpns={handleFillSkuLpns}
                   onAddLpnDetail={handleAddLpnDetail}
                   putawaySlot={
                     <>
+                      <AiPutawayPanel
+                        lpnId={selectedLpnId}
+                        lpnCode={selectedLpnCode}
+                        warehouseId={inbound.warehouseId}
+                        inboundRequestId={inbound.inboundRequestId}
+                        hasLpnDetails={selectedLpnHasDetails}
+                        onSelectRecommendedBin={(binId, recommendationId) => {
+                          setPutawayBinId(binId)
+                          setAiRecommendationId(recommendationId)
+                        }}
+                      />
                       <PutawayBinPicker
                         warehouseId={inbound.warehouseId}
                         contractId={inbound.contractId}
                         inboundRequestId={inbound.inboundRequestId}
                         movedBy={user?.userId}
                         value={putawayBinId}
-                        onChange={setPutawayBinId}
+                        onChange={(binId) => {
+                          setPutawayBinId(binId)
+                          setAiRecommendationId(undefined)
+                        }}
                         pendingPutawayCount={pendingPutawayCount}
                         boxType={putawayBoxType}
                         onBulkPutawayDone={(result) => {

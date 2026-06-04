@@ -30,6 +30,7 @@ import { InboundListPage } from './pages/inbound/InboundListPage'
 import { InboundCreatePage } from './pages/inbound/InboundCreatePage'
 import { InboundDetailPage } from './pages/inbound/InboundDetailPage'
 import { BatchManagementPage } from './pages/batch/BatchManagementPage'
+import { AiSlotAssistPage } from './pages/ai/AiSlotAssistPage'
 import { InventoryListPage } from './pages/inventory/InventoryListPage'
 import { TenantContractsPage } from './pages/staff/TenantContractsPage'
 import { ContractPaymentReturnPage } from './pages/staff/ContractPaymentReturnPage'
@@ -113,6 +114,10 @@ export const Router: React.FC = () => {
                   />
                 }
               />
+              <Route
+                path="/admin/ai-putaway"
+                element={<AiSlotAssistPage inboundBasePath="/admin/inbound" />}
+              />
             </Route>
           </Route>
 
@@ -193,6 +198,10 @@ export const Router: React.FC = () => {
               <Route
                 path="/staff/inbound-ops/:inboundRequestId"
                 element={<InboundDetailPage mode="warehouse" basePath="/staff/inbound-ops" />}
+              />
+              <Route
+                path="/staff/ai-putaway"
+                element={<AiSlotAssistPage inboundBasePath="/staff/inbound-ops" />}
               />
               <Route path="/staff/inventory" element={<InventoryListPage scope="tenant" />} />
               <Route
