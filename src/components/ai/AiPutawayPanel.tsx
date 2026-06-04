@@ -102,10 +102,17 @@ export function AiPutawayPanel({
     try {
       const result = await aiApi.explainSlotRecommendation({
         llmProvider: provider,
-        lpnId,
-        warehouseId,
-        inboundRequestId,
-        slot: preview,
+        slot: {
+          lpnCode: preview.lpnCode,
+          binCode: preview.binCode,
+          zoneCode: preview.zoneCode,
+          rackCode: preview.rackCode,
+          levelNumber: preview.levelNumber,
+          score: preview.score,
+          reasons: preview.reasons,
+          modelVersion: preview.modelVersion,
+          suggestedRackType: preview.suggestedRackType,
+        },
       })
       setExplanation(result.explanation ?? '')
       setExplainModel(result.llmModel ?? '')
