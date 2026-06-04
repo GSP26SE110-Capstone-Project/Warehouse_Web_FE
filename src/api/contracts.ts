@@ -68,6 +68,19 @@ export function createContractInvoicePayOSLink(
   )
 }
 
+/** Sau redirect PayOS — đồng bộ trạng thái nếu webhook chưa tới. */
+export function syncContractInvoicePayOSPayment(contractId: string, invoiceId: string) {
+  return apiRequest<{
+    synced: boolean
+    alreadyPaid?: boolean
+    payosStatus?: string
+    orderCode?: number
+    message?: string
+    invoice?: ApiContractInvoice
+    contract?: ApiContract
+  }>(`/contracts/${contractId}/invoices/${invoiceId}/payos/sync`, { method: 'POST' })
+}
+
 /** Chỉ dùng khi test / WH xác nhận thủ công — production dùng PayOS webhook. */
 export function markContractInvoicePaid(contractId: string, invoiceId: string) {
   return apiRequest<{ invoice: ApiContractInvoice; contract: ApiContract }>(
