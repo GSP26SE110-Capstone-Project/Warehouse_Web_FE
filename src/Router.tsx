@@ -29,6 +29,7 @@ import { TenantProductManagement } from './pages/staff/TenantProductManagement'
 import { InboundListPage } from './pages/inbound/InboundListPage'
 import { InboundCreatePage } from './pages/inbound/InboundCreatePage'
 import { InboundDetailPage } from './pages/inbound/InboundDetailPage'
+import { BatchManagementPage } from './pages/batch/BatchManagementPage'
 import { InventoryListPage } from './pages/inventory/InventoryListPage'
 import { TenantContractsPage } from './pages/staff/TenantContractsPage'
 import { ContractPaymentReturnPage } from './pages/staff/ContractPaymentReturnPage'
@@ -103,6 +104,15 @@ export const Router: React.FC = () => {
                 path="/admin/inbound/:inboundRequestId"
                 element={<InboundDetailPage mode="warehouse" basePath="/admin/inbound" />}
               />
+              <Route
+                path="/admin/batches"
+                element={
+                  <BatchManagementPage
+                    mode="warehouse"
+                    inboundBasePath="/admin/inbound"
+                  />
+                }
+              />
             </Route>
           </Route>
 
@@ -165,6 +175,17 @@ export const Router: React.FC = () => {
                 path="/staff/inbound/:inboundRequestId"
                 element={<InboundDetailPage mode="tenant" basePath="/staff/inbound" />}
               />
+              <Route element={<ProtectedRoute allowedRoles={['TENANT_ADMIN']} />}>
+                <Route
+                  path="/staff/batches"
+                  element={
+                    <BatchManagementPage
+                      mode="tenant"
+                      inboundBasePath="/staff/inbound"
+                    />
+                  }
+                />
+              </Route>
               <Route
                 path="/staff/inbound-ops"
                 element={<InboundListPage mode="warehouse" basePath="/staff/inbound-ops" />}

@@ -8,11 +8,8 @@ import { ScrollToTopButton } from '../../components/common/ScrollToTopButton'
 import { WarehouseStructureExplorer } from '../../components/public/WarehouseStructureExplorer'
 import type { ContractTypeValue } from '../../data/contractTypes'
 import {
-  BIN_PRICING,
   formatVnd,
   HANDLING_FEES,
-  RACK_LEVEL_PRICING,
-  RACK_PRICING,
   SURCHARGES,
   WAREHOUSE_PRICING,
   ZONE_PRICING,
@@ -135,12 +132,6 @@ export const Landing: React.FC = () => {
             <a href="#zone" className="hover:text-[#06edf9] transition-colors no-underline">
               Zone
             </a>
-            <a href="#rack" className="hover:text-[#06edf9] transition-colors no-underline">
-              Rack
-            </a>
-            <a href="#bin" className="hover:text-[#06edf9] transition-colors no-underline">
-              Bin
-            </a>
             <a href="#request" className="hover:text-[#06edf9] transition-colors no-underline">
               Gửi yêu cầu
             </a>
@@ -247,42 +238,6 @@ export const Landing: React.FC = () => {
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {ZONE_PRICING.map((tier) => (
-                <PricingCard key={tier.name} tier={tier} />
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <SectionHeader
-              id="rack"
-              icon="shelves"
-              title="Thuê Rack & Rack Level"
-              subtitle="Đơn giá theo rack/ngày và level/ngày — tổng phí kỳ = đơn giá × số ngày sử dụng; hóa đơn tổng hợp theo tháng/năm"
-            />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-              {RACK_PRICING.map((tier) => (
-                <PricingCard key={tier.name} tier={tier} />
-              ))}
-            </div>
-            <p className="text-sm text-[#9bb9bb] mb-4 uppercase tracking-widest font-medium">
-              Giá theo tầng kệ (Rack Level)
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {RACK_LEVEL_PRICING.map((tier) => (
-                <PricingCard key={tier.name} tier={tier} />
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <SectionHeader
-              id="bin"
-              icon="package_2"
-              title="Thuê Bin (Box)"
-              subtitle="Đơn giá theo box/ngày (BOX_DAY) — tổng phí kỳ = đơn giá × số box-day; hóa đơn tổng hợp theo tháng/năm"
-            />
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {BIN_PRICING.map((tier) => (
                 <PricingCard key={tier.name} tier={tier} />
               ))}
             </div>

@@ -62,6 +62,13 @@ const navItems: NavItem[] = [
     roles: ['WH_ADMIN'],
   },
   {
+    label: 'Quản lý Batch',
+    icon: 'qr_code_2',
+    key: 'batches',
+    href: '/admin/batches',
+    roles: ['WH_ADMIN'],
+  },
+  {
     label: 'Xuất kho',
     icon: 'outbound',
     key: 'outbound',

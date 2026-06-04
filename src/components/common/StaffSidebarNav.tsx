@@ -21,6 +21,13 @@ const TENANT_ADMIN_ACCOUNTS: NavItem = {
   href: '/staff/accounts',
 }
 
+const TENANT_ADMIN_BATCHES: NavItem = {
+  label: 'Quản lý Batch',
+  icon: 'qr_code_2',
+  key: 'batches',
+  href: '/staff/batches',
+}
+
 const TENANT_NAV: NavItem[] = [
   { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/staff/dashboard' },
   { label: 'Hợp đồng', icon: 'description', key: 'contracts', href: '/staff/contracts' },
@@ -65,7 +72,17 @@ const WH_TRANSPORTER_NAV: NavItem[] = [
 
 function navItemsForRole(role?: ApiUser['role']) {
   if (role === 'TENANT_ADMIN') {
-    return [TENANT_NAV[0], TENANT_ADMIN_ACCOUNTS, ...TENANT_NAV.slice(1)]
+    const rest = TENANT_NAV.slice(1)
+    const inboundIdx = rest.findIndex((i) => i.key === 'inbound')
+    const withBatches =
+      inboundIdx >= 0
+        ? [
+            ...rest.slice(0, inboundIdx + 1),
+            TENANT_ADMIN_BATCHES,
+            ...rest.slice(inboundIdx + 1),
+          ]
+        : [...rest, TENANT_ADMIN_BATCHES]
+    return [TENANT_NAV[0], TENANT_ADMIN_ACCOUNTS, ...withBatches]
   }
   if (role === 'TENANT_STAFF') return TENANT_NAV
   if (role === 'WH_TRANSPORTER') return WH_TRANSPORTER_NAV

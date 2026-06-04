@@ -37,15 +37,15 @@ const LAYERS: {
     title: 'Rack (Kệ)',
     subtitle: 'Kệ đứng trong từng khu',
     description:
-      'Kho bố trí kệ theo quy hoạch zone. Lưu hàng linh hoạt: kho chọn kệ/ngăn phù hợp — bạn trả theo lượng hàng thực tế, không cần giữ kệ cố định.',
+      'Camera zoom vào khu demo — hiển thị khung kệ và các tầng (rack level). Mỗi kệ có nhiều tầng ngang để xếp hàng.',
   },
   {
     id: 'bin',
     icon: 'package_2',
     title: 'Bin (Ngăn / thùng)',
-    subtitle: 'Đơn vị nhỏ nhất để đặt hàng',
+    subtitle: 'Đơn vị nhỏ nhất trên từng tầng kệ',
     description:
-      'Mỗi ngăn chứa LPN (mã kiện). Hệ thống theo dõi tồn theo bin — minh họa quy mô thực tế khi bạn gửi loại hàng + size trên form.',
+      'Zoom sát hơn — các khối cyan là ngăn (bin) trên từng rack level. Mỗi ngăn có thể chứa LPN (mã kiện).',
   },
 ]
 
@@ -222,8 +222,8 @@ export function WarehouseStructureExplorer() {
             Một kho trông như thế nào?
           </h3>
           <p className="text-sm text-[#9bb9bb] mb-6 leading-relaxed">
-            NEXSPACE chia không gian theo 4 cấp — từ tòa kho đến từng ngăn hàng. Chọn từng lớp bên
-            dưới; camera 3D sẽ zoom và highlight phần tương ứng.
+            NEXSPACE chia không gian theo 4 cấp — từ tòa kho đến từng ngăn trên kệ. Chọn từng lớp
+            bên dưới; camera 3D sẽ zoom và highlight rack, rack level và bin tương ứng.
           </p>
 
           <div className="space-y-2">
@@ -271,6 +271,14 @@ export function WarehouseStructureExplorer() {
           {(active === 'zone' || active === 'warehouse') && !selectedZone && (
             <p className="mt-4 text-xs text-[#6b8586]">
               💡 Click một khu trên mô hình 3D bên phải để xem giới hạn loại thùng LPN.
+            </p>
+          )}
+
+          {(active === 'rack' || active === 'bin') && (
+            <p className="mt-4 text-xs text-[#6b8586]">
+              {active === 'rack'
+                ? '💡 Các tầng ngang trên kệ là rack level — chọn Bin để xem ngăn hàng trên từng tầng.'
+                : '💡 Các khối cyan là bin — mỗi bin nằm trên một rack level.'}
             </p>
           )}
 
