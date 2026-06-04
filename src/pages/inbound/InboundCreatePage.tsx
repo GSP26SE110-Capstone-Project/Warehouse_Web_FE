@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { InlineAlert } from '../../components/ui/FeedbackAlert'
@@ -36,6 +36,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const tenantId = user?.tenantId ?? ''
+  const isTenantAdmin = user?.role === 'TENANT_ADMIN'
 
   const [contracts, setContracts] = useState<
     Awaited<ReturnType<typeof contractsApi.listContracts>>['items']
@@ -204,6 +205,10 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (!isTenantAdmin) {
+    return <Navigate to={basePath} replace />
   }
 
   return (

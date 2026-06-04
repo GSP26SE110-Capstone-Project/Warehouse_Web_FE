@@ -46,6 +46,9 @@ const CODE_MESSAGES: Record<string, string> = {
   PAYOS_LINK_NOT_PAYABLE:
     'Link PayOS cũ đã hủy hoặc hết hạn. Bấm thanh toán lại để tạo link mới.',
   TERMINATION_PENDING: 'Đã có yêu cầu chấm dứt đang chờ kho duyệt.',
+  INSUFFICIENT_INVENTORY:
+    'Không đủ tồn khả dụng cho SKU này (đã trừ các phiếu xuất đang mở).',
+  INVALID_OUTBOUND_STATUS: 'Không thể chuyển trạng thái phiếu xuất ở bước hiện tại.',
 }
 
 export function translateApiErrorMessage(message?: string | null, code?: string | null): string {

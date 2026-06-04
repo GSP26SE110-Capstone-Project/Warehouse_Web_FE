@@ -4,15 +4,14 @@ import { StatsCard } from '../../components/ui/StatCard'
 import { Pagination } from '../../components/ui/Pagination'
 import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
-import { InboundStatusBadge } from '../../components/inbound/InboundStatusBadge'
+import { OutboundStatusBadge } from '../../components/outbound/OutboundStatusBadge'
 import { useAuth } from '../../auth/AuthContext'
 import { ApiError } from '../../api/client'
-import * as inboundApi from '../../api/inboundRequests'
-import type { ApiInboundRequest, InboundStatus } from '../../api/inboundRequests'
+import * as outboundApi from '../../api/outboundRequests'
+import type { ApiOutboundRequest, OutboundStatus } from '../../api/outboundRequests'
 import * as warehousesApi from '../../api/warehouses'
 import * as tenantsApi from '../../api/tenants'
-import * as contractsApi from '../../api/contracts'
-import { INBOUND_STATUS_LABELS } from '../../data/inboundStatus'
+import { OUTBOUND_STATUS_LABELS } from '../../data/outboundStatus'
 import { formatDate } from '../../mappers'
 
 type Mode = 'tenant' | 'warehouse'
@@ -22,33 +21,30 @@ type Props = {
   basePath: string
 }
 
-export function InboundListPage({ mode, basePath }: Props) {
+export function OutboundListPage({ mode, basePath }: Props) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const tenantId = user?.tenantId ?? ''
   const warehouseId = user?.warehouseId ?? ''
 
-  const [rows, setRows] = useState<ApiInboundRequest[]>([])
+  const [rows, setRows] = useState<ApiOutboundRequest[]>([])
   const [whNames, setWhNames] = useState<Map<string, string>>(new Map())
   const [tenantNames, setTenantNames] = useState<Map<string, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<InboundStatus | 'all'>('all')
+  const [statusFilter, setStatusFilter] = useState<OutboundStatus | 'all'>('all')
   const [currentPage, setCurrentPage] = useState(1)
-  const [activeContractCount, setActiveContractCount] = useState<number | null>(null)
   const pageSize = 8
-  const isTenantAdmin = user?.role === 'TENANT_ADMIN'
 
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const params: Parameters<typeof inboundApi.listInboundRequests>[0] = { limit: 200 }
+      const params: Parameters<typeof outboundApi.listOutboundRequests>[0] = { limit: 200 }
       if (mode === 'tenant') {
         if (!tenantId) {
           setRows([])
-          setActiveContractCount(null)
           return
         }
         params.tenantId = tenantId
@@ -56,32 +52,29 @@ export function InboundListPage({ mode, basePath }: Props) {
         params.warehouseId = warehouseId
       }
 
-      const inboundRes = await inboundApi.listInboundRequests(params)
+      const outboundRes = await outboundApi.listOutboundRequests(params)
 
       if (mode === 'tenant') {
         const [whRes, tenant] = await Promise.all([
           warehousesApi.listWarehouses({ limit: 100 }),
           tenantId ? tenantsApi.getTenant(tenantId).catch(() => null) : Promise.resolve(null),
         ])
-        setRows(inboundRes.items)
+        setRows(outboundRes.items)
         setWhNames(new Map(whRes.items.map((w) => [w.warehouseId, w.warehouseName])))
         setTenantNames(
           tenant ? new Map([[tenant.tenantId, tenant.companyName]]) : new Map()
         )
-        const cRes = await contractsApi.listContracts({ tenantId, status: 'ACTIVE', limit: 100 })
-        setActiveContractCount(cRes.items.length)
       } else {
-        setActiveContractCount(null)
         const [whRes, tenantRes] = await Promise.all([
           warehousesApi.listWarehouses({ limit: 100 }),
           tenantsApi.listTenants({ limit: 100 }),
         ])
-        setRows(inboundRes.items)
+        setRows(outboundRes.items)
         setWhNames(new Map(whRes.items.map((w) => [w.warehouseId, w.warehouseName])))
         setTenantNames(new Map(tenantRes.items.map((t) => [t.tenantId, t.companyName])))
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không tải được danh sách nhập kho')
+      setError(err instanceof ApiError ? err.message : 'Không tải được danh sách xuất kho')
     } finally {
       setLoading(false)
     }
@@ -95,7 +88,7 @@ export function InboundListPage({ mode, basePath }: Props) {
     return rows.filter((r) => {
       const q = search.toLowerCase()
       const matchSearch =
-        r.inboundCode.toLowerCase().includes(q) ||
+        r.outboundCode.toLowerCase().includes(q) ||
         (whNames.get(r.warehouseId) ?? '').toLowerCase().includes(q) ||
         (tenantNames.get(r.tenantId) ?? '').toLowerCase().includes(q)
       const matchStatus = statusFilter === 'all' || r.status === statusFilter
@@ -111,17 +104,21 @@ export function InboundListPage({ mode, basePath }: Props) {
     () => ({
       total: rows.length,
       pending: rows.filter((r) => r.status === 'PENDING').length,
-      receiving: rows.filter((r) => r.status === 'RECEIVING').length,
-      completed: rows.filter((r) => r.status === 'COMPLETED').length,
+      inProgress: rows.filter((r) =>
+        ['RESERVED', 'PICKING', 'PACKING'].includes(r.status)
+      ).length,
+      shipped: rows.filter((r) => r.status === 'SHIPPED' || r.status === 'COMPLETED').length,
     }),
     [rows]
   )
 
-  const canCreate = mode === 'tenant' && isTenantAdmin
+  const canCreate =
+    mode === 'tenant' &&
+    (user?.role === 'TENANT_ADMIN' || user?.role === 'TENANT_STAFF')
 
   return (
     <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
-      <LoadingOverlay show={loading} text="Đang tải yêu cầu nhập kho..." />
+      <LoadingOverlay show={loading} text="Đang tải yêu cầu xuất kho..." />
       <main className="relative flex flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072')] bg-cover bg-center">
         <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" />
         <div className="relative z-10 p-8">
@@ -129,47 +126,32 @@ export function InboundListPage({ mode, basePath }: Props) {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-white">
-                  {mode === 'tenant' ? 'Yêu cầu nhập kho' : 'Vận hành nhập kho'}
+                  {mode === 'tenant' ? 'Yêu cầu xuất kho' : 'Vận hành xuất kho'}
                 </h1>
                 <p className="text-sm text-slate-400">
                   {mode === 'tenant'
-                    ? 'Tạo và theo dõi đơn nhập hàng (cần hợp đồng ACTIVE)'
-                    : 'Duyệt, nhận hàng, putaway và hoàn tất inbound'}
+                    ? 'Tạo phiếu xuất theo HĐ ACTIVE/TERMINATED (còn tồn khả dụng)'
+                    : 'Duyệt, pick, đóng gói và xuất hàng (FIFO)'}
                 </p>
               </div>
               {canCreate && (
                 <button
                   type="button"
                   onClick={() => navigate(`${basePath}/new`)}
-                  className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-cyan-400"
+                  className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-orange-400"
                 >
-                  + Tạo yêu cầu nhập
+                  + Tạo yêu cầu xuất
                 </button>
               )}
             </div>
 
-            {error && (
-              <InlineAlert message={error} onDismiss={() => setError('')} />
-            )}
+            {error && <InlineAlert message={error} onDismiss={() => setError('')} />}
 
-            {mode === 'tenant' && activeContractCount === 0 && (
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-                Chưa có hợp đồng <strong>ACTIVE</strong> — ký và thanh toán invoice đầu tại{' '}
-                <button
-                  type="button"
-                  onClick={() => navigate('/staff/contracts')}
-                  className="font-semibold text-cyan-300 underline hover:text-cyan-200"
-                >
-                  Hợp đồng
-                </button>{' '}
-                trước khi tạo yêu cầu nhập.
-              </div>
-            )}
-
-            {mode === 'tenant' && stats.pending > 0 && (
-              <div className="flex flex-col gap-3 rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100 sm:flex-row sm:items-center sm:justify-between">
+            {mode === 'warehouse' && stats.pending > 0 && (
+              <div className="flex flex-col gap-3 rounded-lg border border-orange-400/30 bg-orange-400/10 px-4 py-3 text-sm text-orange-100 sm:flex-row sm:items-center sm:justify-between">
                 <p>
-                  Có <strong>{stats.pending}</strong> phiếu nhập chờ kho duyệt.
+                  Có <strong>{stats.pending}</strong> phiếu xuất chờ duyệt — mở chi tiết để duyệt
+                  (reserve FIFO + picking task).
                 </p>
                 <button
                   type="button"
@@ -177,48 +159,29 @@ export function InboundListPage({ mode, basePath }: Props) {
                     setStatusFilter('PENDING')
                     setCurrentPage(1)
                   }}
-                  className="shrink-0 rounded-lg border border-cyan-400/40 px-4 py-2 text-xs font-semibold hover:bg-cyan-400/15"
+                  className="shrink-0 rounded-lg border border-orange-400/40 px-4 py-2 text-xs font-semibold hover:bg-orange-400/15"
                 >
                   Lọc chờ duyệt
                 </button>
               </div>
             )}
 
-            {mode === 'warehouse' &&
-              user?.role === 'WH_ADMIN' &&
-              stats.pending > 0 && (
-                <div className="flex flex-col gap-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-start gap-2">
-                    <span className="material-symbols-outlined shrink-0 text-amber-300">pending_actions</span>
-                    <p>
-                      Có <strong>{stats.pending}</strong> yêu cầu nhập kho đang chờ duyệt — mở từng
-                      đơn để duyệt hoặc từ chối.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStatusFilter('PENDING')
-                      setCurrentPage(1)
-                    }}
-                    className="shrink-0 rounded-lg border border-amber-400/40 bg-amber-400/15 px-4 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-400/25"
-                  >
-                    Lọc chờ duyệt
-                  </button>
-                </div>
-              )}
-
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <StatsCard title="Tổng" value={stats.total} icon="inventory_2" accentColor="emerald" />
+              <StatsCard title="Tổng phiếu" value={stats.total} icon="upload" accentColor="orange" />
               <StatsCard title="Chờ duyệt" value={stats.pending} icon="pending" accentColor="primary" />
-              <StatsCard title="Đang nhận" value={stats.receiving} icon="input" accentColor="orange" />
-              <StatsCard title="Hoàn tất" value={stats.completed} icon="check_circle" accentColor="purple" />
+              <StatsCard
+                title="Đang xử lý"
+                value={stats.inProgress}
+                icon="inventory"
+                accentColor="emerald"
+              />
+              <StatsCard title="Đã xuất" value={stats.shipped} icon="check_circle" accentColor="purple" />
             </div>
 
             <div className="flex flex-wrap gap-4">
               <input
                 type="search"
-                placeholder="Tìm mã, kho, tenant..."
+                placeholder="Tìm mã OUT, kho, tenant..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value)
@@ -227,18 +190,18 @@ export function InboundListPage({ mode, basePath }: Props) {
                 className="min-w-[200px] flex-1 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm"
               />
               <select
-                aria-label="Lọc trạng thái nhập kho"
+                aria-label="Lọc trạng thái phiếu xuất"
                 value={statusFilter}
                 onChange={(e) => {
-                  setStatusFilter(e.target.value as InboundStatus | 'all')
+                  setStatusFilter(e.target.value as OutboundStatus | 'all')
                   setCurrentPage(1)
                 }}
                 className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm"
               >
                 <option value="all">Tất cả trạng thái</option>
-                {(Object.keys(INBOUND_STATUS_LABELS) as InboundStatus[]).map((s) => (
+                {(Object.keys(OUTBOUND_STATUS_LABELS) as OutboundStatus[]).map((s) => (
                   <option key={s} value={s}>
-                    {INBOUND_STATUS_LABELS[s]}
+                    {OUTBOUND_STATUS_LABELS[s]}
                   </option>
                 ))}
               </select>
@@ -248,10 +211,10 @@ export function InboundListPage({ mode, basePath }: Props) {
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-white/10 text-slate-400">
                   <tr>
-                    <th className="px-4 py-3">Mã</th>
+                    <th className="px-4 py-3">Mã phiếu</th>
                     {mode === 'warehouse' && <th className="px-4 py-3">Tenant</th>}
                     <th className="px-4 py-3">Kho</th>
-                    <th className="px-4 py-3">Dự kiến đến</th>
+                    <th className="px-4 py-3">Ngày xuất dự kiến</th>
                     <th className="px-4 py-3">Trạng thái</th>
                     <th className="px-4 py-3" />
                   </tr>
@@ -259,23 +222,23 @@ export function InboundListPage({ mode, basePath }: Props) {
                 <tbody>
                   {paginated.map((r) => (
                     <tr
-                      key={r.inboundRequestId}
+                      key={r.outboundRequestId}
                       className="border-b border-white/5 hover:bg-white/5"
                     >
-                      <td className="px-4 py-3 font-mono text-cyan-300">{r.inboundCode}</td>
+                      <td className="px-4 py-3 font-mono text-orange-300">{r.outboundCode}</td>
                       {mode === 'warehouse' && (
                         <td className="px-4 py-3">{tenantNames.get(r.tenantId) ?? '—'}</td>
                       )}
                       <td className="px-4 py-3">{whNames.get(r.warehouseId) ?? '—'}</td>
-                      <td className="px-4 py-3">{formatDate(r.expectedArrivalDate)}</td>
+                      <td className="px-4 py-3">{formatDate(r.requestedShipDate)}</td>
                       <td className="px-4 py-3">
-                        <InboundStatusBadge status={r.status} />
+                        <OutboundStatusBadge status={r.status} />
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
                           type="button"
-                          onClick={() => navigate(`${basePath}/${r.inboundRequestId}`)}
-                          className="text-cyan-400 hover:text-cyan-300"
+                          onClick={() => navigate(`${basePath}/${r.outboundRequestId}`)}
+                          className="text-orange-400 hover:text-orange-300"
                         >
                           Chi tiết
                         </button>
@@ -284,8 +247,11 @@ export function InboundListPage({ mode, basePath }: Props) {
                   ))}
                   {paginated.length === 0 && !loading && (
                     <tr>
-                      <td colSpan={mode === 'warehouse' ? 6 : 5} className="px-4 py-8 text-center text-slate-500">
-                        Chưa có yêu cầu nhập kho
+                      <td
+                        colSpan={mode === 'warehouse' ? 6 : 5}
+                        className="px-4 py-8 text-center text-slate-500"
+                      >
+                        Chưa có yêu cầu xuất kho
                       </td>
                     </tr>
                   )}

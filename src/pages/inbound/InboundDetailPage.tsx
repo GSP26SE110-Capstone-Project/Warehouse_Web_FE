@@ -18,6 +18,7 @@ import {
   type PickupFormState,
 } from '../../components/inbound/InboundPickupForm'
 import { InboundTransportRoutePanel } from '../../components/inbound/InboundTransportRoutePanel'
+import { TenantInboundWorkflow } from '../../components/inbound/TenantInboundWorkflow'
 import * as deliveryApi from '../../api/inboundDeliveries'
 import { DELIVERY_MODE_OPTIONS, type DeliveryMode } from '../../data/deliveryMode'
 import { useAuth } from '../../auth/AuthContext'
@@ -62,6 +63,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   const { inboundRequestId = '' } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const tenantId = user?.tenantId ?? ''
   const isTransporter = mode === 'transporter'
   const isWarehouse = mode === 'warehouse'
 
@@ -605,11 +607,6 @@ export function InboundDetailPage({ mode, basePath }: Props) {
     )
   }
 
-  const canCancelTenant =
-    !isWarehouse &&
-    inbound &&
-    ['DRAFT', 'PENDING'].includes(inbound.status)
-
   return (
     <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
       <LoadingOverlay show={loading || busy} text="Đang xử lý..." />
@@ -844,6 +841,27 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                 )}
               </section>
 
+              {isTenant && inbound && tenantId && (
+                <TenantInboundWorkflow
+                  inbound={inbound}
+                  tenantId={tenantId}
+                  deliveryMode={(inbound.deliveryMode as DeliveryMode) ?? 'TENANT_SELF'}
+                  busy={busy}
+                  onReload={load}
+                  onPatchStatus={(status, extra) => patchStatus(status, extra)}
+                  onCancel={() =>
+                    setAlert({
+                      open: true,
+                      type: 'confirm',
+                      title: 'Hủy yêu cầu nhập?',
+                      message: `Chuyển ${inbound.inboundCode} sang trạng thái Đã hủy.`,
+                      onConfirm: () => void handleCancel(),
+                    })
+                  }
+                  inventoryLink={`/staff/inventory?inboundRequestId=${inbound.inboundRequestId}`}
+                />
+              )}
+
               {/* Warehouse workflow actions */}
               {isWarehouse && !isTransporter && (
                 <div className="mb-6 flex flex-wrap gap-2">
@@ -960,16 +978,6 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                     </button>
                   )}
                 </div>
-              )}
-
-              {canCancelTenant && (
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="mb-6 rounded border border-red-500/40 px-3 py-1.5 text-sm text-red-400"
-                >
-                  Hủy yêu cầu
-                </button>
               )}
 
               {/* Items */}
@@ -1178,16 +1186,14 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                 />
               )}
 
-              {inbound.status === 'COMPLETED' && (
+              {inbound.status === 'COMPLETED' && isWarehouse && (
                 <section className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-sm text-emerald-200">
                   <p className="mb-3">Inbound đã hoàn tất. Hàng đã putaway có thể xem trong tồn kho.</p>
                   <Link
                     to={
                       basePath.startsWith('/staff/inbound-ops')
                         ? `/staff/inventory-ops?inboundRequestId=${inbound.inboundRequestId}`
-                        : isWarehouse
-                          ? `/admin/inventory?inboundRequestId=${inbound.inboundRequestId}`
-                          : `/staff/inventory?inboundRequestId=${inbound.inboundRequestId}`
+                        : `/admin/inventory?inboundRequestId=${inbound.inboundRequestId}`
                     }
                     className="inline-flex items-center gap-1 rounded-lg bg-emerald-600/80 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
                   >

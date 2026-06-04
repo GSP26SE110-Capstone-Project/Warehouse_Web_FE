@@ -13,7 +13,9 @@ import { ResetPassword } from './pages/auth/ResetPassword'
 import { NavigationProvider } from './utils/NavigationProvider'
 import { AccountManagement } from './pages/admin/ManageAccount'
 import { TransportationManagement } from './pages/admin/ManageTransportation'
-import { StockMovementManagement } from './pages/admin/StockMovement'
+import { OutboundListPage } from './pages/outbound/OutboundListPage'
+import { OutboundCreatePage } from './pages/outbound/OutboundCreatePage'
+import { OutboundDetailPage } from './pages/outbound/OutboundDetailPage'
 import { Reports } from './pages/admin/Report'
 import { AdminSettings } from './pages/admin/Setting'
 import { Profile } from './pages/profile/Profile'
@@ -23,7 +25,6 @@ import { RackLayoutManagement } from './pages/admin/RackLayoutManagement'
 import { StaffDashboard } from './pages/staff/Dashboard'
 import { StaffLayout } from './components/common/layout/StaffLayout'
 import { StaffRequestManagement } from './pages/staff/TransportManagement'
-import { ImportExportManagement } from './pages/staff/ImportExportManagement'
 import { TenantProductManagement } from './pages/staff/TenantProductManagement'
 import { InboundListPage } from './pages/inbound/InboundListPage'
 import { InboundCreatePage } from './pages/inbound/InboundCreatePage'
@@ -78,7 +79,18 @@ export const Router: React.FC = () => {
               <Route path="/admin/contract" element={<ContractManagement />} />
               <Route path="/admin/inventory" element={<Inventory />} />
               <Route path="/admin/accounts" element={<AccountManagement />} />
-              <Route path="/admin/stock-movements" element={<StockMovementManagement />} />
+              <Route
+                path="/admin/stock-movements"
+                element={<Navigate to="/admin/outbound" replace />}
+              />
+              <Route
+                path="/admin/outbound"
+                element={<OutboundListPage mode="warehouse" basePath="/admin/outbound" />}
+              />
+              <Route
+                path="/admin/outbound/:outboundRequestId"
+                element={<OutboundDetailPage mode="warehouse" basePath="/admin/outbound" />}
+              />
               <Route path="/admin/transportation" element={<TransportationManagement />} />
               <Route path="/admin/reports" element={<Reports />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
@@ -113,15 +125,42 @@ export const Router: React.FC = () => {
               </Route>
               <Route path="/staff/requests" element={<StaffRequestManagement />} />
               <Route path="/staff/products" element={<TenantProductManagement />} />
-              <Route path="/staff/import-export" element={<ImportExportManagement />} />
+              <Route
+                path="/staff/import-export"
+                element={<Navigate to="/staff/outbound" replace />}
+              />
+              <Route
+                path="/staff/outbound"
+                element={<OutboundListPage mode="tenant" basePath="/staff/outbound" />}
+              />
+              <Route
+                path="/staff/outbound/new"
+                element={<OutboundCreatePage basePath="/staff/outbound" />}
+              />
+              <Route
+                path="/staff/outbound/:outboundRequestId"
+                element={<OutboundDetailPage mode="tenant" basePath="/staff/outbound" />}
+              />
+              <Route
+                path="/staff/outbound-ops"
+                element={<OutboundListPage mode="warehouse" basePath="/staff/outbound-ops" />}
+              />
+              <Route
+                path="/staff/outbound-ops/:outboundRequestId"
+                element={
+                  <OutboundDetailPage mode="warehouse" basePath="/staff/outbound-ops" />
+                }
+              />
               <Route
                 path="/staff/inbound"
                 element={<InboundListPage mode="tenant" basePath="/staff/inbound" />}
               />
-              <Route
-                path="/staff/inbound/new"
-                element={<InboundCreatePage basePath="/staff/inbound" />}
-              />
+              <Route element={<ProtectedRoute allowedRoles={['TENANT_ADMIN']} />}>
+                <Route
+                  path="/staff/inbound/new"
+                  element={<InboundCreatePage basePath="/staff/inbound" />}
+                />
+              </Route>
               <Route
                 path="/staff/inbound/:inboundRequestId"
                 element={<InboundDetailPage mode="tenant" basePath="/staff/inbound" />}

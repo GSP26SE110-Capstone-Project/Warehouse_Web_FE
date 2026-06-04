@@ -61,7 +61,13 @@ const navItems: NavItem[] = [
     href: '/admin/inbound',
     roles: ['WH_ADMIN'],
   },
-  { label: 'Xuất kho', icon: 'outbound', key: 'stock-movements', href: '/admin/stock-movements' },
+  {
+    label: 'Xuất kho',
+    icon: 'outbound',
+    key: 'outbound',
+    href: '/admin/outbound',
+    roles: ['WH_ADMIN'],
+  },
   {
     label: 'Báo cáo',
     icon: 'bar_chart',
