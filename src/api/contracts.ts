@@ -83,11 +83,51 @@ export function previewContractTermination(contractId: string) {
 
 export function requestContractTermination(
   contractId: string,
-  body?: { reason?: string; requestedBy?: string }
+  body?: { reason?: string }
 ) {
   return apiRequest<{ request: unknown; settlement: ContractTerminationPreview }>(
     `/contracts/${contractId}/termination/request`,
     { method: 'POST', body: body ?? {} }
+  )
+}
+
+export function listContractTerminationRequests(
+  contractId: string,
+  params?: { status?: string }
+) {
+  const q = params?.status ? `?status=${encodeURIComponent(params.status)}` : ''
+  return apiRequest<unknown[]>(`/contracts/${contractId}/termination/requests${q}`)
+}
+
+export type ContractTerminationApproveResult = {
+  request: unknown
+  contract: ApiContract
+  inventoryRemainder: {
+    totalQuantity: number
+    availableQuantity: number
+    reservedQuantity: number
+    skuCount: number
+  }
+  nextSteps: { message: string; outboundAllowed: boolean; inboundAllowed: boolean }
+}
+
+export function approveContractTermination(
+  contractId: string,
+  terminationRequestId: string
+) {
+  return apiRequest<ContractTerminationApproveResult>(
+    `/contracts/${contractId}/termination/requests/${terminationRequestId}/approve`,
+    { method: 'POST' }
+  )
+}
+
+export function rejectContractTermination(
+  contractId: string,
+  terminationRequestId: string
+) {
+  return apiRequest<{ request: unknown }>(
+    `/contracts/${contractId}/termination/requests/${terminationRequestId}/reject`,
+    { method: 'POST' }
   )
 }
 
