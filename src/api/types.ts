@@ -168,6 +168,8 @@ export interface ApiContractInvoice {
   dueDate?: string | null
 }
 
+export type TerminationRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+
 export interface ContractTerminationPreview {
   contractId: string
   contractStatus: ContractStatus
@@ -182,6 +184,29 @@ export interface ContractTerminationPreview {
   terminationFee: number
   refundAmount: number
   processingRatePercent?: number
+}
+
+export interface ApiContractTerminationRequest {
+  terminationRequestId: string
+  contractId: string
+  tenantId: string
+  requestedBy?: string | null
+  status: TerminationRequestStatus
+  billingCycle: string
+  hasInbound: boolean
+  totalPaid?: number | string | null
+  monthlyRate?: number | string | null
+  contractMonths?: number | null
+  usedMonths?: number | null
+  unusedMonths?: number | null
+  processingFee?: number | string | null
+  terminationFee?: number | string | null
+  refundAmount?: number | string | null
+  reason?: string | null
+  reviewedBy?: string | null
+  reviewedAt?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
 }
 
 export interface ApiContract {

@@ -45,6 +45,7 @@ const CODE_MESSAGES: Record<string, string> = {
     'Invoice đã thanh toán — hợp đồng đã ACTIVE. Làm mới trang, không cần thanh toán lại.',
   PAYOS_LINK_NOT_PAYABLE:
     'Link PayOS cũ đã hủy hoặc hết hạn. Bấm thanh toán lại để tạo link mới.',
+  TERMINATION_PENDING: 'Đã có yêu cầu chấm dứt đang chờ kho duyệt.',
 }
 
 export function translateApiErrorMessage(message?: string | null, code?: string | null): string {

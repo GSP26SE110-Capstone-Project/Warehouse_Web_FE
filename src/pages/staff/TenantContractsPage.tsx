@@ -10,6 +10,7 @@ import * as warehousesApi from '../../api/warehouses'
 
 import { TenantContractSignModal } from '../../components/contracts/TenantContractSignModal'
 import { TenantContractDetailModal } from '../../components/contracts/TenantContractDetailModal'
+import { ContractTerminationModal } from '../../components/contracts/ContractTerminationModal'
 import { TenantStorageAllocationPanel } from '../../components/contracts/TenantStorageAllocationPanel'
 import { InlineAlert } from '../../components/ui/FeedbackAlert'
 
@@ -70,6 +71,7 @@ export function TenantContractsPage() {
   const { user } = useAuth()
 
   const tenantId = user?.tenantId ?? ''
+  const isTenantAdmin = user?.role === 'TENANT_ADMIN'
 
   const [loading, setLoading] = useState(true)
 
@@ -89,6 +91,8 @@ export function TenantContractsPage() {
   const [payingContractId, setPayingContractId] = useState<string | null>(null)
   const payOsInFlightRef = useRef(false)
   const [detailContractId, setDetailContractId] = useState<string | null>(null)
+  const [terminationContractId, setTerminationContractId] = useState<string | null>(null)
+  const [pendingTerminationIds, setPendingTerminationIds] = useState<Set<string>>(new Set())
 
   const load = useCallback(async () => {
 
@@ -125,6 +129,24 @@ export function TenantContractsPage() {
       setReservations(reservationRes.items)
 
       setWarehouseNames(new Map(whRes.items.map((w) => [w.warehouseId, w.warehouseName])))
+
+      const activeIds = contractRes.items
+        .filter((c) => c.status === 'ACTIVE')
+        .map((c) => c.contractId)
+      if (activeIds.length > 0) {
+        const pendingLists = await Promise.all(
+          activeIds.map((id) =>
+            contractsApi.listContractTerminationRequests(id, { status: 'PENDING' })
+          )
+        )
+        const pending = new Set<string>()
+        activeIds.forEach((id, i) => {
+          if (pendingLists[i]?.length) pending.add(id)
+        })
+        setPendingTerminationIds(pending)
+      } else {
+        setPendingTerminationIds(new Set())
+      }
 
     } catch (e) {
 
@@ -447,6 +469,17 @@ export function TenantContractsPage() {
                                 : 'Thanh toán PayOS'}
                             </button>
                           ) : null}
+                          {isTenantAdmin && c.status === 'ACTIVE' ? (
+                            <button
+                              type="button"
+                              onClick={() => setTerminationContractId(c.contractId)}
+                              className="rounded-lg border border-amber-500/40 px-3 py-1.5 text-xs text-amber-300 hover:bg-amber-500/10"
+                            >
+                              {pendingTerminationIds.has(c.contractId)
+                                ? 'Chờ duyệt CD'
+                                : 'Chấm dứt'}
+                            </button>
+                          ) : null}
                         </div>
                       </td>
 
@@ -495,8 +528,19 @@ export function TenantContractsPage() {
           contractId={detailContractId}
           reservations={reservations}
           signingContext={signingContextFor(detailContractId)}
+          canRequestTermination={isTenantAdmin}
           onClose={() => setDetailContractId(null)}
           onSign={() => setSignContractId(detailContractId)}
+          onTerminationChange={load}
+        />
+      )}
+
+      {terminationContractId && (
+        <ContractTerminationModal
+          contractId={terminationContractId}
+          contractCode={contractCodeById.get(terminationContractId) ?? terminationContractId}
+          onClose={() => setTerminationContractId(null)}
+          onSubmitted={load}
         />
       )}
 

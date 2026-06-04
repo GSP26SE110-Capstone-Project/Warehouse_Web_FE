@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { InlineAlert } from '../ui/FeedbackAlert'
 import { ApiError } from '../../api/client'
 import * as contractItemsApi from '../../api/contractItems'
 import * as contractsApi from '../../api/contracts'
 import * as warehousesApi from '../../api/warehouses'
-import type { ApiContract } from '../../api/types'
+import type { ApiContract, ApiContractTerminationRequest } from '../../api/types'
+import { ContractTerminationModal } from './ContractTerminationModal'
+import { TERMINATION_REQUEST_STATUS_LABELS } from '../../utils/contractTermination'
 import type { ApiStorageReservation } from '../../api/storageReservations'
 import {
   BILLING_CYCLE_GUEST_LABELS,
@@ -34,8 +36,10 @@ type Props = {
   contractId: string
   reservations: ApiStorageReservation[]
   signingContext: ContractSigningContext
+  canRequestTermination?: boolean
   onClose: () => void
   onSign?: () => void
+  onTerminationChange?: () => void
 }
 
 function formatDate(iso?: string | null) {
@@ -79,44 +83,52 @@ export function TenantContractDetailModal({
   contractId,
   reservations,
   signingContext,
+  canRequestTermination = false,
   onClose,
   onSign,
+  onTerminationChange,
 }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [contract, setContract] = useState<ApiContract | null>(null)
+  const [pendingTermination, setPendingTermination] =
+    useState<ApiContractTerminationRequest | null>(null)
+  const [showTerminationModal, setShowTerminationModal] = useState(false)
   const [warehouse, setWarehouse] = useState<Awaited<
     ReturnType<typeof warehousesApi.getWarehouse>
   > | null>(null)
   const [items, setItems] = useState<contractItemsApi.ApiContractItem[]>([])
 
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setError('')
-      try {
-        const [c, itemRes] = await Promise.all([
-          contractsApi.getContract(contractId),
-          contractItemsApi.listContractItems(contractId),
-        ])
-        const wh = await warehousesApi.getWarehouse(c.warehouseId)
-        if (cancelled) return
-        setContract(c)
-        setWarehouse(wh)
-        setItems(itemRes.items)
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof ApiError ? err.message : 'Không tải được chi tiết hợp đồng')
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
+  const loadDetail = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const [c, itemRes] = await Promise.all([
+        contractsApi.getContract(contractId),
+        contractItemsApi.listContractItems(contractId),
+      ])
+      const wh = await warehousesApi.getWarehouse(c.warehouseId)
+      setContract(c)
+      setWarehouse(wh)
+      setItems(itemRes.items)
+      if (c.status === 'ACTIVE') {
+        const pending = await contractsApi.listContractTerminationRequests(contractId, {
+          status: 'PENDING',
+        })
+        setPendingTermination(pending[0] ?? null)
+      } else {
+        setPendingTermination(null)
       }
-    })()
-    return () => {
-      cancelled = true
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Không tải được chi tiết hợp đồng')
+    } finally {
+      setLoading(false)
     }
   }, [contractId])
+
+  useEffect(() => {
+    void loadDetail()
+  }, [loadDetail])
 
   const contractReservations = useMemo(
     () => reservations.filter((r) => r.contractId === contractId),
@@ -326,6 +338,31 @@ export function TenantContractDetailModal({
                   />
                 </div>
               </section>
+
+              {contract.status === 'ACTIVE' && (
+                <section className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+                  <h3 className="text-sm font-semibold text-amber-200">Chấm dứt hợp đồng sớm</h3>
+                  {pendingTermination ? (
+                    <p className="mt-2 text-sm text-slate-300">
+                      {TERMINATION_REQUEST_STATUS_LABELS[pendingTermination.status]} — chờ kho xử
+                      lý.
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-xs text-slate-500">
+                      Gửi yêu cầu để xem phí/hoàn dự kiến. Sau khi kho duyệt, HĐ chuyển TERMINATED;
+                      bạn vẫn có thể xuất hết hàng còn trong kho.
+                    </p>
+                  )}
+                </section>
+              )}
+
+              {contract.status === 'TERMINATED' && (
+                <section className="rounded-xl border border-slate-500/30 bg-white/[0.02] p-4">
+                  <p className="text-sm text-slate-300">
+                    Hợp đồng đã chấm dứt. Không tạo nhập mới; có thể tạo phiếu xuất để lấy hết tồn.
+                  </p>
+                </section>
+              )}
             </>
           )}
         </div>
@@ -334,6 +371,17 @@ export function TenantContractDetailModal({
           <button type="button" onClick={onClose} className="text-sm text-slate-400 hover:text-white">
             Đóng
           </button>
+          {canRequestTermination &&
+            contract?.status === 'ACTIVE' &&
+            !pendingTermination && (
+              <button
+                type="button"
+                onClick={() => setShowTerminationModal(true)}
+                className="rounded-lg border border-amber-500/40 px-4 py-2 text-sm text-amber-300 hover:bg-amber-500/10"
+              >
+                Yêu cầu chấm dứt
+              </button>
+            )}
           {canSign && onSign && (
             <button
               type="button"
@@ -348,6 +396,18 @@ export function TenantContractDetailModal({
           )}
         </div>
       </div>
+
+      {showTerminationModal && contract && (
+        <ContractTerminationModal
+          contractId={contractId}
+          contractCode={contract.contractCode}
+          onClose={() => setShowTerminationModal(false)}
+          onSubmitted={() => {
+            void loadDetail()
+            onTerminationChange?.()
+          }}
+        />
+      )}
     </div>
   )
 }
