@@ -2197,9 +2197,7 @@ function AllocationPricePreview({
 function formatContractPriceFormula(estimate: ApiContractPriceEstimate): string | null {
   const zoneLines = estimate.breakdown.filter((b) => b.label && b.label !== 'Thuê zone đã chọn')
   if (zoneLines.length > 0) {
-    const parts = zoneLines.map((b) => b.detail.replace(/ VND/g, ' ₫'))
-    const tail = `× ${estimate.monthCount} tháng`
-    return parts.length === 1 ? `${parts[0]} ${tail}` : `${parts.join(' + ')} ${tail}`
+    return zoneLines.map((b) => b.detail.replace(/ VND/g, ' ₫')).join(' + ')
   }
   if (estimate.areaM2Used != null && estimate.unitPricePerM2Month != null) {
     return `${estimate.areaM2Used.toLocaleString('vi-VN')} m² × ${estimate.unitPricePerM2Month.toLocaleString('vi-VN')} ₫/m²/tháng × ${estimate.monthCount} tháng`
