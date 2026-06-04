@@ -5,6 +5,7 @@ import * as contractsApi from '../../../api/contracts'
 import * as tenantsApi from '../../../api/tenants'
 import * as warehousesApi from '../../../api/warehouses'
 import type { ContractStatus } from '../../../api/types'
+import { ContractTerminationReviewPanel } from '../../contracts/ContractTerminationReviewPanel'
 import {
   BILLING_CYCLE_GUEST_LABELS,
   PRICING_MODEL_LABELS,
@@ -309,6 +310,20 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
                   {new Intl.NumberFormat('vi-VN').format(Number(amountInput) || 0)} ₫
                 </div>
               </div>
+
+              {contractId && (
+                <ContractTerminationReviewPanel
+                  contractId={contractId}
+                  contractStatus={apiStatus}
+                  onUpdated={() => {
+                    if (!contractId) return
+                    contractsApi.getContract(contractId).then((c) => {
+                      setApiStatus(c.status)
+                      setStatus(c.status)
+                    })
+                  }}
+                />
+              )}
             </>
           )}
         </div>

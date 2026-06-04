@@ -2,6 +2,7 @@ import { apiRequest, apiPaginated, buildQuery } from './client'
 import type {
   ApiContract,
   ApiContractInvoice,
+  ApiContractTerminationRequest,
   ContractTerminationPreview,
 } from './types'
 
@@ -85,9 +86,43 @@ export function requestContractTermination(
   contractId: string,
   body?: { reason?: string; requestedBy?: string }
 ) {
-  return apiRequest<{ request: unknown; settlement: ContractTerminationPreview }>(
-    `/contracts/${contractId}/termination/request`,
-    { method: 'POST', body: body ?? {} }
+  return apiRequest<{
+    request: ApiContractTerminationRequest
+    settlement: ContractTerminationPreview
+  }>(`/contracts/${contractId}/termination/request`, { method: 'POST', body: body ?? {} })
+}
+
+export function listContractTerminationRequests(
+  contractId: string,
+  params?: { status?: string }
+) {
+  return apiRequest<ApiContractTerminationRequest[]>(
+    `/contracts/${contractId}/termination/requests${buildQuery(params ?? {})}`
+  )
+}
+
+export function approveContractTerminationRequest(
+  contractId: string,
+  terminationRequestId: string
+) {
+  return apiRequest<{
+    request: ApiContractTerminationRequest
+    contract: ApiContract
+    inventoryRemainder?: { totalQuantity?: number }
+    nextSteps?: { message?: string; outboundAllowed?: boolean; inboundAllowed?: boolean }
+  }>(
+    `/contracts/${contractId}/termination/requests/${terminationRequestId}/approve`,
+    { method: 'POST' }
+  )
+}
+
+export function rejectContractTerminationRequest(
+  contractId: string,
+  terminationRequestId: string
+) {
+  return apiRequest<{ request: ApiContractTerminationRequest }>(
+    `/contracts/${contractId}/termination/requests/${terminationRequestId}/reject`,
+    { method: 'POST' }
   )
 }
 
