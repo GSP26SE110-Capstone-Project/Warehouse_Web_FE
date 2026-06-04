@@ -24,6 +24,18 @@ export function ContractPaymentReturnPage() {
 
     const poll = async () => {
       try {
+        try {
+          const sync = await contractsApi.syncContractInvoicePayOSPayment(contractId, invoiceId)
+          if (cancelled) return
+          if (sync.synced && (sync.alreadyPaid || sync.invoice?.paymentStatus === 'PAID')) {
+            setStatus('paid')
+            setMessage('Thanh toán PayOS đã được xác nhận. Hợp đồng đã kích hoạt.')
+            return
+          }
+        } catch {
+          // Tiếp tục poll nếu sync lỗi tạm thời
+        }
+
         const invoices = await contractsApi.listContractInvoices(contractId)
         const inv = invoices.find((i) => i.invoiceId === invoiceId)
         if (cancelled) return
