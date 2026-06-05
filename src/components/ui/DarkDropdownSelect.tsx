@@ -20,20 +20,20 @@ function themeStyles(theme: Theme) {
   if (theme === 'guest') {
     return {
       trigger:
-        'border border-[#3a5455] bg-[#0b1617]/95 text-white hover:border-[#06edf9]/40 focus:border-[#06edf9]/50 focus:ring-1 focus:ring-[#06edf9]/25',
+        'border border-[#3a5455] bg-white text-slate-600 hover:border-[#06edf9]/40 focus:border-[#06edf9]/50 focus:ring-1 focus:ring-[#06edf9]/25',
       menu: 'border-[#3a5455] bg-[#0f2223] shadow-xl shadow-black/40',
-      group: 'text-[#06edf9]/80',
-      active: 'bg-[#06edf9]/15 text-white',
-      selected: 'bg-[#06edf9]/10 text-[#06edf9]',
-      chevron: 'text-[#9bb9bb]',
+      group: 'text-slate-400',
+      active: 'bg-cyan-200 text-slate-800',
+      selected: 'bg-cyan-200 text-slate-800',
+      chevron: 'text-slate-800',
     }
   }
   return {
     trigger:
-      'border border-white/10 bg-[#0f1728]/95 text-white hover:border-cyan-500/35 focus:border-cyan-500/45 focus:ring-1 focus:ring-cyan-500/20',
-    menu: 'border-white/10 bg-[#111827] shadow-xl shadow-black/50',
+      'border border-white/10 bg-white text-slate-600 hover:border-cyan-500/35 focus:border-cyan-500/45 focus:ring-1 focus:ring-cyan-500/20',
+    menu: 'border-cyan/10 bg-white shadow-xl shadow-black/50',
     group: 'text-cyan-400/90',
-    active: 'bg-cyan-500/15 text-white',
+    active: 'bg-cyan-500/15 text-slate-800',
     selected: 'bg-cyan-500/10 text-cyan-300',
     chevron: 'text-slate-500',
   }
@@ -250,7 +250,7 @@ export function DarkDropdownSelect({
             {searchable && (
               <div
                 className={`border-b border-white/5 p-2 ${
-                  theme === 'guest' ? 'bg-[#0f2223]' : 'bg-[#111827]'
+                  theme === 'guest' ? 'bg-white' : 'bg-white'
                 }`}
               >
                 <input
@@ -260,7 +260,7 @@ export function DarkDropdownSelect({
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={searchPlaceholder}
                   aria-label={searchPlaceholder}
-                  className={`w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 ${text} text-white placeholder:text-slate-500 focus:border-cyan-500/40 focus:outline-none focus:ring-1 focus:ring-cyan-500/20`}
+                  className={`w-full rounded-lg border border-white/10 bg-white/20 px-3 py-2 ${text} text-slate-800 placeholder:text-slate-500 focus:border-cyan-500/40 focus:outline-none focus:ring-1 focus:ring-cyan-500/20`}
                   onKeyDown={(e) => e.stopPropagation()}
                 />
               </div>
@@ -279,7 +279,7 @@ export function DarkDropdownSelect({
                     <div
                       key={entry.key}
                       className={`sticky top-0 z-10 border-b border-white/5 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide backdrop-blur-sm ${t.group} ${
-                        theme === 'guest' ? 'bg-[#0f2223]/95' : 'bg-[#111827]/95'
+                        theme === 'guest' ? 'bg-white' : 'bg-[#111827]/95'
                       }`}
                     >
                       {entry.label}
@@ -300,7 +300,7 @@ export function DarkDropdownSelect({
                     onMouseEnter={() => setActiveIndex(index)}
                     onClick={() => pick(opt)}
                     className={`flex w-full items-center justify-between gap-3 border-0 px-3 ${py} text-left ${text} transition-colors ${
-                      isActive ? t.active : isSelected ? t.selected : 'bg-transparent text-slate-200 hover:bg-white/5'
+                      isActive ? t.active : isSelected ? t.selected : 'bg-white text-slate-800 hover:bg-white/5'
                     }`}
                   >
                     <span className="min-w-0 truncate">{opt.label}</span>
@@ -337,7 +337,7 @@ export function DarkDropdownSelect({
         onKeyDown={onKeyDown}
         className={`input-glow flex w-full items-center justify-between gap-2 rounded-lg px-3 ${py} ${text} transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${t.trigger}`}
       >
-        <span className={`min-w-0 truncate text-left ${selected ? 'text-white' : 'text-slate-500'}`}>
+        <span className={`min-w-0 truncate text-left ${selected ? 'text-slate-800' : 'text-slate-500'}`}>
           {selected?.label ?? placeholder}
         </span>
         <span className={`material-symbols-outlined shrink-0 text-lg ${t.chevron}`}>

@@ -154,7 +154,7 @@ export function AiPutawayPanel({
 
   if (!lpnId) {
     return (
-      <p className="text-xs text-slate-500">
+      <p className="text-xs font-semibold text-slate-300">
         Chọn một LPN (đã gán SKU) để xem gợi ý putaway từ rule engine.
       </p>
     )
@@ -162,7 +162,7 @@ export function AiPutawayPanel({
 
   if (!hasLpnDetails) {
     return (
-      <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs text-amber-200/90">
+      <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-200">
         Thêm ít nhất một SKU vào LPN trước khi dùng gợi ý AI putaway.
       </div>
     )
@@ -171,24 +171,24 @@ export function AiPutawayPanel({
   const providerReady = provider === 'gemini' ? geminiOk : ollamaOk
 
   return (
-    <div className="space-y-3 rounded-xl border border-violet-500/25 bg-gradient-to-br from-violet-500/[0.07] to-cyan-500/[0.04] p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
+    <div className="space-y-3 rounded-xl border border-violet-500/40 bg-gradient-to-br from-violet-950/60 to-slate-900 p-4 shadow-md">
+      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-white/5 pb-2">
         <div>
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-violet-200">
+          <h3 className="flex items-center gap-2 text-sm font-bold text-white">
             <span className="material-symbols-outlined text-lg text-violet-400">psychology</span>
             Gợi ý putaway (AI)
           </h3>
-          <p className="mt-0.5 text-[11px] text-slate-500">
+          <p className="mt-0.5 text-[11px] font-semibold text-slate-300">
             Bin do rule engine chọn · LLM chỉ giải thích tiếng Việt
             {lpnCode ? (
               <>
                 {' '}
-                · <span className="font-mono text-slate-400">{lpnCode}</span>
+                · <span className="font-mono font-bold text-cyan-200 bg-white/5 px-1 rounded">{lpnCode}</span>
               </>
             ) : null}
           </p>
         </div>
-        <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-black/20 p-0.5 text-[11px]">
+        <div className="flex items-center gap-1 rounded-lg border border-white/20 bg-slate-950 p-0.5 text-[11px] font-bold">
           {(['gemini', 'ollama'] as LlmProvider[]).map((p) => (
             <button
               key={p}
@@ -197,8 +197,8 @@ export function AiPutawayPanel({
               onClick={() => setProvider(p)}
               className={`rounded-md px-2.5 py-1 capitalize transition-colors ${
                 provider === p
-                  ? 'bg-violet-600/80 text-white'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-violet-600 text-white shadow'
+                  : 'text-slate-200 hover:text-white hover:bg-white/5'
               }`}
             >
               {p}
@@ -209,12 +209,12 @@ export function AiPutawayPanel({
                       ? 'bg-emerald-400'
                       : geminiOk === false
                         ? 'bg-red-400'
-                        : 'bg-slate-600'
+                        : 'bg-slate-400'
                     : ollamaOk
                       ? 'bg-emerald-400'
                       : ollamaOk === false
                         ? 'bg-red-400'
-                        : 'bg-slate-600'
+                        : 'bg-slate-400'
                 }`}
                 title={p === 'gemini' ? 'Gemini health' : 'Ollama health'}
               />
@@ -228,62 +228,67 @@ export function AiPutawayPanel({
       )}
 
       {previewBusy && !preview && (
-        <p className="text-xs text-slate-500 animate-pulse">Đang chạy rule engine…</p>
+        <p className="text-xs font-bold text-violet-300 animate-pulse">Đang chạy rule engine…</p>
       )}
 
       {preview && (
         <div className="space-y-3">
-          <div className="rounded-lg border border-white/10 bg-black/25 px-3 py-3">
-            <p className="text-[10px] uppercase tracking-wide text-slate-500">Bin gợi ý</p>
-            <p className="mt-1 font-mono text-lg text-cyan-300">
+          {/* Box hiển thị Mã Bin chính */}
+          <div className="rounded-lg border border-white/10 bg-slate-950/90 px-3 py-3 shadow-inner">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300">Bin gợi ý</p>
+            <p className="mt-0.5 font-mono text-2xl font-black text-cyan-300 tracking-wide">
               {preview.binCode ?? '—'}
             </p>
-            <p className="mt-1 text-xs text-slate-400">
-              {preview.zoneCode && <>Zone {preview.zoneCode}</>}
-              {preview.rackCode && <> · Rack {preview.rackCode}</>}
-              {preview.levelNumber != null && <> · Tầng {preview.levelNumber}</>}
+            <p className="mt-1 text-xs font-bold text-white">
+              {preview.zoneCode && <>Zone <span className="text-cyan-200">{preview.zoneCode}</span></>}
+              {preview.rackCode && <> · Rack <span className="text-cyan-200">{preview.rackCode}</span></>}
+              {preview.levelNumber != null && <> · Tầng <span className="text-cyan-200">{preview.levelNumber}</span></>}
               {preview.score != null && (
                 <>
                   {' '}
-                  · Điểm <span className="text-violet-300">{scorePercent(preview.score)}</span>
+                  · Điểm <span className="text-violet-300 font-extrabold">{scorePercent(preview.score)}</span>
                 </>
               )}
               {preview.modelVersion && (
-                <span className="text-slate-600"> · {preview.modelVersion}</span>
+                <span className="text-slate-400 font-medium text-[11px]"> · {preview.modelVersion}</span>
               )}
             </p>
           </div>
 
+          {/* Các lý do lựa chọn */}
           {preview.reasons && preview.reasons.length > 0 && (
-            <ul className="space-y-1 text-xs text-slate-400">
+            <ul className="space-y-1.5 text-xs font-semibold text-white bg-white/[0.03] p-2.5 rounded-lg border border-white/5 shadow-sm">
               {preview.reasons.map((r, i) => (
-                <li key={i} className="flex gap-2">
-                  <span className="text-violet-400">•</span>
+                <li key={i} className="flex gap-2 items-start">
+                  <span className="text-violet-400 font-extrabold text-sm leading-none">•</span>
                   <span>{r}</span>
                 </li>
               ))}
             </ul>
           )}
 
+          {/* Phương án thay thế */}
           {preview.alternatives && preview.alternatives.length > 0 && (
             <div>
               <button
                 type="button"
-                className="text-xs text-violet-300 hover:underline"
+                className="text-xs font-bold text-violet-300 hover:text-white underline decoration-dashed"
                 onClick={() => setShowAlternatives((v) => !v)}
               >
                 {showAlternatives ? 'Ẩn' : 'Xem'} {preview.alternatives.length} phương án khác
               </button>
               {showAlternatives && (
-                <ul className="mt-2 space-y-1.5 text-[11px] text-slate-500">
+                <ul className="mt-2 space-y-1.5 text-[11px] font-semibold text-slate-200">
                   {preview.alternatives.map((alt, i) => (
                     <li
                       key={i}
-                      className="rounded border border-white/5 bg-white/[0.02] px-2 py-1.5"
+                      className="rounded border border-white/10 bg-slate-950 px-2.5 py-2 flex justify-between items-center"
                     >
-                      <span className="font-mono text-slate-300">{alt.binCode}</span>
-                      {alt.zoneCode && ` · ${alt.zoneCode}`}
-                      {alt.score != null && ` · ${scorePercent(alt.score)}`}
+                      <div>
+                        <span className="font-mono font-bold text-cyan-300 text-sm mr-2">{alt.binCode}</span>
+                        {alt.zoneCode && <span className="text-slate-300">· Zone {alt.zoneCode}</span>}
+                      </div>
+                      {alt.score != null && <span className="text-violet-300 font-bold">{scorePercent(alt.score)}</span>}
                     </li>
                   ))}
                 </ul>
@@ -291,21 +296,23 @@ export function AiPutawayPanel({
             </div>
           )}
 
+          {/* Khối text giải thích từ LLM */}
           {explanation && (
-            <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2.5 text-sm leading-relaxed text-slate-300">
-              <p className="mb-1 text-[10px] font-medium uppercase text-violet-300/80">
+            <div className="rounded-lg border border-violet-500/40 bg-violet-950/50 px-3 py-2.5 text-sm font-semibold leading-relaxed text-white shadow-sm">
+              <p className="mb-1 text-[10px] font-extrabold uppercase tracking-widest text-violet-300">
                 Giải thích AI{explainModel ? ` · ${explainModel}` : ''}
               </p>
               {explanation}
             </div>
           )}
 
-          <div className="flex flex-wrap gap-2">
+          {/* Khu vực nút bấm Action */}
+          <div className="flex flex-wrap gap-2 pt-1">
             <button
               type="button"
               disabled={disabled || previewBusy}
               onClick={() => void runPreview()}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5 disabled:opacity-40"
+              className="rounded-lg border border-white/30 bg-white/5 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/15 disabled:opacity-40 transition-colors"
             >
               {previewBusy ? 'Đang tính…' : 'Tính lại'}
             </button>
@@ -313,7 +320,7 @@ export function AiPutawayPanel({
               type="button"
               disabled={disabled || explainBusy || providerReady === false}
               onClick={() => void runExplain()}
-              className="rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-medium text-violet-200 hover:bg-violet-500/20 disabled:opacity-40"
+              className="rounded-lg border border-violet-400 bg-violet-500/20 px-3 py-1.5 text-xs font-bold text-violet-200 hover:bg-violet-500/40 disabled:opacity-40 transition-colors"
             >
               {explainBusy ? 'Đang giải thích…' : 'Giải thích (LLM)'}
             </button>
@@ -321,7 +328,7 @@ export function AiPutawayPanel({
               type="button"
               disabled={disabled || applyBusy || !preview.recommendedBinId}
               onClick={() => void applyRecommendation()}
-              className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500 disabled:opacity-40"
+              className="rounded-lg bg-violet-600 px-4 py-1.5 text-xs font-extrabold text-white hover:bg-violet-500 shadow-md disabled:opacity-40 transition-colors"
             >
               {applyBusy ? 'Đang áp dụng…' : 'Dùng bin gợi ý'}
             </button>
@@ -330,7 +337,7 @@ export function AiPutawayPanel({
       )}
 
       {!previewBusy && !preview && !error && (
-        <p className="text-xs text-slate-500">Không có gợi ý — thử bấm Tính lại.</p>
+        <p className="text-xs font-bold text-slate-300">Không có gợi ý — thử bấm Tính lại.</p>
       )}
     </div>
   )

@@ -118,14 +118,14 @@ export function AiSlotAssistPage({ inboundBasePath }: Props) {
   }, [inboundId, loadInboundData])
 
   return (
-    <div className="relative flex flex-1 flex-col overflow-y-auto bg-[#0b101a] p-6 text-slate-100 md:p-8">
-      {loading && <LoadingOverlay />}
+    <div className="relative flex flex-1 flex-col overflow-y-auto bg-slate-50 p-6 text-slate-800 min-h-screen md:p-8">
+      {loading && <LoadingOverlay show={loading} text="Đang tải dữ liệu tồn kho..." />}
 
       <header className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Trợ lý putaway AI</h1>
-        <p className="mt-1 max-w-2xl text-sm text-slate-400">
-          Rule engine gợi ý bin; Gemini hoặc Ollama giải thích lý do bằng tiếng Việt. Tích hợp
-          luồng nhập kho — chọn phiếu và LPN đang RECEIVING.
+        <h1 className="text-2xl font-bold text-slate-900">Trợ lý putaway AI</h1>
+        <p className="mt-1 max-w-2xl text-sm text-slate-600">
+          Rule engine gợi ý vị trí ô kệ (bin); Gemini hoặc Ollama giải thích lý do bằng tiếng Việt. 
+          Tích hợp luồng nhập kho — chọn phiếu và mã LPN đang ở trạng thái RECEIVING.
         </p>
       </header>
 
@@ -136,48 +136,54 @@ export function AiSlotAssistPage({ inboundBasePath }: Props) {
       )}
 
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
-        <div className="space-y-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <label className="block text-sm font-medium text-slate-300">Phiếu nhập kho</label>
-          <select
-            value={inboundId}
-            onChange={(e) => setInboundId(e.target.value)}
-            aria-label="Chọn phiếu nhập kho"
-            className="w-full rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2 text-sm"
-          >
-            <option value="">— Chọn phiếu —</option>
-            {inbounds.map((inb) => (
-              <option key={inb.inboundRequestId} value={inb.inboundRequestId}>
-                {inb.inboundCode} · {inb.status}
-              </option>
-            ))}
-          </select>
-          {selectedInbound && (
-            <Link
-              to={`${inboundBasePath}/${selectedInbound.inboundRequestId}`}
-              className="text-xs text-cyan-400 hover:underline"
+        <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">Phiếu nhập kho</label>
+            <select
+              value={inboundId}
+              onChange={(e) => setInboundId(e.target.value)}
+              aria-label="Chọn phiếu nhập kho"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600 focus:outline-none"
             >
-              Mở chi tiết phiếu nhập →
-            </Link>
-          )}
+              <option value="">— Chọn phiếu —</option>
+              {inbounds.map((inb) => (
+                <option key={inb.inboundRequestId} value={inb.inboundRequestId}>
+                  {inb.inboundCode} · {inb.status}
+                </option>
+              ))}
+            </select>
+            {selectedInbound && (
+              <div className="mt-1.5">
+                <Link
+                  to={`${inboundBasePath}/${selectedInbound.inboundRequestId}`}
+                  className="text-xs font-bold text-cyan-600 hover:text-cyan-700 hover:underline"
+                >
+                  Mở chi tiết phiếu nhập →
+                </Link>
+              </div>
+            )}
+          </div>
 
-          <label className="block text-sm font-medium text-slate-300">LPN (RECEIVING)</label>
-          <select
-            value={selectedLpnId}
-            onChange={(e) => setSelectedLpnId(e.target.value)}
-            disabled={!receivingLpns.length}
-            aria-label="Chọn LPN receiving"
-            className="w-full rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2 text-sm font-mono disabled:opacity-50"
-          >
-            <option value="">— Chọn LPN —</option>
-            {receivingLpns.map((l) => (
-              <option key={l.lpnId} value={l.lpnId}>
-                {l.lpnCode} · {l.boxType}
-              </option>
-            ))}
-          </select>
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">LPN (RECEIVING)</label>
+            <select
+              value={selectedLpnId}
+              onChange={(e) => setSelectedLpnId(e.target.value)}
+              disabled={!receivingLpns.length}
+              aria-label="Chọn LPN receiving"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-mono text-slate-900 focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600 focus:outline-none disabled:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="">— Chọn LPN —</option>
+              {receivingLpns.map((l) => (
+                <option key={l.lpnId} value={l.lpnId}>
+                  {l.lpnCode} · {l.boxType}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col justify-center min-h-[180px]">
           {selectedInbound && selectedLpnId && warehouseId ? (
             <AiPutawayPanel
               lpnId={selectedLpnId}
@@ -190,50 +196,59 @@ export function AiSlotAssistPage({ inboundBasePath }: Props) {
               }}
             />
           ) : (
-            <p className="text-sm text-slate-500">Chọn phiếu nhập và LPN để xem gợi ý.</p>
+            <div className="text-center p-4">
+              <span className="material-symbols-outlined text-slate-300 text-4xl mb-2 block">info</span>
+              <p className="text-sm font-medium text-slate-400">Vui lòng chọn phiếu nhập và mã LPN để xem gợi ý thông minh từ AI.</p>
+            </div>
           )}
         </div>
       </div>
 
       {history.length > 0 && (
-        <section className="rounded-xl border border-white/10 overflow-hidden">
-          <h2 className="border-b border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold">
+        <section className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+          <h2 className="border-b border-slate-200 bg-slate-50/70 px-4 py-3 text-sm font-bold text-slate-800">
             Lịch sử gợi ý (phiếu này)
           </h2>
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase text-slate-500">
-              <tr>
-                <th className="px-4 py-2">Thời gian</th>
-                <th className="px-4 py-2">LPN</th>
-                <th className="px-4 py-2">Bin</th>
-                <th className="px-4 py-2">Điểm</th>
-                <th className="px-4 py-2">Đã putaway</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.map((row) => (
-                <tr key={row.recommendationId} className="border-t border-white/5">
-                  <td className="px-4 py-2 text-slate-400">
-                    {row.createdAt ? formatDate(row.createdAt) : '—'}
-                  </td>
-                  <td className="px-4 py-2 font-mono text-xs">{row.lpnCode ?? row.lpnId}</td>
-                  <td className="px-4 py-2 font-mono text-cyan-300/90">{row.binCode ?? '—'}</td>
-                  <td className="px-4 py-2">
-                    {row.recommendationScore != null
-                      ? `${Math.round(row.recommendationScore * 100)}%`
-                      : '—'}
-                  </td>
-                  <td className="px-4 py-2">
-                    {row.isApplied ? (
-                      <span className="text-emerald-400">Có</span>
-                    ) : (
-                      <span className="text-slate-500">Chưa</span>
-                    )}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                <tr>
+                  <th className="px-4 py-3">Thời gian</th>
+                  <th className="px-4 py-3">LPN</th>
+                  <th className="px-4 py-3">Bin</th>
+                  <th className="px-4 py-3">Điểm số</th>
+                  <th className="px-4 py-3">Đã putaway</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                {history.map((row) => (
+                  <tr key={row.recommendationId} className="hover:bg-slate-50/50 transition-colors bg-white">
+                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                      {row.createdAt ? formatDate(row.createdAt) : '—'}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-slate-700 font-semibold">{row.lpnCode ?? row.lpnId}</td>
+                    <td className="px-4 py-3 font-mono text-cyan-700 font-bold">{row.binCode ?? '—'}</td>
+                    <td className="px-4 py-3 font-semibold text-slate-900">
+                      {row.recommendationScore != null
+                        ? `${Math.round(row.recommendationScore * 100)}%`
+                        : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      {row.isApplied ? (
+                        <span className="inline-flex items-center gap-1 rounded bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-xs font-bold text-emerald-700">
+                          Đã áp dụng
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded bg-slate-100 border border-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                          Chưa áp dụng
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
     </div>

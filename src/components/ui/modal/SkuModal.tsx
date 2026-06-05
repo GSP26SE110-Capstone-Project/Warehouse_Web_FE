@@ -4,7 +4,7 @@ import type { ApiSku } from '../../../api/skus'
 import type { ApiProductKindTreeNode, ApiSizeFactor } from '../../../api/productCatalog'
 import type { ApiCollection } from '../../../api/collections'
 import type { ApiSeason } from '../../../api/seasons'
-import { DarkDropdownSelect } from '../DarkDropdownSelect'
+import { DarkDropdownSelect } from '../DarkDropdownSelect' // Giữ nguyên import theo cấu trúc file, style bên trong được truyền qua props theme
 import { buildFlatSizeOptions, buildSizeToGroupMap, roundVolumeUnits } from '../../../utils/volumeUnits'
 import { MOVEMENT_CATEGORY_OPTIONS, SKU_STATUS_OPTIONS } from '../../../data/skuOptions'
 
@@ -34,10 +34,11 @@ type Props = {
   onSubmit?: (payload: SkuFormPayload) => void | Promise<void>
 }
 
+// Cập nhật hệ thống Style sang màu sáng (Light Mode)
 const labelStyle =
   'text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block'
 const inputStyle =
-  'w-full bg-[#1a2333] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400'
+  'w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:bg-slate-50 disabled:text-slate-500 transition-all'
 
 function toForm(data?: ApiSku): SkuFormPayload {
   return {
@@ -198,16 +199,22 @@ export function SkuModal({
     mode === 'create' ? 'Thêm SKU' : mode === 'edit' ? 'Sửa SKU' : 'Chi tiết SKU'
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-      <button type="button" className="absolute inset-0 bg-black/70" onClick={onClose} aria-label="Đóng" />
-      <div className="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-white/5 bg-[#0b101a] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/5 px-6 py-4">
-          <h2 className="text-lg font-bold text-white">{title}</h2>
-          <button type="button" onClick={onClose} className="rounded p-2 hover:bg-white/10">
-            <span className="material-symbols-outlined text-slate-400">close</span>
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 animate-fade-in">
+      {/* Lớp nền mờ chuyển sang màu xám mờ sáng dịu thay vì đen tối */}
+      <button type="button" className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} aria-label="Đóng" />
+      
+      {/* Khung nội dung chính: Đổi nền trắng, viền xám sáng, đổ bóng lớn sang trọng */}
+      <div className="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+        
+        {/* Header Modal */}
+        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-6 py-4">
+          <h2 className="text-lg font-bold text-slate-900">{title}</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+            <span className="material-symbols-outlined text-xl">close</span>
           </button>
         </div>
 
+        {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto overflow-x-visible p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -216,7 +223,7 @@ export function SkuModal({
               </label>
               <input
                 id="sku-code"
-                className={inputStyle}
+                className={`${inputStyle} font-mono uppercase tracking-wide disabled:opacity-75`}
                 disabled={isView || mode === 'edit'}
                 value={form.skuCode}
                 onChange={(e) => setForm((f) => ({ ...f, skuCode: e.target.value.toUpperCase() }))}
@@ -253,6 +260,7 @@ export function SkuModal({
               disabled={isView}
               value={form.productName}
               onChange={(e) => setForm((f) => ({ ...f, productName: e.target.value }))}
+              placeholder="Nhập tên sản phẩm..."
             />
           </div>
 
@@ -260,14 +268,11 @@ export function SkuModal({
             <label className={labelStyle} htmlFor="sku-product-kind">
               Loại hàng *
             </label>
-            <p className="mb-2 text-xs text-slate-500">
-              Cùng catalog với yêu cầu thuê — dùng để quy đổi volume units (U) khi nhập kho.
-            </p>
             {isView ? (
-              <p className="rounded-lg border border-white/10 bg-[#1a2333] px-4 py-2.5 text-sm text-white">
-                {selectedKind?.displayName ?? (form.productKind || '—')}
+              <p className={`${inputStyle} bg-slate-50 text-slate-800`}>
+                <span className="font-medium">{selectedKind?.displayName ?? (form.productKind || '—')}</span>
                 {selectedKind && (
-                  <span className="ml-2 text-slate-500">
+                  <span className="ml-2 font-mono text-xs text-slate-400">
                     ({Number(selectedKind.baseVolumeUnitsPerPiece)} U)
                   </span>
                 )}
@@ -279,7 +284,6 @@ export function SkuModal({
                 onChange={(productKind) => setForm((f) => ({ ...f, productKind }))}
                 groups={productKindGroups}
                 placeholder="Chọn loại hàng…"
-                theme="staff"
                 searchable
                 searchPlaceholder="Tìm T-Shirt, Jeans…"
               />
@@ -335,6 +339,7 @@ export function SkuModal({
                 disabled={isView}
                 value={form.color}
                 onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
+                placeholder="VD: Đen, Trắng"
               />
             </div>
             <div>
@@ -342,10 +347,10 @@ export function SkuModal({
                 Size {requiresSize ? '*' : ''}
               </label>
               {isView ? (
-                <p className="rounded-lg border border-white/10 bg-[#1a2333] px-4 py-2.5 text-sm text-white">
-                  {form.size || 'One-size'}
+                <p className={`${inputStyle} bg-slate-50 text-slate-800`}>
+                  <span className="font-semibold">{form.size || 'One-size'}</span>
                   {selectedSizeMeta && (
-                    <span className="ml-2 text-slate-500">
+                    <span className="ml-2 font-mono text-xs text-slate-400">
                       (×{Number(selectedSizeMeta.factor)} U)
                     </span>
                   )}
@@ -362,18 +367,16 @@ export function SkuModal({
                   }
                   placeholder={requiresSize ? 'Chọn size…' : 'One-size'}
                   disabled={!requiresSize}
-                  theme="staff"
                 />
               )}
               {requiresSize && (
-                <p className="mt-1 text-[11px] text-slate-500">
+                <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
                   Cùng bảng size với yêu cầu thuê (XS–S / M–L / XL–3XL).
                   {isView && finalVolumePerPiece != null && selectedKind && (
-                    <>
-                      {' '}
+                    <span className="block text-slate-500 mt-0.5">
                       U/cái = {Number(selectedKind.baseVolumeUnitsPerPiece)} × hệ số size ={' '}
-                      {finalVolumePerPiece} U.
-                    </>
+                      <span className="font-bold text-sky-600">{finalVolumePerPiece} U</span>.
+                    </span>
                   )}
                 </p>
               )}
@@ -385,6 +388,7 @@ export function SkuModal({
                 disabled={isView}
                 value={form.material}
                 onChange={(e) => setForm((f) => ({ ...f, material: e.target.value }))}
+                placeholder="VD: Cotton"
               />
             </div>
           </div>
@@ -412,19 +416,20 @@ export function SkuModal({
             <InlineAlert compact hideTitle message={error} onDismiss={() => setError('')} />
           )}
 
+          {/* Footer Action Buttons */}
           {!isView && (
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300"
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
               >
                 Hủy
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-2 text-sm font-bold text-black disabled:opacity-50"
+                className="rounded-lg bg-sky-600 px-5 py-2 text-sm font-bold text-white shadow-sm hover:bg-sky-700 disabled:opacity-50 transition-all active:scale-[0.98]"
               >
                 {saving ? 'Đang lưu…' : 'Lưu'}
               </button>

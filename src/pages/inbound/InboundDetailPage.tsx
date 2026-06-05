@@ -368,7 +368,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   }
 
   const persistDelivery = async () => {
-    const plate = deliveryForm.vehiclePlate.trim()
+    const plate = deliveryForm.vehiclePlate?.trim()
     const assignId = assignedDriverUserId.trim() || undefined
     if (!isTransporter && !plate && !assignId) {
       throw new ApiError('Nhập biển số xe hoặc chọn tài xế', 400)
@@ -612,9 +612,9 @@ export function InboundDetailPage({ mode, basePath }: Props) {
 
   if (!inbound && !loading) {
     return (
-      <div className="p-8 text-slate-400">
+      <div className="p-8 text-slate-500">
         Không tìm thấy yêu cầu.{' '}
-        <button type="button" className="text-cyan-400" onClick={() => navigate(basePath)}>
+        <button type="button" className="text-cyan-600 hover:underline" onClick={() => navigate(basePath)}>
           Quay lại
         </button>
       </div>
@@ -622,14 +622,14 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   }
 
   return (
-    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
+    <div className="flex max-w-screen overflow-hidden bg-slate-50 text-slate-800">
       <LoadingOverlay show={loading || busy} text="Đang xử lý..." />
-      <main className="relative flex flex-1 flex-col overflow-y-auto bg-[#0b101a]">
+      <main className="relative flex flex-1 flex-col overflow-y-auto bg-slate-50">
         <div className="mx-auto w-full max-w-5xl p-8">
           <button
             type="button"
             onClick={() => navigate(basePath)}
-            className="mb-4 text-sm text-cyan-400 hover:underline"
+            className="mb-4 text-sm text-cyan-600 hover:underline"
           >
             ← Danh sách
           </button>
@@ -646,8 +646,8 @@ export function InboundDetailPage({ mode, basePath }: Props) {
             <>
               <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <h1 className="font-mono text-2xl font-bold text-cyan-300">{inbound.inboundCode}</h1>
-                  <p className="mt-1 text-sm text-slate-400">
+                  <h1 className="font-mono text-2xl font-bold text-cyan-700">{inbound.inboundCode}</h1>
+                  <p className="mt-1 text-sm text-slate-500">
                     Dự kiến: {formatDate(inbound.expectedArrivalDate)} · Thực tế:{' '}
                     {formatDate(inbound.actualArrivalAt)}
                   </p>
@@ -659,19 +659,19 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                 <InboundApprovalPanel readiness={readiness} />
               )}
 
-              <section className="mb-6 rounded-xl border border-white/10 bg-white/5 p-4">
-                <h2 className="mb-2 font-semibold">Vận chuyển đến kho</h2>
+              <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 className="mb-2 font-semibold text-slate-900">Vận chuyển đến kho</h2>
                 <p className="mb-3 text-xs text-slate-500">
                   {DELIVERY_MODE_OPTIONS.find((o) => o.value === inbound.deliveryMode)?.label ??
                     inbound.deliveryMode ??
                     '—'}
                   {inbound.status === 'APPROVED' && !inbound.delivery && isWarehouse && !isWarehouseTransport && (
-                    <span className="ml-2 text-amber-300">
+                    <span className="ml-2 text-amber-600 font-medium">
                       · Cần lưu biển số trước khi &quot;Xe đã đến&quot;
                     </span>
                   )}
                   {inbound.status === 'APPROVED' && isWarehouseTransport && isWarehouse && !isTransporter && (
-                    <span className="ml-2 text-slate-400">
+                    <span className="ml-2 text-slate-500">
                       · Tài xế kho sẽ báo &quot;Xe đã đến&quot; sau khi tới cổng
                     </span>
                   )}
@@ -682,8 +682,8 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                 )}
 
                 {canEditPickup && (
-                  <div className="mb-4 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-                    <p className="mb-2 text-sm font-medium text-emerald-200">Điểm lấy hàng của bạn</p>
+                  <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                    <p className="mb-2 text-sm font-medium text-emerald-800">Điểm lấy hàng của bạn</p>
                     <InboundPickupForm
                       value={pickupForm}
                       onChange={(next) => {
@@ -695,19 +695,19 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                       <button
                         type="button"
                         onClick={savePickup}
-                        className="mt-3 rounded bg-emerald-600 px-3 py-1.5 text-sm hover:bg-emerald-500"
+                        className="mt-3 rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-700"
                       >
                         Lưu điểm lấy hàng
                       </button>
                     ) : inbound.delivery?.pickupAddress ? (
-                      <p className="mt-3 text-xs text-emerald-300">✓ Đã lưu điểm lấy hàng</p>
+                      <p className="mt-3 text-xs text-emerald-700 font-medium">✓ Đã lưu điểm lấy hàng</p>
                     ) : null}
                   </div>
                 )}
 
                 {canAssignTransporter && (
-                  <div className="mb-3">
-                    <label className="mb-1 block text-xs text-slate-500">Tài xế kho được gán</label>
+                  <div className="mb-4">
+                    <label className="mb-1 block text-xs font-medium text-slate-600">Tài xế kho được gán</label>
                     <select
                       aria-label="Tài xế kho được gán"
                       value={assignedDriverUserId}
@@ -723,7 +723,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                         }
                         setDeliveryDirty(true)
                       }}
-                      className="w-full max-w-md rounded border border-white/10 bg-black/30 px-3 py-2 text-sm"
+                      className="w-full max-w-md rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-cyan-500 focus:outline-none"
                     >
                       <option value="">— Chưa gán —</option>
                       {transporters.map((t) => (
@@ -738,7 +738,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                       inbound.
                     </p>
                     {transporters.length === 0 && (
-                      <p className="mt-1 text-xs text-amber-300">
+                      <p className="mt-1 text-xs text-amber-700 font-medium">
                         Chưa có tài khoản WH_TRANSPORTER — WH Admin tạo trong Quản lý tài khoản.
                       </p>
                     )}
@@ -746,7 +746,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                 )}
                 {tenantDeliveryLocked ? (
                   <>
-                    <p className="mb-3 text-xs text-amber-200/90">
+                    <p className="mb-3 text-xs text-amber-800 bg-amber-50 p-2.5 rounded border border-amber-200">
                       Bạn đã chọn <strong>vận chuyển do kho đi lấy</strong> — thông tin xe, tài xế và
                       ghi chú cổng sẽ do kho / tài xế cập nhật. Tenant không cần (và không thể) nhập
                       tại đây.
@@ -778,7 +778,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                         <button
                           type="button"
                           onClick={saveDelivery}
-                          className="mt-3 rounded bg-cyan-600 px-3 py-1.5 text-sm hover:bg-cyan-500"
+                          className="mt-3 rounded bg-cyan-600 px-3 py-1.5 text-sm text-white hover:bg-cyan-700 shadow-sm"
                         >
                           {canAssignTransporter && !canEditDelivery
                             ? 'Lưu gán tài xế'
@@ -788,7 +788,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                         </button>
                       ) : hasSavedDispatch && deliveryFieldsLocked ? (
                         <div className="mt-3 flex flex-wrap items-center gap-3">
-                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-sm text-emerald-300">
+                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700 font-medium">
                             <span className="material-symbols-outlined text-base">check_circle</span>
                             Đã lưu thông tin vận chuyển
                           </span>
@@ -796,7 +796,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                             <button
                               type="button"
                               onClick={startDeliveryEdit}
-                              className="rounded-lg border border-cyan-500/40 px-3 py-1.5 text-xs font-medium text-cyan-300 hover:bg-cyan-500/10"
+                              className="rounded-lg border border-cyan-300 px-3 py-1.5 text-xs font-medium text-cyan-700 hover:bg-cyan-50 bg-white"
                             >
                               Sửa lại
                             </button>
@@ -813,7 +813,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                                   onConfirm: reportArrival,
                                 })
                               }
-                              className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-medium hover:bg-violet-500"
+                              className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-700 shadow-sm"
                             >
                               Xe đã đến
                             </button>
@@ -822,27 +822,27 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                       ) : null)}
                   </>
                 ) : inbound.delivery ? (
-                  <dl className="grid gap-2 text-sm sm:grid-cols-2">
+                  <dl className="grid gap-3 text-sm sm:grid-cols-2 bg-slate-50 p-4 rounded-lg border border-slate-200">
                     <div>
-                      <dt className="text-slate-500">Biển số</dt>
-                      <dd className="font-mono text-cyan-300">{inbound.delivery.vehiclePlate}</dd>
+                      <dt className="text-slate-500 font-medium">Biển số</dt>
+                      <dd className="font-mono text-cyan-700 font-bold text-base">{inbound.delivery.vehiclePlate}</dd>
                     </div>
                     {inbound.delivery.driverName && (
                       <div>
-                        <dt className="text-slate-500">Tài xế</dt>
-                        <dd>{inbound.delivery.driverName}</dd>
+                        <dt className="text-slate-500 font-medium">Tài xế</dt>
+                        <dd className="text-slate-900 font-medium">{inbound.delivery.driverName}</dd>
                       </div>
                     )}
                     {inbound.delivery.driverPhone && (
                       <div>
-                        <dt className="text-slate-500">SĐT</dt>
-                        <dd>{inbound.delivery.driverPhone}</dd>
+                        <dt className="text-slate-500 font-medium">SĐT</dt>
+                        <dd className="text-slate-900">{inbound.delivery.driverPhone}</dd>
                       </div>
                     )}
                     {inbound.delivery.assignedDriverUserId && (
                       <div>
-                        <dt className="text-slate-500">Tài xế (account)</dt>
-                        <dd className="font-mono text-xs text-slate-300">
+                        <dt className="text-slate-500 font-medium">Tài xế (account)</dt>
+                        <dd className="font-mono text-xs text-slate-700">
                           {transporters.find(
                             (t) => t.userId === inbound.delivery?.assignedDriverUserId
                           )?.fullName ?? inbound.delivery.assignedDriverUserId}
@@ -851,7 +851,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                     )}
                   </dl>
                 ) : (
-                  <p className="text-sm text-slate-500">Chưa có thông tin xe.</p>
+                  <p className="text-sm text-slate-500 italic">Chưa có thông tin xe.</p>
                 )}
               </section>
 
@@ -884,7 +884,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                       <button
                         type="button"
                         onClick={confirmApprove}
-                        className="rounded bg-blue-600 px-3 py-1.5 text-sm hover:bg-blue-500"
+                        className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 shadow-sm"
                       >
                         Duyệt
                       </button>
@@ -899,7 +899,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                             onConfirm: () => patchStatus('CANCELLED'),
                           })
                         }
-                        className="rounded border border-red-500/40 px-3 py-1.5 text-sm text-red-400"
+                        className="rounded border border-red-300 px-4 py-2 text-sm font-medium text-red-600 bg-white hover:bg-red-50 shadow-sm"
                       >
                         Từ chối
                       </button>
@@ -913,7 +913,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                           actualArrivalAt: new Date().toISOString(),
                         })
                       }
-                      className="rounded bg-violet-600 px-3 py-1.5 text-sm"
+                      className="rounded bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 shadow-sm"
                     >
                       Xe đã đến
                     </button>
@@ -933,7 +933,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                                 patchStatus('PENDING', { approvedBy: null }),
                             })
                           }
-                          className="rounded border border-slate-500/50 px-3 py-1.5 text-sm text-slate-300"
+                          className="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 shadow-sm"
                         >
                           Thu hồi duyệt
                         </button>
@@ -942,7 +942,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                         <button
                           type="button"
                           onClick={confirmWarehouseCancel}
-                          className="rounded border border-red-500/40 px-3 py-1.5 text-sm text-red-400"
+                          className="rounded border border-red-300 px-4 py-2 text-sm font-medium text-red-600 bg-white hover:bg-red-50 shadow-sm"
                         >
                           Hủy yêu cầu
                         </button>
@@ -955,7 +955,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                         <button
                           type="button"
                           onClick={confirmWarehouseCancel}
-                          className="rounded border border-red-500/40 px-3 py-1.5 text-sm text-red-400"
+                          className="rounded border border-red-300 px-4 py-2 text-sm font-medium text-red-600 bg-white hover:bg-red-50 shadow-sm"
                         >
                           Hủy yêu cầu
                         </button>
@@ -971,7 +971,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                             'Bắt đầu nhận hàng'
                           )
                         }
-                        className="rounded bg-cyan-600 px-3 py-1.5 text-sm"
+                        className="rounded bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700 shadow-sm"
                       >
                         Bắt đầu nhận hàng
                       </button>
@@ -986,7 +986,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                           'Inbound hoàn tất'
                         )
                       }
-                      className="rounded bg-emerald-600 px-3 py-1.5 text-sm"
+                      className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 shadow-sm"
                     >
                       Hoàn tất inbound
                     </button>
@@ -995,9 +995,9 @@ export function InboundDetailPage({ mode, basePath }: Props) {
               )}
 
               {/* Items */}
-              <section className="mb-8 rounded-xl border border-white/10 bg-white/5 p-4">
+              <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="font-semibold">Dòng hàng</h2>
+                  <h2 className="font-semibold text-slate-900">Dòng hàng</h2>
                   {isWarehouse &&
                     !isTransporter &&
                     inbound.status === 'RECEIVING' &&
@@ -1005,20 +1005,20 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                       <button
                         type="button"
                         onClick={handleCompleteReceiving}
-                        className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium hover:bg-amber-500"
+                        className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700 shadow-sm"
                       >
                         Hoàn tất kiểm đếm
                       </button>
                     ) : receivingFieldsLocked ? (
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-sm text-emerald-300">
+                        <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700 font-medium">
                           <span className="material-symbols-outlined text-base">check_circle</span>
                           Đã hoàn tất kiểm đếm
                         </span>
                         <button
                           type="button"
                           onClick={startReceivingEdit}
-                          className="rounded-lg border border-amber-500/40 px-3 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-500/10"
+                          className="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 bg-white hover:bg-amber-50"
                         >
                           Sửa lại
                         </button>
@@ -1026,28 +1026,28 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                     ) : null)}
                 </div>
                 {isWarehouse && inbound.status === 'ARRIVED' && (
-                  <p className="mb-3 text-xs text-slate-500">
-                    Bấm <strong className="text-cyan-400/90">Bắt đầu nhận hàng</strong> phía trên để
+                  <p className="mb-3 text-xs text-slate-500 bg-slate-50 p-2 rounded">
+                    Bấm <strong className="text-cyan-700">Bắt đầu nhận hàng</strong> phía trên để
                     nhập số thực nhận.
                   </p>
                 )}
                 {isWarehouse && inbound.status === 'RECEIVING' && receivingEditing && (
-                  <p className="mb-3 text-xs text-slate-500">
+                  <p className="mb-3 text-xs text-slate-500 bg-slate-50 p-2 rounded">
                     Nhập số thực nhận, sau đó bấm{' '}
-                    <strong className="text-amber-400/90">Hoàn tất kiểm đếm</strong> để lưu (không cần
+                    <strong className="text-amber-700">Hoàn tất kiểm đếm</strong> để lưu (không cần
                     nút Lưu từng dòng).
                   </p>
                 )}
                 <table className="w-full text-sm">
-                  <thead className="text-slate-400">
+                  <thead className="text-slate-500 font-medium bg-slate-50">
                     <tr>
-                      <th className="py-2 text-left">SKU</th>
-                      <th className="py-2 text-right">Mong đợi</th>
-                      <th className="py-2 text-right">Đã nhận</th>
-                      <th className="py-2 text-right">Chênh lệch</th>
+                      <th className="py-2.5 px-3 text-left rounded-l-lg">SKU</th>
+                      <th className="py-2.5 px-3 text-right">Mong đợi</th>
+                      <th className="py-2.5 px-3 text-right">Đã nhận</th>
+                      <th className="py-2.5 px-3 text-right rounded-r-lg">Chênh lệch</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100">
                     {items.map((item: ApiInboundRequestItem) => {
                       const canEditReceived =
                         isWarehouse &&
@@ -1060,22 +1060,22 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                       const discrepancy = item.expectedQuantity - received
 
                       return (
-                      <tr key={item.inboundRequestItemId} className="border-t border-white/5">
-                        <td className="py-2">
-                          {item.sku?.skuCode ?? item.skuId.slice(0, 8)}
-                          <span className="block text-xs text-slate-500">
+                      <tr key={item.inboundRequestItemId} className="hover:bg-slate-50/50">
+                        <td className="py-3 px-3">
+                          <span className="font-medium text-slate-900">{item.sku?.skuCode ?? item.skuId.slice(0, 8)}</span>
+                          <span className="block text-xs text-slate-500 mt-0.5">
                             {item.sku?.productName}
                           </span>
                         </td>
-                        <td className="py-2 text-right">{item.expectedQuantity}</td>
-                        <td className="py-2 text-right">
+                        <td className="py-3 px-3 text-right font-medium text-slate-700">{item.expectedQuantity}</td>
+                        <td className="py-3 px-3 text-right">
                           {canEditReceived ? (
                             <input
                               type="number"
                               min={0}
                               aria-label="Số đã nhận"
                               placeholder="0"
-                              className="w-20 rounded border border-white/10 bg-[#0f172a] px-2 py-1 text-right"
+                              className="w-20 rounded border border-slate-300 bg-white px-2 py-1 text-right text-slate-800 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                               value={receivedDraft[item.inboundRequestItemId] ?? 0}
                               onChange={(e) => {
                                 setReceivedDraft((d) => ({
@@ -1086,16 +1086,16 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                               }}
                             />
                           ) : (
-                            received
+                            <span className="font-medium text-slate-800">{received}</span>
                           )}
                         </td>
                         <td
-                          className={`py-2 text-right ${
+                          className={`py-3 px-3 text-right font-semibold ${
                             discrepancy === 0
-                              ? 'text-emerald-400'
+                              ? 'text-emerald-600'
                               : discrepancy > 0
-                                ? 'text-amber-300'
-                                : 'text-violet-300'
+                                ? 'text-amber-600'
+                                : 'text-violet-600'
                           }`}
                           title={
                             discrepancy > 0
@@ -1107,7 +1107,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                         >
                           {discrepancy}
                           {canEditReceived && discrepancy !== 0 && (
-                            <span className="block text-[10px] font-normal text-slate-500">
+                            <span className="block text-[10px] font-normal text-slate-500 mt-0.5">
                               {discrepancy > 0 ? 'thiếu' : 'thừa'}
                             </span>
                           )}
@@ -1204,13 +1204,13 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                         type="button"
                         onClick={handlePutaway}
                         disabled={!putawayBinId || !selectedLpnId}
-                        className="mt-2 w-full rounded border border-white/10 bg-slate-700 px-3 py-2 text-sm hover:bg-slate-600 disabled:opacity-40"
+                        className="mt-2 w-full rounded border border-slate-300 bg-slate-100 text-slate-700 font-medium px-3 py-2 text-sm hover:bg-slate-200 disabled:opacity-40 shadow-sm transition-colors"
                       >
                         Putaway 1 LPN (thủ công)
                       </button>
                       <p className="mt-2 text-xs text-slate-500">
                         LPN phải có SKU trong thùng. Ưu tiên nút{' '}
-                        <strong className="text-emerald-400">Putaway tự động</strong> phía trên khi còn
+                        <strong className="text-emerald-600">Putaway tự động</strong> phía trên khi còn
                         nhiều LPN.
                       </p>
                     </>
@@ -1219,15 +1219,15 @@ export function InboundDetailPage({ mode, basePath }: Props) {
               )}
 
               {inbound.status === 'COMPLETED' && isWarehouse && (
-                <section className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-sm text-emerald-200">
-                  <p className="mb-3">Inbound đã hoàn tất. Hàng đã putaway có thể xem trong tồn kho.</p>
+                <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800 shadow-sm">
+                  <p className="mb-3 font-medium">Inbound đã hoàn tất. Hàng đã putaway có thể xem trong tồn kho.</p>
                   <Link
                     to={
                       basePath.startsWith('/staff/inbound-ops')
                         ? `/staff/inventory-ops?inboundRequestId=${inbound.inboundRequestId}`
                         : `/admin/inventory?inboundRequestId=${inbound.inboundRequestId}`
                     }
-                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-600/80 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 shadow-sm transition-colors"
                   >
                     Xem tồn kho đợt này (LPN / batch)
                   </Link>

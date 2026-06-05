@@ -13,7 +13,8 @@ import {
   WEEKDAY_LABELS,
 } from '../../utils/datePicker'
 
-const inputWrapStyle = { border: '1px solid #3a5455', background: 'rgba(11,22,23,0.8)' } as const
+// Thay đổi style viền và nền của ô input sang tông màu sáng (Light Mode)
+const inputWrapStyle = { border: '1px solid #cbd5e1', background: '#f8fafc' } as const
 
 function isDisabledDay(day: Date, min?: string, max?: string): boolean {
   const minDate = min ? parseIsoDate(min) : null
@@ -138,8 +139,8 @@ export function DatePickerField({
       <input type="hidden" id={id} name={id} value={value} required={required} readOnly />
 
       <div
-        className={`input-glow relative rounded-lg transition-colors ${
-          open ? 'ring-1 ring-[#06edf9]/40 border-[#06edf9]/50' : ''
+        className={`relative rounded-lg transition-all ${
+          open ? 'ring-2 ring-sky-500/20 border-sky-500 bg-white' : 'hover:border-slate-400'
         }`}
         style={inputWrapStyle}
       >
@@ -156,20 +157,20 @@ export function DatePickerField({
           }`}
         >
           <span
-            className={`material-symbols-outlined text-[#06edf9] shrink-0 ${
+            className={`material-symbols-outlined text-sky-600 shrink-0 ${
               compact ? 'text-lg' : 'text-xl'
             }`}
           >
             calendar_month
           </span>
           <span
-            className={`flex-1 truncate ${compact ? 'text-sm' : 'text-base'} ${
-              displayValue ? 'text-white' : 'text-[#7a9496]'
+            className={`flex-1 truncate font-medium ${compact ? 'text-sm' : 'text-base'} ${
+              displayValue ? 'text-slate-800' : 'text-slate-400'
             }`}
           >
             {displayValue || placeholder}
           </span>
-          <span className="material-symbols-outlined text-[#9bb9bb] text-lg shrink-0">
+          <span className="material-symbols-outlined text-slate-400 text-lg shrink-0">
             {open ? 'expand_less' : 'expand_more'}
           </span>
         </button>
@@ -183,7 +184,7 @@ export function DatePickerField({
           id={listId}
           role="dialog"
           aria-label="Chọn ngày"
-          className="fixed z-[200] rounded-xl border border-[#06edf9]/25 bg-[#0b1617]/95 p-4 shadow-2xl shadow-black/50 backdrop-blur-xl"
+          className="fixed z-[200] rounded-xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/80"
           style={{
             top: popoverStyle.top,
             left: popoverStyle.left,
@@ -191,37 +192,40 @@ export function DatePickerField({
             maxWidth: 320,
           }}
         >
+          {/* Header bộ chọn tháng */}
           <div className="mb-3 flex items-center justify-between gap-2">
             <button
               type="button"
               aria-label="Tháng trước"
               onClick={() => setViewMonth((m) => addMonths(m, -1))}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-[#9bb9bb] hover:border-[#06edf9]/40 hover:text-[#06edf9] transition-colors cursor-pointer bg-transparent"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors cursor-pointer bg-transparent"
             >
               <span className="material-symbols-outlined text-lg">chevron_left</span>
             </button>
-            <p className="text-sm font-semibold text-white capitalize">{formatMonthYear(viewMonth)}</p>
+            <p className="text-sm font-bold text-slate-800 capitalize">{formatMonthYear(viewMonth)}</p>
             <button
               type="button"
               aria-label="Tháng sau"
               onClick={() => setViewMonth((m) => addMonths(m, 1))}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-[#9bb9bb] hover:border-[#06edf9]/40 hover:text-[#06edf9] transition-colors cursor-pointer bg-transparent"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors cursor-pointer bg-transparent"
             >
               <span className="material-symbols-outlined text-lg">chevron_right</span>
             </button>
           </div>
 
+          {/* Nhãn thứ trong tuần */}
           <div className="mb-1 grid grid-cols-7 gap-1">
             {WEEKDAY_LABELS.map((label) => (
               <div
                 key={label}
-                className="py-1 text-center text-[10px] font-semibold uppercase tracking-wide text-[#7a9496]"
+                className="py-1 text-center text-[10px] font-bold uppercase tracking-wide text-slate-400"
               >
                 {label}
               </div>
             ))}
           </div>
 
+          {/* Ô lưới các ngày */}
           <div className="grid grid-cols-7 gap-1">
             {calendarDays.map((day) => {
               const inMonth = day.getMonth() === viewMonth.getMonth()
@@ -236,16 +240,16 @@ export function DatePickerField({
                   disabled={disabledDay}
                   onClick={() => selectDay(day)}
                   className={[
-                    'relative flex h-9 w-full items-center justify-center rounded-lg text-sm transition-all cursor-pointer border bg-transparent',
+                    'relative flex h-9 w-full items-center justify-center rounded-lg text-sm font-semibold transition-all cursor-pointer border bg-transparent',
                     disabledDay
-                      ? 'opacity-30 cursor-not-allowed'
-                      : 'hover:bg-[#06edf9]/10 hover:border-[#06edf9]/30',
+                      ? 'opacity-25 bg-slate-50/50 text-slate-300 border-transparent cursor-not-allowed'
+                      : 'hover:bg-slate-100 hover:text-slate-900 hover:border-transparent',
                     selected
-                      ? 'bg-[#06edf9] text-[#0f2223] font-bold border-[#06edf9] shadow-[0_0_12px_rgba(6,237,249,0.35)]'
+                      ? 'bg-sky-600 text-white font-bold border-sky-600 hover:bg-sky-700 hover:text-white shadow-sm'
                       : inMonth
-                        ? 'text-white border-transparent'
-                        : 'text-[#5f7577] border-transparent',
-                    isToday && !selected ? 'ring-1 ring-[#06edf9]/50' : '',
+                        ? 'text-slate-700 border-transparent'
+                        : 'text-slate-300 border-transparent font-normal',
+                    isToday && !selected ? 'ring-2 ring-sky-600/30 border-sky-600/50' : '',
                   ].join(' ')}
                 >
                   {day.getDate()}
@@ -254,18 +258,19 @@ export function DatePickerField({
             })}
           </div>
 
-          <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/10 pt-3">
+          {/* Footer nút hành động nhanh */}
+          <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
             <button
               type="button"
               onClick={clearValue}
-              className="rounded-lg px-3 py-1.5 text-xs font-medium text-[#9bb9bb] hover:text-white hover:bg-white/5 transition-colors cursor-pointer bg-transparent border-0"
+              className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer bg-transparent border-0"
             >
               Xóa
             </button>
             <button
               type="button"
               onClick={selectToday}
-              className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#06edf9] hover:bg-[#06edf9]/10 transition-colors cursor-pointer bg-transparent border-0"
+              className="rounded-lg px-3 py-1.5 text-xs font-bold text-sky-600 hover:bg-sky-50 transition-colors cursor-pointer bg-transparent border-0"
             >
               Hôm nay
             </button>

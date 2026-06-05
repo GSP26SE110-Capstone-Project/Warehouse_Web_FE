@@ -124,38 +124,44 @@ export function ContractTerminationReviewPanel({
   }
 
   return (
-    <section className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 space-y-3">
-      <h3 className="text-sm font-semibold text-amber-200">Chấm dứt hợp đồng sớm</h3>
-      {loading && <p className="text-xs text-slate-500">Đang tải...</p>}
+    <section className="rounded-lg border border-amber-300 bg-amber-50 p-5 space-y-4 shadow-sm">
+      <h3 className="text-base font-bold text-amber-900">Chấm dứt hợp đồng sớm</h3>
+      
+      {loading && <p className="text-sm font-medium text-slate-600">Đang tải...</p>}
       {error && <InlineAlert message={error} onDismiss={() => setError('')} />}
       {success && (
-        <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+        <p className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-900">
           {success}
         </p>
       )}
 
       {!loading && pending && (
-        <div className="space-y-3">
-          <p className="text-sm text-white">
+        <div className="space-y-4">
+          {/* Tăng cỡ chữ lên text-sm và đổi sang màu slate-900 siêu rõ nét */}
+          <p className="text-sm font-bold text-slate-900">
             Tenant yêu cầu chấm dứt —{' '}
-            <span className="font-medium text-amber-300">
+            <span className="rounded bg-amber-200/80 px-2 py-0.5 text-amber-900">
               {TERMINATION_REQUEST_STATUS_LABELS.PENDING}
             </span>
           </p>
+          
           {pending.reason && (
-            <p className="text-sm text-slate-300">
-              <span className="text-slate-500">Lý do: </span>
+            /* Đổi nền box lý do sang màu tương phản cao giúp chữ text-slate-800 nổi hẳn lên */
+            <p className="text-sm text-slate-900 bg-amber-100/40 border border-amber-200 p-3 rounded-lg leading-relaxed">
+              <span className="font-bold text-slate-600">Lý do: </span>
               {pending.reason}
             </p>
           )}
+          
           {preview && <ContractTerminationSettlementView preview={preview} />}
+          
           {contractStatus === 'ACTIVE' && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-3 pt-1">
               <button
                 type="button"
                 disabled={acting}
                 onClick={() => void handleApprove()}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 transition-colors"
               >
                 {acting ? 'Đang xử lý…' : 'Duyệt chấm dứt'}
               </button>
@@ -163,7 +169,7 @@ export function ContractTerminationReviewPanel({
                 type="button"
                 disabled={acting}
                 onClick={() => void handleReject()}
-                className="rounded-lg border border-white/15 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 disabled:opacity-50"
+                className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 disabled:opacity-50 transition-colors"
               >
                 Từ chối
               </button>
@@ -173,20 +179,30 @@ export function ContractTerminationReviewPanel({
       )}
 
       {!loading && !pending && contractStatus === 'ACTIVE' && (
-        <p className="text-xs text-slate-500">Chưa có yêu cầu chấm dứt đang chờ.</p>
+        <p className="text-sm font-semibold text-slate-600">Chưa có yêu cầu chấm dứt đang chờ.</p>
       )}
 
       {!loading && history.length > 0 && (
-        <div className="border-t border-white/5 pt-3">
-          <p className="mb-2 text-xs font-semibold uppercase text-slate-500">Lịch sử yêu cầu</p>
-          <ul className="space-y-1 text-xs text-slate-400">
+        <div className="border-t border-amber-200 pt-4">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-700">Lịch sử yêu cầu</p>
+          <ul className="space-y-2 text-sm text-slate-800 font-medium">
             {history.slice(0, 5).map((r) => (
-              <li key={r.terminationRequestId}>
-                {TERMINATION_REQUEST_STATUS_LABELS[r.status] ?? r.status}
-                {r.createdAt ? ` · ${new Date(r.createdAt).toLocaleString('vi-VN')}` : ''}
-                {r.refundAmount != null
-                  ? ` · hoàn ${Number(r.refundAmount).toLocaleString('vi-VN')}₫`
-                  : ''}
+              <li key={r.terminationRequestId} className="flex items-center gap-2 bg-white/60 border border-slate-100 p-2 rounded-md shadow-sm">
+                <span className="inline-block h-2 w-2 rounded-full bg-slate-500"></span>
+                <span className="font-bold text-slate-900">
+                  {TERMINATION_REQUEST_STATUS_LABELS[r.status] ?? r.status}
+                </span>
+                <span className="text-slate-600">
+                  {r.createdAt ? ` · ${new Date(r.createdAt).toLocaleString('vi-VN')}` : ''}
+                </span>
+                {r.refundAmount != null && (
+                  <>
+                    <span className="text-slate-400">·</span>
+                    <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      hoàn {Number(r.refundAmount).toLocaleString('vi-VN')}₫
+                    </span>
+                  </>
+                )}
               </li>
             ))}
           </ul>

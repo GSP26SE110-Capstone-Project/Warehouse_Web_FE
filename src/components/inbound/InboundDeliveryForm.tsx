@@ -11,8 +11,9 @@ type Props = {
   compact?: boolean
 }
 
+// Cập nhật class input sang phong cách Light Mode
 const inputClass =
-  'w-full rounded border border-white/10 bg-[#0f172a] px-3 py-2 text-sm text-white disabled:opacity-50'
+  'w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/20 disabled:bg-slate-100 disabled:opacity-50 transition-colors'
 
 export function InboundDeliveryForm({
   deliveryMode,
@@ -26,13 +27,13 @@ export function InboundDeliveryForm({
   return (
     <div className={compact ? 'space-y-3' : 'space-y-4'}>
       {deliveryMode === 'WAREHOUSE_TRANSPORT' && (
-        <p className="text-xs text-slate-400">
-          Kho sẽ bổ sung / cập nhật thông tin xe trước khi bấm <strong>Xe đã đến</strong>.
+        <p className="text-xs text-slate-500">
+          Kho sẽ bổ sung / cập nhật thông tin xe trước khi bấm <strong className="text-slate-700">Xe đã đến</strong>.
         </p>
       )}
       <div className={compact ? 'grid gap-3 sm:grid-cols-2' : 'grid gap-4 sm:grid-cols-2'}>
         <div>
-          <label className="mb-1 block text-xs text-slate-500" htmlFor="vehiclePlate">
+          <label className="mb-1 block text-xs font-medium text-slate-500" htmlFor="vehiclePlate">
             Biển số xe *
           </label>
           <input
@@ -45,7 +46,7 @@ export function InboundDeliveryForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-500" htmlFor="driverName">
+          <label className="mb-1 block text-xs font-medium text-slate-500" htmlFor="driverName">
             Tên tài xế
           </label>
           <input
@@ -57,7 +58,7 @@ export function InboundDeliveryForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-500" htmlFor="driverPhone">
+          <label className="mb-1 block text-xs font-medium text-slate-500" htmlFor="driverPhone">
             SĐT tài xế
           </label>
           <input
@@ -69,7 +70,7 @@ export function InboundDeliveryForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-500" htmlFor="driverIdNumber">
+          <label className="mb-1 block text-xs font-medium text-slate-500" htmlFor="driverIdNumber">
             CCCD (tùy chọn)
           </label>
           <input
@@ -81,7 +82,7 @@ export function InboundDeliveryForm({
           />
         </div>
         <div className="sm:col-span-2">
-          <label className="mb-1 block text-xs text-slate-500" htmlFor="carrierName">
+          <label className="mb-1 block text-xs font-medium text-slate-500" htmlFor="carrierName">
             Đơn vị vận chuyển / hãng xe
           </label>
           <input
@@ -93,7 +94,7 @@ export function InboundDeliveryForm({
           />
         </div>
         <div className="sm:col-span-2">
-          <label className="mb-1 block text-xs text-slate-500" htmlFor="deliveryNotes">
+          <label className="mb-1 block text-xs font-medium text-slate-500" htmlFor="deliveryNotes">
             Ghi chú cổng
           </label>
           <textarea

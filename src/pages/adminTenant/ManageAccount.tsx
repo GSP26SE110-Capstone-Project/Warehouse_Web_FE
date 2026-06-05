@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
+import { StatsCard } from '../../components/ui/StatCard'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { AccountModal } from '../../components/ui/modal/AccountModal'
@@ -11,7 +12,6 @@ import { statusToApiStatus, USER_ROLE_LABEL, userToAccount } from '../../mappers
 import { useAuth } from '../../auth/AuthContext'
 import type { AccountFormValues } from '../../components/ui/modal/AccountModal'
 import type { UserRole, UserStatus } from '../../api/types'
-import { WhiteStatCard } from '../../components/ui/WhiteStatCard'
 
 type AccountRoleFilter = UserRole | 'all'
 type AccountStatusFilter = UserStatus | 'all'
@@ -44,15 +44,15 @@ function roleFilterOptionsFor(creatorRole?: UserRole): { value: AccountRoleFilte
   ]
 }
 
-// function pageSubtitleFor(creatorRole?: UserRole): string {
-//   if (creatorRole === 'WH_ADMIN') {
-//     return 'Tạo và quản lý nhân viên kho (WH_STAFF) và tài xế (WH_TRANSPORTER) trong kho của bạn.'
-//   }
-//   if (creatorRole === 'TENANT_ADMIN') {
-//     return 'Tạo và quản lý nhân viên tenant (TENANT_STAFF) trong brand của bạn.'
-//   }
-//   return 'Quản lý tài khoản hệ thống — dùng nút kích hoạt/vô hiệu hóa hoặc chỉnh sửa chi tiết.'
-// }
+function pageSubtitleFor(creatorRole?: UserRole): string {
+  if (creatorRole === 'WH_ADMIN') {
+    return 'Tạo và quản lý nhân viên kho (WH_STAFF) và tài xế (WH_TRANSPORTER) trong kho của bạn.'
+  }
+  if (creatorRole === 'TENANT_ADMIN') {
+    return 'Tạo và quản lý nhân viên tenant (TENANT_STAFF) trong brand của bạn.'
+  }
+  return 'Quản lý tài khoản hệ thống — dùng nút kích hoạt/vô hiệu hóa hoặc chỉnh sửa chi tiết.'
+}
 
 const STATUS_FILTER_OPTIONS: { value: AccountStatusFilter; label: string }[] = [
   { value: 'all', label: 'Tất cả trạng thái' },
@@ -77,15 +77,11 @@ export const AccountManagement: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState<AccountRoleFilter>('all')
   const [statusFilter, setStatusFilter] = useState<AccountStatusFilter>('all')
   const roleFilterOptions = roleFilterOptionsFor(currentUser?.role)
-
   const isSystemAdmin = currentUser?.role === 'SYSTEM_ADMIN'
   const canManageAccounts =
     currentUser?.role === 'SYSTEM_ADMIN' ||
     currentUser?.role === 'WH_ADMIN' ||
     currentUser?.role === 'TENANT_ADMIN'
-
-  // Biến dùng để kiểm soát DarkMode dựa trên vai trò SYSTEM_ADMIN
-  const isDarkMode = isSystemAdmin
 
   const [modal, setModal] = useState<{
     open: boolean
@@ -197,8 +193,9 @@ export const AccountManagement: React.FC = () => {
       open: true,
       type: 'confirm',
       title: nextActive ? 'Kích hoạt tài khoản' : 'Vô hiệu hóa tài khoản',
-      message: `Bạn có chắc muốn ${actionLabel} tài khoản "${acc.name}" (${acc.email})?${nextActive ? '' : ' Người dùng sẽ không đăng nhập được cho đến khi được kích hoạt lại.'
-        }`,
+      message: `Bạn có chắc muốn ${actionLabel} tài khoản "${acc.name}" (${acc.email})?${
+        nextActive ? '' : ' Người dùng sẽ không đăng nhập được cho đến khi được kích hoạt lại.'
+      }`,
       onConfirm: async () => {
         setToggleBusyId(acc.id)
         try {
@@ -233,7 +230,7 @@ export const AccountManagement: React.FC = () => {
 
       return matchSearch
     })
-  }, [search, accounts])
+  }, [search, roleFilter, accounts])
 
   /* ================= PAGINATION ================= */
 
@@ -257,48 +254,43 @@ export const AccountManagement: React.FC = () => {
   const activeCount = accounts.filter((a) => a.apiStatus === 'ACTIVE').length
 
   return (
-    <div className={`flex max-w-screen overflow-hidden transition-colors duration-200 ${isDarkMode ? 'bg-[#0b101a] text-slate-100' : 'bg-slate-50 text-slate-800'
-      }`}>
+    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
       <LoadingOverlay show={loading} text="Đang tải tài khoản..." />
-      <main className={`relative flex h-full flex-1 flex-col overflow-hidden bg-cover bg-center`}>
-        {/* Chỉ hiển thị background ảnh và backdrop blur khi ở chế độ DarkMode */}
-        {isDarkMode && (
-          <>
-            <div className="absolute inset-0 z-0 bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop')] bg-cover bg-center" />
-            <div className="absolute inset-0 z-0 bg-[#0b101a]/90 backdrop-blur-sm" />
-          </>
-        )}
+      <main className="relative flex h-full flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop')] bg-cover bg-center">
+        <div className="absolute inset-0 z-0 bg-[#0b101a]/90 backdrop-blur-sm" />
 
         <div className="relative z-10 flex-1 p-8">
           <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
             {error && (
               <InlineAlert variant="error" message={error} onDismiss={() => setError('')} />
             )}
-            {/* <div className="mb-2">
-              <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                {pageSubtitleFor(currentUser?.role)}
-              </p>
-            </div> */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <WhiteStatCard title="Tổng tài khoản" value={accounts.length} icon="group" accentColor="emerald" isDarkMode={isDarkMode} />
-              <WhiteStatCard title="Đang hoạt động" value={activeCount} icon="verified_user" accentColor="primary" isDarkMode={isDarkMode} />
-              <WhiteStatCard title="Bị khóa / tạm ngưng" value={accounts.length - activeCount} icon="block" accentColor="orange" isDarkMode={isDarkMode} />
+            <div className="mb-2">
+              <p className="text-sm text-slate-400">{pageSubtitleFor(currentUser?.role)}</p>
             </div>
 
-            {/* Table Section */}
-            <section className={`flex flex-col overflow-hidden rounded-xl border shadow-sm transition-colors duration-200 ${isDarkMode ? 'bg-[#0b101a]/40 border-white/5 backdrop-blur-md' : 'bg-white border-slate-200'
-              }`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <StatsCard title="Tổng tài khoản" value={accounts.length} icon="group" accentColor="emerald" />
+              <StatsCard title="Đang hoạt động" value={activeCount} icon="verified_user" accentColor="primary" />
+              <StatsCard
+                title="Bị khóa / tạm ngưng"
+                value={accounts.length - activeCount}
+                icon="block"
+                accentColor="orange"
+              />
+            </div>
 
-              {/* Table Header */}
-              <div className={`flex flex-wrap items-center justify-between gap-4 border-b px-6 py-5 ${isDarkMode ? 'border-white/5 bg-white/[0.02] text-white' : 'border-slate-200 bg-slate-50/50 text-slate-900'
-                }`}>
-                <h3 className="text-lg font-bold tracking-wide">
+            {/* Table */}
+            <section className="glass-panel flex flex-col overflow-hidden rounded-xl border border-white/5">
+
+              {/* Header */}
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 bg-white/[0.02] px-6 py-5">
+                <h3 className="text-lg font-bold tracking-wide text-white">
                   QUẢN LÝ TÀI KHOẢN
                 </h3>
 
                 <div className="flex items-center gap-3">
 
-                  {/* Search input */}
+                  {/* Search */}
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                       search
@@ -308,20 +300,15 @@ export const AccountManagement: React.FC = () => {
                       placeholder="Tìm theo tên, email..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      className={`pl-10 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400 transition-colors ${isDarkMode
-                          ? 'bg-[#1a2333] border-white/10 text-white placeholder-slate-500'
-                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
-                        }`}
+                      className="pl-10 pr-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
                     />
                   </div>
 
-                  {/* Role filter select */}
                   <select
                     aria-label="Lọc theo vai trò"
                     value={roleFilter}
                     onChange={(e) => setRoleFilter(e.target.value as AccountRoleFilter)}
-                    className={`px-4 py-2 rounded-lg text-sm focus:outline-none focus:border-cyan-400 transition-colors ${isDarkMode ? 'bg-[#1a2333] border-white/10 text-white' : 'bg-white border-slate-300 text-slate-700'
-                      }`}
+                    className="px-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
                   >
                     {roleFilterOptions.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -329,15 +316,12 @@ export const AccountManagement: React.FC = () => {
                       </option>
                     ))}
                   </select>
-
-                  {/* Status filter select (chỉ dành cho SYSTEM_ADMIN) */}
                   {isSystemAdmin && (
                     <select
                       aria-label="Lọc theo trạng thái"
                       value={statusFilter}
                       onChange={(e) => setStatusFilter(e.target.value as AccountStatusFilter)}
-                      className={`px-4 py-2 rounded-lg text-sm focus:outline-none focus:border-cyan-400 transition-colors ${isDarkMode ? 'bg-[#1a2333] border-white/10 text-white' : 'bg-white border-slate-300 text-slate-700'
-                        }`}
+                      className="px-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
                     >
                       {STATUS_FILTER_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
@@ -346,14 +330,11 @@ export const AccountManagement: React.FC = () => {
                       ))}
                     </select>
                   )}
-
-                  {/* Add Account button */}
                   {canManageAccounts && (
                     <button
                       type="button"
                       onClick={() => setModal({ open: true, mode: 'create' })}
-                      className={`flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold shadow-sm transition-opacity hover:opacity-90 ${isDarkMode ? 'text-black' : 'text-white'
-                        }`}
+                      className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold text-black"
                     >
                       <span className="material-symbols-outlined text-lg">person_add</span>
                       Thêm tài khoản
@@ -362,12 +343,11 @@ export const AccountManagement: React.FC = () => {
                 </div>
               </div>
 
-              {/* Table Data */}
+              {/* Table */}
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className={`border-b text-xs uppercase font-semibold ${isDarkMode ? 'border-white/5 bg-[#131b29] text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-600'
-                      }`}>
+                    <tr className="border-b border-white/5 bg-[#131b29] text-xs uppercase text-slate-400">
                       <th className="px-6 py-4">Tên</th>
                       <th className="px-6 py-4">Email</th>
                       <th className="px-6 py-4">Vai trò</th>
@@ -376,12 +356,12 @@ export const AccountManagement: React.FC = () => {
                     </tr>
                   </thead>
 
-                  <tbody className={`divide-y ${isDarkMode ? 'divide-white/5' : 'divide-slate-200 bg-white'}`}>
+                  <tbody className="divide-y divide-white/5">
                     {paginatedAccounts.length > 0 ? (
                       paginatedAccounts.map((acc) => (
-                        <tr key={acc.id} className={`transition-colors ${isDarkMode ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/70'}`}>
-                          <td className={`px-6 py-4 font-medium ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{acc.name}</td>
-                          <td className={`px-6 py-4 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>{acc.email}</td>
+                        <tr key={acc.id}>
+                          <td className="px-6 py-4 text-white">{acc.name}</td>
+                          <td className="px-6 py-4 text-slate-400">{acc.email}</td>
 
                           <td className="px-6 py-4">
                             <span className={`px-2 py-1 text-xs rounded ring-1 ${acc.roleClassName}`}>
@@ -389,49 +369,49 @@ export const AccountManagement: React.FC = () => {
                             </span>
                           </td>
 
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 ">
                             <span className={`flex items-center justify-center gap-1 px-2 py-1 text-xs rounded-full ring-1 ${acc.statusClassName}`}>
                               {accountStatusLabel(acc.status)}
                             </span>
                           </td>
 
                           <td className="px-6 py-4 text-right">
-                            <div className="flex justify-end gap-1">
+                            <div className="flex justify-end gap-2">
                               {isSystemAdmin && acc.id !== currentUser?.userId && (
                                 <button
                                   type="button"
-                                  title={acc.apiStatus === 'ACTIVE' ? 'Vô hiệu hóa tài khoản' : 'Kích hoạt tài khoản'}
+                                  title={
+                                    acc.apiStatus === 'ACTIVE'
+                                      ? 'Vô hiệu hóa tài khoản'
+                                      : 'Kích hoạt tài khoản'
+                                  }
                                   disabled={toggleBusyId === acc.id}
                                   onClick={() => handleToggleActive(acc)}
-                                  className={`rounded p-1.5 disabled:opacity-40 transition-colors ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'
-                                    } ${acc.apiStatus === 'ACTIVE'
-                                      ? (isDarkMode ? 'text-orange-400' : 'text-orange-600 hover:text-orange-700')
-                                      : (isDarkMode ? 'text-emerald-400' : 'text-emerald-600 hover:text-emerald-700')
-                                    }`}
+                                  className={`rounded p-1.5 hover:bg-white/10 disabled:opacity-40 ${
+                                    acc.apiStatus === 'ACTIVE'
+                                      ? 'text-orange-400'
+                                      : 'text-emerald-400'
+                                  }`}
                                 >
                                   <span className="material-symbols-outlined text-lg">
                                     {acc.apiStatus === 'ACTIVE' ? 'person_off' : 'how_to_reg'}
                                   </span>
                                 </button>
                               )}
-
                               <button
                                 type="button"
                                 title="Xem chi tiết"
                                 onClick={() => setModal({ open: true, mode: 'view', data: acc })}
-                                className={`rounded p-1.5 transition-colors ${isDarkMode ? 'text-slate-300 hover:bg-white/10' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-                                  }`}
+                                className="rounded p-1.5 hover:bg-white/10"
                               >
                                 <span className="material-symbols-outlined text-lg">visibility</span>
                               </button>
-
                               {canManageAccounts && (
                                 <button
                                   type="button"
                                   title="Chỉnh sửa"
                                   onClick={() => setModal({ open: true, mode: 'edit', data: acc })}
-                                  className={`rounded p-1.5 transition-colors ${isDarkMode ? 'text-slate-300 hover:bg-white/10' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-                                    }`}
+                                  className="rounded p-1.5 hover:bg-white/10"
                                 >
                                   <span className="material-symbols-outlined text-lg">edit</span>
                                 </button>
@@ -451,12 +431,10 @@ export const AccountManagement: React.FC = () => {
                 </table>
               </div>
 
-              {/* Table Footer / Pagination */}
-              <div className={`flex items-center justify-between border-t px-6 py-4 ${isDarkMode ? 'border-white/5 bg-[#131b29]' : 'border-slate-200 bg-slate-50'
-                }`}>
+              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-4">
                 <p className="font-mono text-xs text-slate-400">
-                  Hiển thị <span className={isDarkMode ? 'text-white' : 'font-semibold text-slate-900'}>{start}-{end}</span> trong số{' '}
-                  <span className={isDarkMode ? 'text-white' : 'font-semibold text-slate-900'}>{totalItems}</span> 
+                  Showing <span className="text-white">{start}-{end}</span> of{' '}
+                  <span className="text-white">{totalItems}</span> items
                 </p>
 
                 <Pagination
@@ -470,7 +448,6 @@ export const AccountManagement: React.FC = () => {
           </div>
         </div>
       </main>
-
       {/* Modal */}
       {modal.open && (
         <AccountModal
@@ -484,6 +461,7 @@ export const AccountManagement: React.FC = () => {
           onClose={() => setModal({ ...modal, open: false })}
           onSubmit={handleSubmit}
         />
+
       )}
 
       {/* Alert */}

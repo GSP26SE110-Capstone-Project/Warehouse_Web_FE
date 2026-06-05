@@ -16,10 +16,11 @@ type Props = {
   }) => Promise<void>
 }
 
+// Cập nhật class label và input sang Light Mode (Nền sáng, chữ và viền rõ ràng)
 const labelStyle =
-  'text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block'
+  'text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5 block'
 const inputStyle =
-  'w-full bg-[#1a2333] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400'
+  'w-full bg-white border border-slate-300 rounded-lg px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 disabled:bg-slate-100 disabled:text-slate-500'
 
 function fmt(n: number | null | undefined) {
   if (n == null) return '—'
@@ -93,26 +94,33 @@ export function BulkZoneModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg rounded-xl border border-white/5 bg-[#0b101a] shadow-2xl">
-        <div className="border-b border-white/5 px-6 py-5">
-          <h2 className="text-lg font-bold text-white">Tạo nhiều zone</h2>
-          <p className="mt-1 text-xs text-slate-400">{warehouseLabel}</p>
+      {/* Backdrop mờ tối nhẹ phù hợp với Light Mode */}
+      <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" onClick={onClose} />
+      
+      {/* Khung Modal nền trắng viền mỏng */}
+      <div className="relative z-10 w-full max-w-lg rounded-xl border border-slate-200 bg-white shadow-2xl">
+        
+        {/* Header Modal nền xám nhạt nhẹ */}
+        <div className="border-b border-slate-100 px-6 py-5 bg-slate-50 rounded-t-xl">
+          <h2 className="text-lg font-bold text-slate-800">Tạo nhiều zone</h2>
+          <p className="mt-1 text-xs text-slate-500">{warehouseLabel}</p>
         </div>
 
+        {/* Nội dung Form */}
         <div className="space-y-4 p-6">
           {planning && (
-            <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-3 text-xs text-slate-300">
+            /* Banner thông tin diện tích dạng pastel sáng nhã nhặn */
+            <div className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-3 text-xs text-slate-700">
               <p>
                 Diện tích sử dụng kho:{' '}
-                <strong className="text-white">{fmt(planning.usableAreaM2)} m²</strong>
+                <strong className="text-slate-900">{fmt(planning.usableAreaM2)} m²</strong>
               </p>
               <p className="mt-1">
                 Zone hiện có: {planning.zoneCount} · Đã dùng: {fmt(planning.usedZoneAreaM2)} m² ·
-                Còn: <strong className="text-cyan-300">{fmt(planning.remainingZoneAreaM2)} m²</strong>
+                Còn: <strong className="text-cyan-700">{fmt(planning.remainingZoneAreaM2)} m²</strong>
               </p>
               {planning.suggestedMinZoneCount != null && (
-                <p className="mt-1 text-amber-200/90">
+                <p className="mt-1 text-amber-700 font-medium">
                   Gợi ý tối thiểu ~{planning.suggestedMinZoneCount} zone (≈{' '}
                   {planning.suggestedReferenceZoneAreaM2} m²/zone). Còn{' '}
                   {fmt(planning.remainingZoneAreaM2)} m² — có thể thêm tối đa ~
@@ -148,7 +156,7 @@ export function BulkZoneModal({
               onChange={(e) => setAreaPerZone(e.target.value)}
             />
             {exceedsRemaining && (
-              <p className="mt-1 text-xs text-amber-300">
+              <p className="mt-1 text-xs text-amber-600 font-semibold">
                 Tổng mới {fmt(totalNewArea)} m² &gt; còn lại {fmt(remaining)} m²
               </p>
             )}
@@ -161,9 +169,6 @@ export function BulkZoneModal({
               onChange={(e) => setCodePrefix(e.target.value)}
               placeholder="Z"
             />
-            <p className="mt-1 text-[10px] text-slate-500">
-              VD: Z → Z-03, Z-04… (theo số zone hiện có)
-            </p>
           </div>
           <div>
             <label className={labelStyle}>Loại zone</label>
@@ -181,15 +186,20 @@ export function BulkZoneModal({
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 border-t border-white/5 px-6 py-4">
-          <button type="button" onClick={onClose} className="text-sm text-slate-400">
+        {/* Footer chứa các nút bấm hành động */}
+        <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4 bg-slate-50 rounded-b-xl">
+          <button 
+            type="button" 
+            onClick={onClose} 
+            className="text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors"
+          >
             Hủy
           </button>
           <button
             type="button"
             disabled={submitting || exceedsRemaining}
             onClick={handleSubmit}
-            className="rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-2 text-sm font-bold text-black disabled:opacity-50"
+            className="rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-2 text-sm font-bold text-white shadow-sm hover:opacity-95 transition-opacity disabled:opacity-50"
           >
             {submitting ? 'Đang tạo...' : 'Tạo zone'}
           </button>

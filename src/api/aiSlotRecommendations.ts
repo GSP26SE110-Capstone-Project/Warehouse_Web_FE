@@ -16,10 +16,10 @@ export interface AiSlotAlternative {
 }
 
 export interface AiSlotPreview {
-  lpnId: string
+  lpnId?: string
   lpnCode?: string
   tenantId?: string
-  warehouseId: string
+  warehouseId?: string
   inboundRequestId?: string
   recommendedZoneId?: string
   recommendedRackId?: string

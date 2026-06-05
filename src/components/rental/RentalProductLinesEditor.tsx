@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { ApiProductKindTreeNode, ApiSizeFactor } from '../../api/productCatalog'
+// Lưu ý: Đổi tên component UI dropdown (nếu cần thiết hoặc sửa từ bên trong component đó)
 import { DarkDropdownSelect, type DarkDropdownOptionGroup } from '../ui/DarkDropdownSelect'
 import {
   computeProductLinesSummary,
@@ -24,34 +25,44 @@ export function createEmptyProductLine(defaultSize = 'M'): RentalProductLineDraf
 
 type Theme = 'staff' | 'guest'
 
+// Chuyển class input của staff sang Light mode (viền xám slate, nền sáng, chữ xám đậm)
 const TEXT_INPUT_CLASS =
-  'block w-full rounded-lg border border-white/10 bg-[#0f1728]/95 px-3 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-cyan-500/45 focus:outline-none focus:ring-1 focus:ring-cyan-500/20'
+  'block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600/20'
 
+// Chuyển class input của guest sang Light mode (viền xám xanh, nền sáng mịn, chữ xám đậm)
 const GUEST_TEXT_INPUT_CLASS =
-  'block w-full rounded-lg border border-[#3a5455] bg-[#0b1617]/95 px-3 py-2.5 text-sm text-white placeholder:text-[#6b8586] focus:border-[#06edf9]/45 focus:outline-none focus:ring-1 focus:ring-[#06edf9]/20'
+  'block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600/20'
 
 function themeClasses(theme: Theme) {
   if (theme === 'guest') {
     return {
-      card: 'border-[#3a5455]/60 bg-[#0b1617]/40',
-      header: 'text-[#9bb9bb] border-[#3a5455]/40',
-      label: 'text-sm font-medium text-gray-200',
-      hint: 'text-xs text-[#9bb9bb]',
-      summaryBorder: 'border-[#06edf9]/35 bg-[#06edf9]/10 ring-[#06edf9]/20',
-      summaryAccent: 'text-[#06edf9]',
+      card: 'border-slate-200 bg-white',
+      header: 'text-slate-500 border-slate-200 bg-slate-50',
+      label: 'text-sm font-semibold text-slate-800',
+      hint: 'text-xs text-slate-500',
+      summaryBorder: 'border-cyan-200 bg-cyan-50 ring-cyan-100',
+      summaryAccent: 'text-cyan-700',
       input: GUEST_TEXT_INPUT_CLASS,
-      rowIndex: 'text-[#6b8586]',
+      rowIndex: 'text-slate-500',
+      tableBorder: 'border-slate-200',
+      tableHeadText: 'text-slate-500',
+      tableBodyText: 'text-slate-600',
+      tableTextHighlight: 'text-slate-800',
     }
   }
   return {
-    card: 'border-white/10 bg-[#0c1220]/80',
-    header: 'text-slate-500 border-white/10',
-    label: 'text-sm font-semibold text-slate-200',
+    card: 'border-slate-200 bg-white',
+    header: 'text-slate-500 border-slate-200 bg-slate-50',
+    label: 'text-sm font-semibold text-slate-800',
     hint: 'text-xs text-slate-500',
-    summaryBorder: 'border-cyan-500/25 bg-cyan-500/5 ring-cyan-500/15',
-    summaryAccent: 'text-cyan-300',
+    summaryBorder: 'border-cyan-200 bg-cyan-50/70 ring-cyan-100',
+    summaryAccent: 'text-cyan-700',
     input: TEXT_INPUT_CLASS,
-    rowIndex: 'text-slate-600',
+    rowIndex: 'text-slate-500',
+    tableBorder: 'border-slate-200',
+    tableHeadText: 'text-slate-500',
+    tableBodyText: 'text-slate-600',
+    tableTextHighlight: 'text-slate-800',
   }
 }
 
@@ -151,13 +162,13 @@ export function RentalProductLinesEditor({
         <p className={t.label}>Hàng hóa theo loại + size</p>
         <p className={`mt-1 ${t.hint}`}>
           Chọn loại hàng và size — hệ thống tính volume units (U) và gợi ý phân bổ thùng theo
-          quy mô <span className="font-medium text-white/90">mỗi tháng</span>.
+          quy mô <span className="font-semibold text-slate-700">mỗi tháng</span>.
         </p>
       </div>
 
-      <div className={`overflow-visible rounded-xl border ${t.card}`}>
+      <div className={`overflow-visible rounded-xl border ${t.card} shadow-sm`}>
         <div
-          className={`hidden md:grid md:grid-cols-[minmax(0,2fr)_88px_minmax(0,1fr)_auto] md:gap-3 border-b px-3 py-2 text-[11px] font-semibold uppercase tracking-wide ${t.header}`}
+          className={`hidden md:grid md:grid-cols-[minmax(0,2fr)_88px_minmax(0,1fr)_auto] md:gap-3 border-b px-3 py-2.5 text-[11px] font-bold uppercase tracking-wide rounded-t-xl ${t.header}`}
         >
           <span>Loại hàng</span>
           <span>Size</span>
@@ -167,7 +178,7 @@ export function RentalProductLinesEditor({
           </span>
         </div>
 
-        <div className="divide-y divide-white/5">
+        <div className="divide-y divide-slate-100">
           {lines.map((line, index) => {
             const kindMeta = line.productKind ? catalogByKind.get(line.productKind) : null
             const showSize = kindMeta?.hasSize !== false
@@ -179,11 +190,11 @@ export function RentalProductLinesEditor({
               >
                 <div className="min-w-0 space-y-1.5">
                   <div className="flex items-center gap-2 md:hidden">
-                    <span className={`text-[11px] font-semibold uppercase ${t.rowIndex}`}>
+                    <span className={`text-[11px] font-bold uppercase ${t.rowIndex}`}>
                       Dòng {index + 1}
                     </span>
                   </div>
-                  <p className={`md:hidden text-[11px] font-medium uppercase tracking-wide ${t.hint}`}>
+                  <p className={`md:hidden text-[11px] font-bold uppercase tracking-wide ${t.hint}`}>
                     Loại hàng
                   </p>
                   <DarkDropdownSelect
@@ -197,7 +208,7 @@ export function RentalProductLinesEditor({
                 </div>
 
                 <div className="space-y-1.5">
-                  <p className={`md:hidden text-[11px] font-medium uppercase tracking-wide ${t.hint}`}>
+                  <p className={`md:hidden text-[11px] font-bold uppercase tracking-wide ${t.hint}`}>
                     Size
                   </p>
                   <DarkDropdownSelect
@@ -213,7 +224,7 @@ export function RentalProductLinesEditor({
                 </div>
 
                 <div className="space-y-1.5">
-                  <p className={`md:hidden text-[11px] font-medium uppercase tracking-wide ${t.hint}`}>
+                  <p className={`md:hidden text-[11px] font-bold uppercase tracking-wide ${t.hint}`}>
                     {quantityLabel}
                   </p>
                   <input
@@ -231,7 +242,7 @@ export function RentalProductLinesEditor({
                   <button
                     type="button"
                     onClick={() => removeLine(line.id)}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-colors hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-300"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                     title="Xóa dòng"
                     aria-label={`Xóa dòng ${index + 1}`}
                   >
@@ -247,15 +258,15 @@ export function RentalProductLinesEditor({
       <button
         type="button"
         onClick={addLine}
-        className={`inline-flex items-center gap-1.5 rounded-lg border border-dashed px-3 py-2 text-xs font-medium transition-colors ${t.summaryBorder} ${t.summaryAccent} hover:bg-white/[0.03]`}
+        className={`inline-flex items-center gap-1.5 rounded-lg border border-dashed px-3 py-2 text-xs font-semibold transition-colors ${t.summaryBorder} ${t.summaryAccent} hover:bg-slate-100/60`}
       >
         <span className="material-symbols-outlined text-base">add</span>
         Thêm dòng hàng
       </button>
 
       {summary && summary.totalCommittedVolumeUnits > 0 && (
-        <div className={`rounded-xl border p-4 ring-1 ${t.summaryBorder}`}>
-          <p className={`text-sm font-semibold ${t.summaryAccent} flex items-center gap-1.5`}>
+        <div className={`rounded-xl border p-4 ring-1 shadow-sm ${t.summaryBorder}`}>
+          <p className={`text-sm font-bold ${t.summaryAccent} flex items-center gap-1.5`}>
             <span className="material-symbols-outlined text-base">calculate</span>
             Tổng cam kết (ước tính / tháng)
           </p>
@@ -267,26 +278,26 @@ export function RentalProductLinesEditor({
                 <col className="w-[24%]" />
                 <col className="w-[24%]" />
               </colgroup>
-              <thead className="text-slate-500">
-                <tr className="border-b border-white/5">
-                  <th className="pb-2 pr-2 font-medium">Loại · Size</th>
-                  <th className="pb-2 pr-2 font-medium text-right">SL/tháng</th>
-                  <th className="pb-2 pr-2 font-medium text-right">U/cái</th>
-                  <th className="pb-2 font-medium text-right">U dòng/tháng</th>
+              <thead className={t.tableHeadText}>
+                <tr className={`border-b ${t.tableBorder}`}>
+                  <th className="pb-2 pr-2 font-semibold">Loại · Size</th>
+                  <th className="pb-2 pr-2 font-semibold text-right">SL/tháng</th>
+                  <th className="pb-2 pr-2 font-semibold text-right">U/cái</th>
+                  <th className="pb-2 font-semibold text-right">U dòng/tháng</th>
                 </tr>
               </thead>
-              <tbody className="text-slate-300">
+              <tbody className={t.tableBodyText}>
                 {summary.lines.map((line) => (
-                  <tr key={`${line.productKind}-${line.size}-${line.quantity}`} className="border-b border-white/5 last:border-0">
+                  <tr key={`${line.productKind}-${line.size}-${line.quantity}`} className={`border-b ${t.tableBorder} last:border-0`}>
                     <td className="max-w-0 truncate py-2 pr-2" title={`${line.displayName}${line.size ? ` · ${line.size}` : ''}`}>
-                      <span className="text-white">{line.displayName}</span>
-                      {line.size ? <span className="text-slate-500"> · {line.size}</span> : null}
+                      <span className={`font-medium ${t.tableTextHighlight}`}>{line.displayName}</span>
+                      {line.size ? <span className="text-slate-400"> · {line.size}</span> : null}
                     </td>
                     <td className="py-2 pr-2 text-right tabular-nums">{line.quantity.toLocaleString('vi-VN')}</td>
                     <td className="py-2 pr-2 text-right tabular-nums text-slate-400">
                       {line.finalVolumeUnitsPerPiece}
                     </td>
-                    <td className="py-2 text-right tabular-nums font-medium text-white">
+                    <td className={`py-2 text-right tabular-nums font-semibold ${t.tableTextHighlight}`}>
                       {line.lineVolumeUnits}
                     </td>
                   </tr>
@@ -294,18 +305,18 @@ export function RentalProductLinesEditor({
               </tbody>
             </table>
           </div>
-          <p className="mt-3 border-t border-white/5 pt-3 text-sm text-white">
+          <p className={`mt-3 border-t pt-3 text-sm text-slate-700 ${t.tableBorder}`}>
             Tổng{' '}
-            <strong className={t.summaryAccent}>
+            <strong className={`font-bold ${t.summaryAccent}`}>
               {summary.totalCommittedVolumeUnits.toLocaleString('vi-VN')} U/tháng
             </strong>
           </p>
 
           <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
               Phân bổ thùng
             </span>
-            <span className={`text-sm tabular-nums ${t.summaryAccent}`}>
+            <span className={`text-sm font-semibold tabular-nums ${t.summaryAccent}`}>
               {summary.boxAllocation
                 .map((row) => `${row.count.toLocaleString('vi-VN')} thùng ${row.boxType.toLowerCase()}`)
                 .join(' + ')}

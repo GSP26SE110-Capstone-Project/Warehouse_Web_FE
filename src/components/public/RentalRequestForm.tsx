@@ -48,7 +48,8 @@ import {
   hasWarehouseAvailableForDedicated,
 } from '../../utils/guestDedicatedWarehouse'
 
-const inputWrapStyle = { border: '1px solid #3a5455', background: 'rgba(11,22,23,0.8)' } as const
+// Tinh chỉnh style inline sang dạng Light Mode trang nhã
+const inputWrapStyle = { border: '1px solid #cbd5e1', background: '#ffffff' } as const
 
 function guestSubmitErrorMeta(err: unknown): {
   message: string
@@ -78,10 +79,10 @@ function FieldLabel({
 }) {
   return (
     <div className="pl-1">
-      <label htmlFor={htmlFor} className="text-sm font-medium text-gray-200">
+      <label htmlFor={htmlFor} className="text-sm font-semibold text-slate-700">
         {children}
       </label>
-      {hint && <p className="text-xs text-[#9bb9bb] mt-0.5">{hint}</p>}
+      {hint && <p className="text-xs text-slate-500 mt-0.5">{hint}</p>}
     </div>
   )
 }
@@ -106,7 +107,7 @@ function TextInput({
   disabled?: boolean
 }) {
   return (
-    <div className="input-glow relative rounded-lg" style={inputWrapStyle}>
+    <div className="relative rounded-lg shadow-sm focus-within:ring-2 focus-within:ring-cyan-500 focus-within:border-cyan-500 transition-all" style={inputWrapStyle}>
       <input
         id={id}
         type={type}
@@ -116,7 +117,7 @@ function TextInput({
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="block w-full px-4 py-3 bg-transparent border-0 text-white focus:outline-none text-base disabled:cursor-not-allowed disabled:opacity-60"
+        className="block w-full px-4 py-2.5 bg-transparent border-0 text-slate-800 focus:outline-none text-base placeholder-slate-400 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60"
       />
     </div>
   )
@@ -136,20 +137,23 @@ function SelectInput({
   options: readonly { value: string; label: string }[]
 }) {
   return (
-    <div className="input-glow relative rounded-lg" style={inputWrapStyle}>
+    <div className="relative rounded-lg shadow-sm focus-within:ring-2 focus-within:ring-cyan-500 focus-within:border-cyan-500 transition-all" style={inputWrapStyle}>
       <select
         id={id}
         required={required}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="block w-full px-4 py-3 bg-transparent border-0 text-white focus:outline-none text-base appearance-none cursor-pointer"
+        className="block w-full px-4 py-2.5 bg-transparent border-0 text-slate-800 focus:outline-none text-base appearance-none cursor-pointer"
       >
         {options.map((opt) => (
-          <option key={opt.value || '_empty'} value={opt.value} className="bg-[#0f2223] text-white">
+          <option key={opt.value || '_empty'} value={opt.value} className="bg-white text-slate-800">
             {opt.label}
           </option>
         ))}
       </select>
+      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+        <span className="material-symbols-outlined text-lg">arrow_drop_down</span>
+      </div>
     </div>
   )
 }
@@ -175,10 +179,10 @@ function GuestStorageOption({
     <label
       htmlFor={id}
       className={[
-        'group relative flex cursor-pointer gap-4 rounded-xl border p-4 transition-all',
+        'group relative flex cursor-pointer gap-4 rounded-xl border p-4 transition-all duration-200',
         checked
-          ? 'border-[#06edf9]/45 bg-[#06edf9]/10 ring-1 ring-[#06edf9]/25 shadow-[0_0_20px_rgba(6,237,249,0.08)]'
-          : 'border-white/10 bg-white/[0.02] hover:border-[#06edf9]/25 hover:bg-white/[0.04]',
+          ? 'border-cyan-500 bg-cyan-50/50 ring-1 ring-cyan-500/30 shadow-sm shadow-cyan-500/5'
+          : 'border-slate-200 bg-slate-50/50 hover:border-slate-300 hover:bg-slate-50',
       ].join(' ')}
     >
       <input
@@ -192,21 +196,21 @@ function GuestStorageOption({
         className={[
           'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors',
           checked
-            ? 'border-[#06edf9]/50 bg-[#06edf9]/15 text-[#06edf9]'
-            : 'border-white/10 bg-[#0b1617]/80 text-[#7a9496] group-hover:text-[#9bb9bb]',
+            ? 'border-cyan-400 bg-cyan-100 text-cyan-700 font-semibold'
+            : 'border-slate-200 bg-white text-slate-400 group-hover:text-slate-600',
         ].join(' ')}
       >
         <span className="material-symbols-outlined text-[22px]">{icon}</span>
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-start justify-between gap-2">
-          <span className="text-sm font-semibold text-white">{title}</span>
+          <span className="text-sm font-bold text-slate-800">{title}</span>
           <span
             className={[
               'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all',
               checked
-                ? 'border-[#06edf9] bg-[#06edf9] text-[#0f2223]'
-                : 'border-[#3a5455] bg-transparent',
+                ? 'border-cyan-600 bg-cyan-600 text-white'
+                : 'border-slate-300 bg-white',
             ].join(' ')}
             aria-hidden
           >
@@ -215,12 +219,12 @@ function GuestStorageOption({
             )}
           </span>
         </span>
-        <span className="mt-1 block text-xs leading-relaxed text-[#9bb9bb]">{description}</span>
+        <span className="mt-1 block text-xs leading-relaxed text-slate-500">{description}</span>
         {zoneHint && (
           <span
             className={[
-              'mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide',
-              checked ? 'bg-[#06edf9]/15 text-[#06edf9]' : 'bg-white/5 text-[#6b8586]',
+              'mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide',
+              checked ? 'bg-cyan-100 text-cyan-800' : 'bg-slate-200 text-slate-600',
             ].join(' ')}
           >
             <span className="material-symbols-outlined text-xs">location_on</span>
@@ -548,25 +552,25 @@ export function RentalRequestForm({
 
   if (success) {
     return (
-      <div className="glass-panel rounded-2xl p-8 sm:p-10 border-[#06edf9]/30 text-center">
-        <span className="material-symbols-outlined text-5xl text-[#06edf9] mb-4">check_circle</span>
-        <h3 className="text-2xl font-bold text-white mb-2">Đã gửi yêu cầu thuê kho</h3>
-        <p className="text-[#9bb9bb] mb-6 max-w-md mx-auto">
+      <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-10 text-center shadow-md">
+        <span className="material-symbols-outlined text-5xl text-emerald-500 mb-4">check_circle</span>
+        <h3 className="text-2xl font-black text-slate-900 mb-2">Đã gửi yêu cầu thuê kho</h3>
+        <p className="text-slate-600 mb-6 max-w-md mx-auto leading-relaxed">
           {success.reusedExistingProfile ? (
             <>
-              Email <strong className="text-white">{contactEmail.trim()}</strong> đã có hồ sơ công ty{' '}
-              <strong className="text-white">{success.companyName}</strong>. Hệ thống đã tạo{' '}
-              <strong className="text-white">yêu cầu thuê mới</strong> — mã{' '}
-              <strong className="text-[#06edf9] font-mono">{success.requestCode}</strong>.
+              Email <strong className="text-slate-900 font-semibold">{contactEmail.trim()}</strong> đã có hồ sơ công ty{' '}
+              <strong className="text-slate-900 font-semibold">{success.companyName}</strong>. Hệ thống đã tạo{' '}
+              <strong className="text-slate-900 font-semibold">yêu cầu thuê mới</strong> — mã{' '}
+              <strong className="text-cyan-600 font-mono bg-cyan-50 px-1.5 py-0.5 rounded">{success.requestCode}</strong>.
             </>
           ) : (
             <>
-              Công ty <strong className="text-white">{success.companyName}</strong> đã đăng ký thành công.
-              Mã yêu cầu: <strong className="text-[#06edf9] font-mono">{success.requestCode}</strong>
+              Công ty <strong className="text-slate-900 font-semibold">{success.companyName}</strong> đã đăng ký thành công.
+              Mã yêu cầu: <strong className="text-cyan-600 font-mono bg-cyan-50 px-1.5 py-0.5 rounded">{success.requestCode}</strong>
             </>
           )}
         </p>
-        <p className="text-sm text-[#9bb9bb] max-w-lg mx-auto">
+        <p className="text-sm text-slate-500 max-w-lg mx-auto leading-relaxed">
           Lưu mã yêu cầu và email liên hệ để tra cứu trạng thái bất cứ lúc nào — không cần đăng nhập.
           Warehouse admin sẽ xem xét theo khu vực bạn chọn; System Admin cấp tài khoản sau khi được duyệt.
         </p>
@@ -574,14 +578,14 @@ export function RentalRequestForm({
           <button
             type="button"
             onClick={() => document.getElementById('lookup')?.scrollIntoView({ behavior: 'smooth' })}
-            className="auth-btn rounded-lg font-semibold py-3 px-8 border-0 cursor-pointer"
+            className="w-full sm:w-auto bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-lg py-3 px-8 transition-colors border-0 cursor-pointer shadow-sm shadow-cyan-500/10"
           >
             Tra cứu trạng thái
           </button>
           <button
             type="button"
             onClick={() => setSuccess(null)}
-            className="rounded-lg font-semibold py-3 px-8 border border-white/10 text-white hover:border-[#06edf9]/40 transition-colors cursor-pointer bg-transparent"
+            className="w-full sm:w-auto rounded-lg font-bold py-3 px-8 border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer bg-transparent"
           >
             Gửi yêu cầu khác
           </button>
@@ -593,13 +597,13 @@ export function RentalRequestForm({
   return (
     <>
       <LoadingOverlay show={loading} text="Đang gửi yêu cầu..." />
-      <form onSubmit={handleSubmit} className="glass-panel rounded-2xl p-6 sm:p-8 space-y-8">
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 space-y-8 shadow-sm">
         <div>
-          <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#06edf9]">business</span>
+          <h3 className="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
+            <span className="material-symbols-outlined text-cyan-600">business</span>
             Thông tin doanh nghiệp
           </h3>
-          <p className="text-sm text-[#9bb9bb] mb-4">
+          <p className="text-sm text-slate-500 mb-4">
             Đăng ký hồ sơ công ty. Tài khoản đăng nhập sẽ do System Admin cấp sau khi yêu cầu được duyệt.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -647,20 +651,20 @@ export function RentalRequestForm({
           </div>
         </div>
 
-        <div className="border-t border-white/5 pt-8">
-          <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#06edf9]">inventory_2</span>
+        <div className="border-t border-slate-100 pt-8">
+          <h3 className="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
+            <span className="material-symbols-outlined text-cyan-600">inventory_2</span>
             Nhu cầu thuê kho
           </h3>
-          <p className="text-sm text-[#9bb9bb] mb-4">
+          <p className="text-sm text-slate-500 mb-4">
             Khai báo quy mô hàng hóa trước — hệ thống sẽ gợi ý loại hình thuê. Sau đó chọn khu vực và thời hạn
             dự kiến.
           </p>
 
           <div className="mb-8">
-            <p className="text-sm font-medium text-gray-200 mb-3 pl-1">Quy mô hàng hóa</p>
+            <p className="text-sm font-semibold text-slate-700 mb-3 pl-1">Quy mô hàng hóa</p>
             {catalogTree.length > 0 ? (
-              <div className="overflow-visible rounded-xl border border-white/10 bg-white/[0.02] p-4 md:p-5">
+              <div className="overflow-visible rounded-xl border border-slate-200 bg-slate-50/50 p-4 md:p-5">
                 <RentalProductLinesEditor
                   lines={productLines}
                   onChange={setProductLines}
@@ -670,7 +674,7 @@ export function RentalRequestForm({
                 />
               </div>
             ) : (
-              <p className="text-sm text-[#9bb9bb] pl-1">
+              <p className="text-sm text-slate-400 pl-1">
                 Đang tải danh mục loại hàng… Bạn vẫn có thể nhập diện tích (m²) bên dưới.
               </p>
             )}
@@ -702,7 +706,7 @@ export function RentalRequestForm({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {locationsError && (
-              <p className="text-sm text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-lg px-4 py-2 sm:col-span-2">
+              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 sm:col-span-2">
                 {locationsError}
               </p>
             )}
@@ -738,15 +742,15 @@ export function RentalRequestForm({
               />
             </div>
             {city && district && (
-              <div className="sm:col-span-2 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
                 {regionWarehousesLoading ? (
-                  <p className="text-sm text-[#9bb9bb] flex items-center gap-2">
+                  <p className="text-sm text-slate-500 flex items-center gap-2">
                     <span className="material-symbols-outlined text-base animate-pulse">warehouse</span>
                     Đang kiểm tra kho trong khu vực...
                   </p>
                 ) : regionWarehouses && regionWarehouses.count > 0 ? (
                   <div className="space-y-3">
-                    <p className="text-sm text-white font-medium">
+                    <p className="text-sm text-slate-800 font-semibold">
                       {guestRegionWarehouseCopy(contractType).listIntro(
                         regionWarehouses.count,
                         regionWarehouses.district,
@@ -755,8 +759,8 @@ export function RentalRequestForm({
                     </p>
                     {contractType === 'DEDICATED_WAREHOUSE' &&
                       !hasWarehouseAvailableForDedicated(regionWarehouses.items) && (
-                        <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2.5 text-xs sm:text-sm text-amber-100 leading-relaxed">
-                          <span className="material-symbols-outlined text-base align-middle mr-1 text-amber-300">
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs sm:text-sm text-amber-800 leading-relaxed">
+                          <span className="material-symbols-outlined text-base align-middle mr-1 text-amber-600">
                             info
                           </span>
                           {dedicatedLeaseNoVacancyMessage(regionWarehouses.district, regionWarehouses.city)}
@@ -771,18 +775,18 @@ export function RentalRequestForm({
                         return (
                           <li
                             key={wh.warehouseName}
-                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm border-t border-white/5 pt-3 first:border-0 first:pt-0"
+                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm border-t border-slate-100 pt-3 first:border-0 first:pt-0"
                           >
                             <div className="flex flex-col gap-1.5 shrink-0">
-                              <span className="text-white flex items-center gap-2">
-                                <span className="material-symbols-outlined text-[#06edf9] text-lg">
+                              <span className="text-slate-800 flex items-center gap-2 font-medium">
+                                <span className="material-symbols-outlined text-cyan-600 text-lg">
                                   warehouse
                                 </span>
                                 {wh.warehouseName}
                               </span>
                               {dedicatedBadge && (
                                 <span
-                                  className={`inline-flex w-fit items-center rounded-md border px-2 py-0.5 text-[10px] sm:text-xs font-medium ${dedicatedBadge.className}`}
+                                  className={`inline-flex w-fit items-center rounded-md border px-2 py-0.5 text-[10px] sm:text-xs font-bold ${dedicatedBadge.className}`}
                                 >
                                   {dedicatedBadge.label}
                                 </span>
@@ -793,13 +797,13 @@ export function RentalRequestForm({
                         )
                       })}
                     </ul>
-                    <p className="text-xs text-[#9bb9bb]">
+                    <p className="text-xs text-slate-500 font-medium">
                       {guestRegionWarehouseCopy(contractType).footer}
                     </p>
                   </div>
                 ) : (
-                  <p className="text-sm text-[#9bb9bb]">
-                    <span className="material-symbols-outlined text-base align-middle mr-1 text-amber-400/90">
+                  <p className="text-sm text-slate-500">
+                    <span className="material-symbols-outlined text-base align-middle mr-1 text-amber-500">
                       info
                     </span>
                     {guestRegionWarehouseCopy(contractType).empty(district, city)}
@@ -870,8 +874,8 @@ export function RentalRequestForm({
 
             {contractType === 'DEDICATED_ZONE' && (
               <div className="sm:col-span-2 space-y-3">
-                <p className="text-sm font-medium text-gray-200 pl-1">Yêu cầu bố trí kho</p>
-                <p className="text-xs text-[#9bb9bb] pl-1">
+                <p className="text-sm font-semibold text-slate-700 pl-1">Yêu cầu bố trí kho</p>
+                <p className="text-xs text-slate-500 pl-1">
                   Chọn loại khu bạn muốn thuê — warehouse admin sẽ ưu tiên zone phù hợp khi duyệt.
                 </p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -905,8 +909,7 @@ export function RentalRequestForm({
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
                 placeholder="Mô tả ngắn loại hàng, mùa vụ, yêu cầu đặc biệt..."
-                className="dark-scrollbar-inset input-glow w-full rounded-lg px-4 py-3 bg-transparent border text-white focus:outline-none text-base resize-y"
-                style={inputWrapStyle}
+                className="w-full rounded-lg px-4 py-2.5 bg-white border border-slate-300 text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-base resize-y shadow-sm transition-all placeholder-slate-400"
               />
             </div>
           </div>
@@ -915,7 +918,7 @@ export function RentalRequestForm({
         <button
           type="submit"
           disabled={loading}
-          className="auth-btn w-full rounded-lg font-bold py-4 px-6 border-0 disabled:opacity-60 cursor-pointer"
+          className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-lg py-4 px-6 border-0 disabled:opacity-60 cursor-pointer shadow-sm shadow-cyan-500/10 transition-colors"
         >
           <span className="flex items-center justify-center gap-2">
             <span className="material-symbols-outlined">send</span>

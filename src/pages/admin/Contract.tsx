@@ -15,6 +15,7 @@ import * as warehousesApi from '../../api/warehouses'
 import * as tenantsApi from '../../api/tenants'
 import { contractToRow } from '../../mappers'
 import { CONTRACT_TYPE_LABELS, type ContractTypeValue } from '../../data/contractTypes'
+import { WhiteStatCard } from '../../components/ui/WhiteStatCard'
 
 export const ContractManagement: React.FC = () => {
   const [contracts, setContracts] = useState<Contract[]>([])
@@ -99,7 +100,7 @@ export const ContractManagement: React.FC = () => {
   const totalPages = Math.ceil(totalItems / pageSize) || 1
   const paginatedContracts = filteredContracts.slice(
     (currentPage - 1) * pageSize,
-    currentPage * pageSize
+    (currentPage * pageSize)
   )
   const start = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1
   const end = Math.min(currentPage * pageSize, totalItems)
@@ -115,53 +116,59 @@ export const ContractManagement: React.FC = () => {
   }
 
   return (
-    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
+    /* Đổi nền chính thành xám sáng (bg-slate-50) và chữ tối chủ đạo (text-slate-800) */
+    <div className="flex max-w-screen overflow-hidden bg-slate-50 text-slate-800">
       <LoadingOverlay show={loading} text="Đang tải hợp đồng..." />
       <main className="relative flex flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072')] bg-cover bg-center">
-        <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" />
+        {/* Đổi tấm overlay mờ từ đen sang lớp phủ sáng dịu (bg-slate-50/85) */}
+        <div className="absolute inset-0 bg-white backdrop-blur-sm" />
         <div className="relative z-10 p-8">
           <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
             {error && (
               <InlineAlert message={error} onDismiss={() => setError('')} />
             )}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <StatsCard title="Tổng hợp đồng" value={contracts.length} icon="description" accentColor="emerald" />
-              <StatsCard
+              <WhiteStatCard title="Tổng hợp đồng" value={contracts.length} icon="description" accentColor="emerald" isDarkMode={false} />
+              <WhiteStatCard
                 title="Đang hoạt động"
                 value={contracts.filter((c) => c.status === 'Active').length}
                 icon="check_circle"
                 accentColor="primary"
+                isDarkMode={false}
               />
-              <StatsCard
+              <WhiteStatCard
                 title="Hết hạn"
                 value={contracts.filter((c) => c.status === 'Expired').length}
                 icon="cancel"
                 accentColor="purple"
+                isDarkMode={false}
               />
-              <StatsCard
+              <WhiteStatCard
                 title="Chờ xử lý"
                 value={contracts.filter((c) => c.status === 'Pending').length}
                 icon="hourglass_top"
                 accentColor="orange"
+                isDarkMode={false}
               />
             </div>
 
-            <section className="glass-panel flex flex-col overflow-hidden rounded-xl border border-white/5">
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 bg-white/[0.02] px-6 py-5">
-                <h3 className="text-lg font-bold text-white">QUẢN LÝ HỢP ĐỒNG</h3>
+            {/* Đổi thành khối panel nền trắng, đổ bóng nhẹ (shadow-sm) và viền xám sáng */}
+            <section className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/50 px-6 py-5">
+                <h3 className="text-lg font-bold text-slate-900">QUẢN LÝ HỢP ĐỒNG</h3>
                 <div className="flex gap-3">
                   <input
                     type="text"
                     placeholder="Tìm mã, khách, kho..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="rounded-lg border border-white/10 bg-[#1a2333] px-4 py-2 text-sm text-white"
+                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                   />
                   <select
                     aria-label="Lọc trạng thái"
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="rounded-lg border border-white/10 bg-[#1a2333] px-3 py-2 text-sm"
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                   >
                     <option value="All">Tất cả</option>
                     <option value="Active">Active</option>
@@ -174,7 +181,8 @@ export const ContractManagement: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-white/5 bg-[#131b29] text-xs uppercase text-slate-400">
+                    {/* Header bảng nền xám nhẹ, chữ xám vừa đậm */}
+                    <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase text-slate-600">
                       <th className="px-6 py-4">Mã HĐ</th>
                       <th className="px-6 py-4">Khách hàng</th>
                       <th className="px-6 py-4">Kho</th>
@@ -185,22 +193,23 @@ export const ContractManagement: React.FC = () => {
                       <th className="px-6 py-4 text-right">Thao tác</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5">
+                  <tbody className="divide-y divide-slate-100 bg-white">
                     {paginatedContracts.map((c) => (
-                      <tr key={c.contractId} className="hover:bg-white/5">
-                        <td className="px-6 py-4 font-mono text-cyan-400">{c.id}</td>
-                        <td className="px-6 py-4">{c.customerName}</td>
-                        <td className="px-6 py-4">{c.warehouse}</td>
-                        <td className="px-6 py-4 text-xs">{contractTypeLabel(c)}</td>
-                        <td className="px-6 py-4 text-xs">
+                      <tr key={c.contractId} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="px-6 py-4 font-mono font-bold text-cyan-600">{c.id}</td>
+                        <td className="px-6 py-4 font-medium text-slate-900">{c.customerName}</td>
+                        <td className="px-6 py-4 text-slate-700">{c.warehouse}</td>
+                        <td className="px-6 py-4 text-xs text-slate-600">{contractTypeLabel(c)}</td>
+                        <td className="px-6 py-4 text-xs text-slate-500">
                           {c.startDate} → {c.endDate}
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`rounded px-2 py-1 text-xs ring-1 ${c.statusClassName}`}>
+                          <span className={`rounded px-2 py-1 text-xs font-medium ring-1 ${c.statusClassName}`}>
                             {c.apiStatus ?? c.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-emerald-400">
+                        {/* Giá trị tiền tệ chuyển sang màu xanh lục sẫm rõ nét hơn trên nền sáng */}
+                        <td className="px-6 py-4 font-semibold text-emerald-600">
                           {c.price.toLocaleString('vi-VN')}₫
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -210,18 +219,18 @@ export const ContractManagement: React.FC = () => {
                               onClick={() =>
                                 setModal({ open: true, mode: 'view', contractId: c.contractId })
                               }
-                              className="rounded p-1 hover:bg-white/10"
+                              className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
                             >
-                              <span className="material-symbols-outlined">visibility</span>
+                              <span className="material-symbols-outlined text-[20px]">visibility</span>
                             </button>
                             <button
                               type="button"
                               onClick={() =>
                                 setModal({ open: true, mode: 'edit', contractId: c.contractId })
                               }
-                              className="rounded p-1 hover:bg-white/10"
+                              className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
                             >
-                              <span className="material-symbols-outlined">edit</span>
+                              <span className="material-symbols-outlined text-[20px]">edit</span>
                             </button>
                           </div>
                         </td>
@@ -231,10 +240,11 @@ export const ContractManagement: React.FC = () => {
                 </table>
               </div>
 
-              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-4">
-                <p className="font-mono text-xs text-slate-400">
-                  Showing <span className="text-white">{start}-{end}</span> of{' '}
-                  <span className="text-white">{totalItems}</span>
+              {/* Phần phân trang cuối bảng đồng bộ Light Mode */}
+              <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-6 py-4">
+                <p className="font-mono text-xs text-slate-500">
+                  Hiển thị <span className="font-bold text-slate-800">{start}-{end}</span> trong số{' '}
+                  <span className="font-bold text-slate-800">{totalItems}</span>
                 </p>
                 <Pagination
                   currentPage={currentPage}

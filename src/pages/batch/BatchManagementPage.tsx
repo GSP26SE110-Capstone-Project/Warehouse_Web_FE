@@ -138,7 +138,7 @@ export function BatchManagementPage({ mode, inboundBasePath }: Props) {
         batchCode: batchCode.trim(),
       })
       setBatchCode('')
-      setSuccess('Đã tạo batch.')
+      setSuccess('Đã tạo batch thành công.')
       await loadBatches(selectedInboundId)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không tạo được batch')
@@ -150,15 +150,18 @@ export function BatchManagementPage({ mode, inboundBasePath }: Props) {
   const busy = loadingInbounds || loadingBatches
 
   return (
-    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
+    <div className="flex max-w-screen overflow-hidden bg-slate-50 text-slate-800 min-h-screen">
       <div className="relative flex flex-1 flex-col overflow-y-auto p-6 md:p-8">
-        {busy && <LoadingOverlay />}
+        {busy && <LoadingOverlay show={true} text="Đang tải dữ liệu..." />}
 
         <header className="mb-6">
-          <h1 className="text-2xl font-bold text-white">Quản lý Batch</h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <h1 className="text-2xl font-bold text-slate-900">Quản lý Batch</h1>
+          <p className="mt-1 text-sm text-slate-600">
             Tạo lô nhận hàng theo phiếu nhập và in tem Code 128 từ{' '}
-            <span className="font-mono text-cyan-300/90">batchCode</span>.
+            <span className="font-mono font-bold text-cyan-700 bg-cyan-50 px-1 py-0.5 rounded border border-cyan-100">
+              batchCode
+            </span>
+            .
           </p>
         </header>
 
@@ -173,15 +176,15 @@ export function BatchManagementPage({ mode, inboundBasePath }: Props) {
           </div>
         )}
 
-        <div className="mb-6 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <label htmlFor="inbound-select" className="mb-2 block text-sm font-medium text-slate-300">
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <label htmlFor="inbound-select" className="mb-2 block text-sm font-bold text-slate-700">
             Phiếu nhập kho
           </label>
           <select
             id="inbound-select"
             value={selectedInboundId}
             onChange={(e) => handleInboundChange(e.target.value)}
-            className="w-full max-w-xl rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2.5 text-sm text-white focus:border-cyan-500/50 focus:outline-none"
+            className="w-full max-w-xl rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600 focus:outline-none"
           >
             <option value="">— Chọn phiếu nhập —</option>
             {inbounds.map((inb) => (
@@ -191,16 +194,16 @@ export function BatchManagementPage({ mode, inboundBasePath }: Props) {
             ))}
           </select>
           {selectedInbound && (
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2.5 text-xs font-medium text-slate-500 flex items-center gap-2">
               <Link
                 to={`${inboundBasePath}/${selectedInbound.inboundRequestId}`}
-                className="text-cyan-400 hover:underline"
+                className="text-cyan-600 font-bold hover:text-cyan-700 hover:underline"
               >
                 Mở chi tiết phiếu nhập
               </Link>
               {!canCreateBatch && (
-                <span className="ml-2 text-amber-400/90">
-                  Chỉ tạo batch khi phiếu ở trạng thái ARRIVED hoặc RECEIVING.
+                <span className="text-amber-700 font-semibold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                  ⚠️ Chỉ tạo batch khi phiếu ở trạng thái ARRIVED hoặc RECEIVING.
                 </span>
               )}
             </p>
@@ -210,9 +213,9 @@ export function BatchManagementPage({ mode, inboundBasePath }: Props) {
         {selectedInboundId && (
           <>
             {canCreateBatch && (
-              <div className="mb-6 flex flex-col gap-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4 sm:flex-row sm:items-end">
+              <div className="mb-6 flex flex-col gap-3 rounded-xl border border-cyan-200 bg-cyan-50/50 p-5 sm:flex-row sm:items-end shadow-sm">
                 <div className="flex-1">
-                  <label htmlFor="batch-code" className="mb-2 block text-sm font-medium text-slate-300">
+                  <label htmlFor="batch-code" className="mb-2 block text-sm font-bold text-slate-700">
                     Mã batch (batchCode)
                   </label>
                   <input
@@ -221,15 +224,15 @@ export function BatchManagementPage({ mode, inboundBasePath }: Props) {
                     value={batchCode}
                     onChange={(e) => setBatchCode(e.target.value)}
                     placeholder={suggestBatchCode || 'BATCH-001'}
-                    className="w-full rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2.5 font-mono text-sm text-white focus:border-cyan-500/50 focus:outline-none"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 font-mono text-sm text-slate-900 focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600 focus:outline-none placeholder:text-slate-400"
                   />
                   {suggestBatchCode && !batchCode && (
                     <button
                       type="button"
-                      className="mt-1 text-xs text-cyan-400 hover:underline"
+                      className="mt-1.5 text-xs font-bold text-cyan-600 hover:text-cyan-700 hover:underline"
                       onClick={() => setBatchCode(suggestBatchCode)}
                     >
-                      Dùng gợi ý: {suggestBatchCode}
+                      Dùng gợi ý mặc định: {suggestBatchCode}
                     </button>
                   )}
                 </div>
@@ -237,35 +240,35 @@ export function BatchManagementPage({ mode, inboundBasePath }: Props) {
                   type="button"
                   disabled={creating || !batchCode.trim()}
                   onClick={handleCreate}
-                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50"
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-cyan-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-cyan-700 shadow-sm transition-colors disabled:opacity-50"
                 >
-                  <span className="material-symbols-outlined text-lg">add</span>
-                  Tạo batch
+                  <span className="material-symbols-outlined text-lg font-bold">add</span>
+                  Tạo lô batch
                 </button>
               </div>
             )}
 
-            <div className="overflow-hidden rounded-xl border border-white/10">
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <table className="w-full text-sm">
-                <thead className="border-b border-white/10 bg-white/[0.04] text-left text-xs uppercase tracking-wide text-slate-400">
+                <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
                   <tr>
-                    <th className="px-4 py-3">Mã batch</th>
-                    <th className="px-4 py-3">Nhận tại kho</th>
-                    <th className="px-4 py-3 text-right">Thao tác</th>
+                    <th className="px-4 py-3.5">Mã batch</th>
+                    <th className="px-4 py-3.5">Nhận tại kho</th>
+                    <th className="px-4 py-3.5 text-right">Thao tác</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                   {batches.length === 0 && !loadingBatches && (
                     <tr>
-                      <td colSpan={3} className="px-4 py-8 text-center text-slate-500">
-                        Chưa có batch cho phiếu này.
+                      <td colSpan={3} className="px-4 py-8 text-center font-semibold text-slate-400 bg-white">
+                        Chưa có batch nào được tạo cho phiếu nhập này.
                       </td>
                     </tr>
                   )}
                   {batches.map((b) => (
-                    <tr key={b.batchId} className="border-t border-white/5 hover:bg-white/[0.02]">
-                      <td className="px-4 py-3 font-mono text-cyan-200">{b.batchCode}</td>
-                      <td className="px-4 py-3 text-slate-400">
+                    <tr key={b.batchId} className="hover:bg-slate-50/80 transition-colors bg-white">
+                      <td className="px-4 py-3 font-mono font-bold text-indigo-700 text-sm">{b.batchCode}</td>
+                      <td className="px-4 py-3 text-slate-600">
                         {b.warehouseReceivedAt
                           ? formatDate(b.warehouseReceivedAt)
                           : '—'}
@@ -274,9 +277,9 @@ export function BatchManagementPage({ mode, inboundBasePath }: Props) {
                         <button
                           type="button"
                           onClick={() => setBarcodeBatch(b)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-cyan-500/40 hover:text-cyan-300"
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-cyan-600 hover:text-cyan-600 hover:bg-cyan-50/30 transition-all shadow-sm"
                         >
-                          <span className="material-symbols-outlined text-base">qr_code_2</span>
+                          <span className="material-symbols-outlined text-base font-bold">qr_code_2</span>
                           Xem Code 128
                         </button>
                       </td>
@@ -289,7 +292,9 @@ export function BatchManagementPage({ mode, inboundBasePath }: Props) {
         )}
 
         {!selectedInboundId && !loadingInbounds && (
-          <p className="text-sm text-slate-500">Chọn phiếu nhập kho để xem và quản lý batch.</p>
+          <div className="p-4 rounded-xl border border-dashed border-slate-300 text-center text-sm font-medium text-slate-500 bg-white shadow-sm">
+            Vui lòng chọn một phiếu nhập kho từ danh sách phía trên để xem và quản lý cấu trúc các lô batch.
+          </div>
         )}
       </div>
 

@@ -11,7 +11,11 @@ import {
 } from '../../data/contractTypes'
 import { LoadingOverlay } from '../ui/LoadingOverlay'
 
-const inputWrapStyle = { border: '1px solid #3a5455', background: 'rgba(11,22,23,0.8)' } as const
+// Cập nhật style cho ô nhập liệu (Light mode)
+const inputWrapStyle = { 
+  border: '1px solid #cbd5e1', // slate-300
+  background: '#ffffff' 
+} as const
 
 const STATUS_LABELS: Record<RentalRequestPublicLookup['status'], string> = {
   PENDING: 'Chờ duyệt',
@@ -21,12 +25,13 @@ const STATUS_LABELS: Record<RentalRequestPublicLookup['status'], string> = {
   CONVERTED: 'Đã chuyển hợp đồng',
 }
 
+// Cập nhật mã màu badge trạng thái cho nền sáng để tăng độ tương phản đọc
 const STATUS_COLORS: Record<RentalRequestPublicLookup['status'], string> = {
-  PENDING: 'text-amber-400 bg-amber-400/10 border-amber-400/30',
-  UNDER_REVIEW: 'text-blue-400 bg-blue-400/10 border-blue-400/30',
-  APPROVED: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/30',
-  REJECTED: 'text-red-400 bg-red-400/10 border-red-400/30',
-  CONVERTED: 'text-[#06edf9] bg-[#06edf9]/10 border-[#06edf9]/30',
+  PENDING: 'text-amber-700 bg-amber-50 border-amber-200',
+  UNDER_REVIEW: 'text-blue-700 bg-blue-50 border-blue-200',
+  APPROVED: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+  REJECTED: 'text-red-700 bg-red-50 border-red-200',
+  CONVERTED: 'text-cyan-700 bg-cyan-50 border-cyan-200',
 }
 
 function formatDate(value?: string | null) {
@@ -44,9 +49,9 @@ function formatDate(value?: string | null) {
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:justify-between gap-1 py-2 border-t border-white/5 first:border-0 first:pt-0">
-      <span className="text-sm text-[#9bb9bb]">{label}</span>
-      <span className="text-sm text-white text-right">{value}</span>
+    <div className="flex flex-col sm:flex-row sm:justify-between gap-1 py-2.5 border-t border-slate-100 first:border-0 first:pt-0">
+      <span className="text-sm text-slate-500 font-medium">{label}</span>
+      <span className="text-sm text-slate-800 text-left sm:text-right font-semibold">{value}</span>
     </div>
   )
 }
@@ -122,12 +127,12 @@ export function RentalRequestLookup({
     <>
       <LoadingOverlay show={loading} text="Đang tra cứu..." />
       <div className="space-y-6">
-        <form onSubmit={handleSubmit} className="glass-panel rounded-2xl p-6 sm:p-8">
-          <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#06edf9]">search</span>
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+          <h3 className="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
+            <span className="material-symbols-outlined text-cyan-600">search</span>
             Tra cứu yêu cầu
           </h3>
-          <p className="text-sm text-[#9bb9bb] mb-4">
+          <p className="text-sm text-slate-500 mb-5">
             Nhập mã yêu cầu (RR-…) và email liên hệ đã dùng khi gửi form. Không cần đăng nhập.
           </p>
 
@@ -164,9 +169,9 @@ function LookupFormFields({
   onEmailChange: (v: string) => void
 }) {
   return (
-    <div className="space-y-3">
-      <div className="input-glow relative rounded-lg" style={inputWrapStyle}>
-        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[#9bb9bb]">
+    <div className="space-y-3.5">
+      <div className="relative rounded-lg shadow-sm" style={inputWrapStyle}>
+        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
           tag
         </span>
         <input
@@ -176,11 +181,11 @@ function LookupFormFields({
           placeholder="RR-M5ABC-01"
           aria-label="Mã yêu cầu thuê kho"
           required
-          className="block w-full pl-12 pr-4 py-3 bg-transparent border-0 text-white focus:outline-none text-base font-mono uppercase"
+          className="block w-full pl-12 pr-4 py-3 bg-transparent border-0 text-slate-800 focus:outline-none text-base font-mono uppercase placeholder-slate-400"
         />
       </div>
-      <div className="input-glow relative rounded-lg" style={inputWrapStyle}>
-        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[#9bb9bb]">
+      <div className="relative rounded-lg shadow-sm" style={inputWrapStyle}>
+        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
           email
         </span>
         <input
@@ -191,13 +196,13 @@ function LookupFormFields({
           aria-label="Email liên hệ"
           required
           autoComplete="email"
-          className="block w-full pl-12 pr-4 py-3 bg-transparent border-0 text-white focus:outline-none text-base"
+          className="block w-full pl-12 pr-4 py-3 bg-transparent border-0 text-slate-800 focus:outline-none text-base placeholder-slate-400"
         />
       </div>
       <button
         type="submit"
         disabled={loading}
-        className="auth-btn w-full sm:w-auto rounded-lg font-semibold py-3 px-6 border-0 disabled:opacity-60 cursor-pointer"
+        className="w-full sm:w-auto rounded-lg font-semibold py-3 px-6 border-0 bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm transition-colors disabled:opacity-50 cursor-pointer text-base"
       >
         Tra cứu
       </button>
@@ -209,21 +214,21 @@ function LookupResult({ result }: { result: RentalRequestPublicLookup }) {
   const statusClass = STATUS_COLORS[result.status]
 
   return (
-    <div className="glass-panel rounded-2xl p-6 sm:p-8 border-[#06edf9]/20">
+    <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
-          <p className="text-xs uppercase tracking-widest text-[#9bb9bb] mb-1">Mã yêu cầu</p>
-          <p className="text-2xl font-bold font-mono text-[#06edf9]">{result.requestCode}</p>
-          <p className="text-white mt-2">{result.companyName}</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Mã yêu cầu</p>
+          <p className="text-2xl font-black font-mono text-cyan-600">{result.requestCode}</p>
+          <p className="text-slate-800 font-semibold mt-1.5 text-base">{result.companyName}</p>
         </div>
         <span
-          className={`inline-flex self-start px-3 py-1 rounded-full text-sm font-medium border ${statusClass}`}
+          className={`inline-flex self-start px-3 py-1 rounded-full text-sm font-semibold border ${statusClass}`}
         >
           {STATUS_LABELS[result.status]}
         </span>
       </div>
 
-      <div>
+      <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-4 space-y-0.5">
         <DetailRow label="Khu vực" value={`${result.district}, ${result.city}`} />
         {result.contractType && (
           <DetailRow
@@ -280,14 +285,14 @@ function LookupResult({ result }: { result: RentalRequestPublicLookup }) {
         <DetailRow label="Ngày gửi" value={formatDate(result.createdAt)} />
         {result.reviewedAt && <DetailRow label="Ngày xử lý" value={formatDate(result.reviewedAt)} />}
         {result.rejectionReason && (
-          <DetailRow label="Lý do từ chối" value={result.rejectionReason} />
+          <DetailRow label="Lý do từ chối" value={<span className="text-red-600 font-medium">{result.rejectionReason}</span>} />
         )}
         {result.reviewNote && (
-          <DetailRow label="Thông báo từ NEXSPACE" value={result.reviewNote} />
+          <DetailRow label="Thông báo từ NEXSPACE" value={<span className="text-cyan-700 font-medium">{result.reviewNote}</span>} />
         )}
       </div>
 
-      <p className="text-xs text-[#9bb9bb] mt-6 pt-4 border-t border-white/5">
+      <p className="text-xs leading-relaxed text-slate-500 mt-5 pt-4 border-t border-slate-100 font-medium">
         {result.reviewNote && result.status === 'UNDER_REVIEW'
           ? 'Admin đã ghi nhận yêu cầu. Vui lòng theo dõi mã RR và email — chúng tôi sẽ liên hệ khi có kho phù hợp.'
           : result.status === 'APPROVED' || result.status === 'CONVERTED'

@@ -28,6 +28,9 @@ export const UserAvatarMenu: React.FC = () => {
   const displayName = user?.fullName?.trim() || 'User'
   const roleLine = user?.role ? (ROLE_LABEL[user.role] ?? user.role) : ''
 
+  // Logic nhận diện theme đồng bộ toàn bộ hệ thống
+  const isDarkMode = user?.role === 'SYSTEM_ADMIN'
+
   useEffect(() => {
     if (!open) return
     const onPointerDown = (e: MouseEvent) => {
@@ -58,53 +61,86 @@ export const UserAvatarMenu: React.FC = () => {
   }
 
   return (
-    <div ref={rootRef} className="relative overflow-visible border-l border-white/10 pl-6">
+    <div 
+      ref={rootRef} 
+      className={`relative overflow-visible border-l pl-6 transition-colors ${
+        isDarkMode ? 'border-white/10' : 'border-slate-200'
+      }`}
+    >
+      {/* Nút bấm mở Menu */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex cursor-pointer items-center gap-3 text-left"
+        className="flex cursor-pointer items-center gap-3 text-left focus:outline-none"
         aria-expanded={open}
         aria-haspopup="menu"
       >
         <div className="hidden min-w-0 text-right sm:block">
-          <p className="truncate text-sm font-medium text-white">{displayName}</p>
+          <p className={`truncate text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
+            {displayName}
+          </p>
           <p className="truncate text-xs text-slate-400">{roleLine}</p>
         </div>
+        
+        {/* Khối hiển thị Avatar viết tắt */}
         <div className="size-10 shrink-0 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 p-[1px]">
-          <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-slate-900 text-sm font-bold text-cyan-300">
+          <div className={`flex size-full items-center justify-center overflow-hidden rounded-full text-sm font-bold ${
+            isDarkMode ? 'bg-slate-900 text-cyan-300' : 'bg-white text-cyan-600'
+          }`}>
             {userInitials(displayName)}
           </div>
         </div>
-        <span className="material-symbols-outlined hidden text-slate-400 sm:inline">
+        
+        <span className="material-symbols-outlined hidden text-slate-400 sm:inline text-lg">
           {open ? 'expand_less' : 'expand_more'}
         </span>
       </button>
 
+      {/* Menu thả xuống (Dropdown) */}
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-[200] min-w-[220px] overflow-hidden rounded-xl border border-white/10 bg-[#121a28] py-1 shadow-2xl"
+          className={`absolute right-0 top-[calc(100%+0.5rem)] z-[200] min-w-[220px] overflow-hidden rounded-xl border py-1 shadow-2xl transition-all ${
+            isDarkMode 
+              ? 'border-white/10 bg-[#121a28] shadow-black/50' 
+              : 'border-slate-200 bg-white shadow-slate-200/80'
+          }`}
         >
-          <div className="border-b border-white/5 px-4 py-3 sm:hidden">
-            <p className="truncate text-sm font-medium text-white">{displayName}</p>
+          {/* Header ẩn hiển thị trên mobile */}
+          <div className={`border-b px-4 py-3 sm:hidden ${isDarkMode ? 'border-white/5' : 'border-slate-100'}`}>
+            <p className={`truncate text-sm font-medium ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
+              {displayName}
+            </p>
             <p className="truncate text-xs text-slate-400">{roleLine}</p>
           </div>
 
+          {/* Mục Hồ sơ cá nhân */}
           <button
             type="button"
             role="menuitem"
             onClick={goProfile}
-            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-200 transition-colors hover:bg-white/5 hover:text-white"
+            className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
+              isDarkMode 
+                ? 'text-slate-200 hover:bg-white/5 hover:text-white' 
+                : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+            }`}
           >
-            <span className="material-symbols-outlined text-lg text-cyan-400">person</span>
+            <span className={`material-symbols-outlined text-lg ${isDarkMode ? 'text-cyan-400' : 'text-cyan-600'}`}>
+              person
+            </span>
             Hồ sơ cá nhân
           </button>
 
+          {/* Mục Đăng xuất */}
           <button
             type="button"
             role="menuitem"
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-200 transition-colors hover:bg-red-500/10 hover:text-red-300"
+            className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
+              isDarkMode 
+                ? 'text-slate-200 hover:bg-red-500/10 hover:text-red-300' 
+                : 'text-slate-600 hover:bg-red-50 hover:text-red-600'
+            }`}
           >
             <span className="material-symbols-outlined text-lg">logout</span>
             Đăng xuất

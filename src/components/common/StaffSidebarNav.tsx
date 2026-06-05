@@ -29,15 +29,16 @@ const TENANT_ADMIN_BATCHES: NavItem = {
 }
 
 const TENANT_NAV: NavItem[] = [
-  { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/staff/dashboard' },
-  { label: 'Hợp đồng', icon: 'description', key: 'contracts', href: '/staff/contracts' },
-  { label: 'Yêu cầu thuê', icon: 'fact_check', key: 'rental-requests', href: '/staff/rental-requests' },
-  {
+  // { label: 'Bảng điều khiển', icon: 'grid_view', key: 'dashboard', href: '/staff/dashboard' },
+   {
     label: 'Quản lý hàng hóa',
     icon: 'inventory_2',
     key: 'products',
     href: '/staff/products',
   },
+  { label: 'Hợp đồng', icon: 'description', key: 'contracts', href: '/staff/contracts' },
+  { label: 'Yêu cầu thuê', icon: 'fact_check', key: 'rental-requests', href: '/staff/rental-requests' },
+ 
   {
     label: 'Yêu cầu nhập kho',
     icon: 'input',
@@ -97,9 +98,10 @@ type BottomAction = {
   className?: string
 }
 
+// Cấu hình lại nút Log Out sang màu đỏ cam mềm dịu cho Light Mode
 const bottomActions: BottomAction[] = [
-  { label: 'Settings', icon: 'settings', href: '/admin/settings' },
-  { label: 'Log Out', icon: 'logout', href: '/login', className: 'text-slate-500 hover:text-red-400' },
+  { label: 'Cài đặt', icon: 'settings', href: '/admin/settings' },
+  { label: 'Đăng xuất', icon: 'logout', href: '/login', className: 'text-slate-700 hover:text-rose-600 hover:bg-rose-50' },
 ]
 
 interface SidebarProps {
@@ -177,20 +179,22 @@ export const StaffSidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle })
 
   return (
     <aside
-      className={`glass-sidebar fixed z-50 flex h-full shrink-0 flex-col justify-between transition-all duration-300 
+      className={`fixed z-50 flex h-full shrink-0 flex-col justify-between border-r border-slate-200 bg-white shadow-sm transition-all duration-300 
       ${collapsed ? 'w-20' : 'w-64'} md:relative`}
     >
-      <div className="flex flex-col gap-6 p-6">
-        <div className="mb-4 flex items-center justify-between">
+      <div className="flex flex-col gap-6 p-5">
+        {/* Header Thương hiệu */}
+        <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg border border-cyan-500/30 bg-gradient-to-br from-cyan-900 to-slate-900">
-              <img src={logo} alt="Logo" className="h-10 w-10" />
+            {/* Bo góc logo sạch sẽ với background xám sáng mịn thay vì dải gradient tối */}
+            <div className="flex size-10 items-center justify-center rounded-xl bg-slate-50 border border-slate-200 p-1 shadow-sm">
+              <img src={logo} alt="Logo" className="h-full w-full object-contain" />
             </div>
             {!collapsed && (
               <div className="flex flex-col">
-                <h1 className="text-lg font-bold text-white">NEXSPACE</h1>
+                <h1 className="text-sm font-black tracking-wider text-slate-900">NEXSPACE</h1>
                 <p
-                  className="max-w-[140px] truncate font-mono text-xs text-cyan-400/80"
+                  className="max-w-[140px] truncate font-mono text-[11px] font-bold text-sky-600"
                   title={orgLabel || roleSubtitle(user?.role)}
                 >
                   {orgLabel || roleSubtitle(user?.role)}
@@ -198,42 +202,55 @@ export const StaffSidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle })
               </div>
             )}
           </div>
-          <button type="button" onClick={onToggle}>
-            <span className="material-symbols-outlined text-slate-400 hover:text-white">
+          <button 
+            type="button" 
+            onClick={onToggle}
+            className="flex size-7 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all"
+          >
+            <span className="material-symbols-outlined text-lg">
               {collapsed ? 'chevron_right' : 'chevron_left'}
             </span>
           </button>
         </div>
 
+        {/* Danh sách Menu điều hướng */}
         <nav className="flex flex-col gap-1">
-          {visibleNav.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => handleItemClick(item.href)}
-              className={
-                isActive(item.href)
-                  ? 'active-nav-item flex items-center gap-3 rounded-lg px-4 py-3 text-white'
-                  : 'flex items-center gap-3 rounded-lg px-4 py-3 text-slate-400 hover:bg-white/5 hover:text-white'
-              }
-            >
-              <span className="material-symbols-outlined">{item.icon}</span>
-              {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
-            </button>
-          ))}
+          {visibleNav.map((item) => {
+            const active = isActive(item.href)
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => handleItemClick(item.href)}
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all duration-200 ${
+                  active
+                    ? 'bg-sky-50 font-semibold text-sky-700 shadow-sm border-l-4 border-l-sky-500 rounded-l-none'
+                    : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <span className={`material-symbols-outlined text-xl ${active ? 'text-sky-600' : 'text-slate-400'}`}>
+                  {item.icon}
+                </span>
+                {!collapsed && <span className="text-sm">{item.label}</span>}
+              </button>
+            )
+          })}
         </nav>
       </div>
 
-      <div className="flex flex-col gap-4 border-t border-white/5 p-6">
+      {/* Khu vực Action dưới chân Sidebar */}
+      <div className="flex flex-col gap-1 border-t border-slate-100 p-5">
         {bottomActions.map((item) => (
           <button
             key={item.label}
             type="button"
             onClick={() => handleItemClick(item.href)}
-            className={`flex items-center gap-3 rounded-lg px-4 py-2 transition-all hover:text-white ${item.className ?? 'text-slate-500'}`}
+            className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-all hover:bg-slate-50 ${
+              item.className ?? 'text-slate-700 hover:text-slate-900'
+            }`}
           >
-            <span className="material-symbols-outlined text-xl">{item.icon}</span>
-            {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
+            <span className="material-symbols-outlined text-lg opacity-80">{item.icon}</span>
+            {!collapsed && <span>{item.label}</span>}
           </button>
         ))}
       </div>

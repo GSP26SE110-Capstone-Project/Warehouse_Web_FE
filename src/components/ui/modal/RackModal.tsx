@@ -19,10 +19,11 @@ type Props = {
   onSubmit: (payload: RackFormPayload) => void | Promise<void>
 }
 
+// Cập nhật class label và input sang Light Mode (Nền sáng, chữ và viền rõ ràng)
 const labelStyle =
-  'text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block'
+  'text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5 block'
 const inputStyle =
-  'w-full bg-[#1a2333] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400'
+  'w-full bg-white border border-slate-300 rounded-lg px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 disabled:bg-slate-100 disabled:text-slate-500'
 
 export function RackModal({ mode, zoneLabel, suggestedCode, data, onClose, onSubmit }: Props) {
   const [rackCode, setRackCode] = useState(suggestedCode ?? data?.rackCode ?? '')
@@ -57,13 +58,18 @@ export function RackModal({ mode, zoneLabel, suggestedCode, data, onClose, onSub
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-      <button type="button" className="absolute inset-0 bg-black/70" onClick={onClose} aria-label="Đóng" />
-      <div className="relative z-10 w-full max-w-md rounded-xl border border-white/5 bg-[#0b101a] p-6 shadow-2xl">
-        <h2 className="text-lg font-bold text-white">
+      {/* Backdrop mờ tối nhẹ phù hợp với Light Mode */}
+      <button type="button" className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" onClick={onClose} aria-label="Đóng" />
+      
+      {/* Khung Modal nền trắng shadow dày dặn */}
+      <div className="relative z-10 w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <h2 className="text-lg font-bold text-slate-900">
           {mode === 'create' ? 'Thêm rack' : 'Trạng thái rack'}
         </h2>
-        <p className="mt-1 text-sm text-slate-400">Zone: {zoneLabel}</p>
-        <p className="mt-2 rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-200/90">
+        <p className="mt-1 text-sm text-slate-500">Zone: {zoneLabel}</p>
+        
+        {/* Banner thông tin rack dạng pastel sáng nhã nhặn */}
+        <p className="mt-2 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs text-cyan-800 font-medium leading-relaxed">
           Rack STANDARD · {RACK_FIXED_LEVEL_COUNT} tầng/rack · số rack & bin/tầng tính từ diện
           tích zone (3 m²/rack)
         </p>
@@ -81,7 +87,7 @@ export function RackModal({ mode, zoneLabel, suggestedCode, data, onClose, onSub
                 onChange={(e) => setRackCode(e.target.value.toUpperCase())}
                 placeholder="VD: A1, B3"
               />
-              <p className="mt-1 text-[10px] text-slate-500">
+              <p className="mt-1 text-[10px] text-slate-400">
                 Gợi ý: chữ hàng + số cột (A1, A2…) để khớp sơ đồ ghế
               </p>
             </div>
@@ -90,7 +96,7 @@ export function RackModal({ mode, zoneLabel, suggestedCode, data, onClose, onSub
           {mode === 'edit' && (
             <div>
               <label className={labelStyle}>Mã rack</label>
-              <p className="font-mono text-cyan-400">{data?.rackCode}</p>
+              <p className="font-mono text-cyan-700 font-bold text-base">{data?.rackCode}</p>
             </div>
           )}
 
@@ -116,18 +122,19 @@ export function RackModal({ mode, zoneLabel, suggestedCode, data, onClose, onSub
             <InlineAlert compact hideTitle message={error} onDismiss={() => setError('')} />
           )}
 
-          <div className="flex justify-end gap-3 pt-2">
+          {/* Footer nút hành động */}
+          <div className="flex justify-end gap-3 pt-2 border-t border-slate-100 mt-4">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300"
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
             >
               Hủy
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-2 text-sm font-bold text-black disabled:opacity-50"
+              className="rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-2 text-sm font-bold text-white shadow-sm hover:opacity-95 transition-opacity disabled:opacity-50"
             >
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>

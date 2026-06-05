@@ -38,6 +38,7 @@ export function statusFromUtil(util: number, zoneStatus?: string | null): ZoneUt
   return 'active'
 }
 
+// Bảng cấu hình CSS tối ưu hóa riêng cho giao diện Light Mode
 const STATUS_STYLES: Record<
   ZoneUtilStatus,
   {
@@ -49,45 +50,45 @@ const STATUS_STYLES: Record<
   }
 > = {
   empty: {
-    tile: 'border-white/10 bg-primary/5',
-    fill: 'bg-slate-600/50',
+    tile: 'border-slate-200 bg-slate-50 hover:bg-slate-100/70',
+    fill: 'bg-slate-300',
     glow: 'shadow-none',
     label: 'Chưa dựng / trống',
-    pillar: 'from-slate-600/60 to-slate-700/40',
+    pillar: 'from-slate-200 to-slate-300',
   },
   active: {
-    tile: 'border-primary/40 bg-primary/10 shadow-[0_0_12px_rgba(6,237,249,0.15)]',
-    fill: 'bg-gradient-to-t from-cyan-600/80 to-cyan-400/90',
-    glow: 'shadow-[0_0_14px_rgba(6,237,249,0.35)]',
+    tile: 'border-sky-200 bg-sky-50 shadow-sm',
+    fill: 'bg-gradient-to-t from-sky-500 to-sky-400',
+    glow: 'shadow-[0_2px_8px_rgba(14,165,233,0.15)]',
     label: 'Đang dùng',
-    pillar: 'from-cyan-600 to-cyan-400',
+    pillar: 'from-sky-500 to-sky-400',
   },
   stable: {
-    tile: 'border-emerald-500/40 bg-emerald-500/10 shadow-[0_0_12px_rgba(52,211,153,0.15)]',
-    fill: 'bg-gradient-to-t from-emerald-600/80 to-emerald-400/90',
-    glow: 'shadow-[0_0_14px_rgba(52,211,153,0.3)]',
+    tile: 'border-emerald-200 bg-emerald-50 shadow-sm',
+    fill: 'bg-gradient-to-t from-emerald-500 to-emerald-400',
+    glow: 'shadow-[0_2px_8px_rgba(16,185,129,0.15)]',
     label: 'Ổn định',
-    pillar: 'from-emerald-600 to-emerald-400',
+    pillar: 'from-emerald-500 to-emerald-400',
   },
   alert: {
-    tile: 'border-neon-orange/50 bg-neon-orange/10 shadow-[0_0_14px_rgba(255,107,0,0.2)]',
-    fill: 'bg-gradient-to-t from-orange-600/90 to-amber-400/90',
-    glow: 'shadow-[0_0_16px_rgba(255,107,0,0.4)]',
+    tile: 'border-orange-200 bg-orange-50 shadow-sm',
+    fill: 'bg-gradient-to-t from-amber-500 to-orange-500',
+    glow: 'shadow-[0_2px_8px_rgba(245,158,11,0.15)]',
     label: 'Gần đầy',
-    pillar: 'from-orange-600 to-amber-400',
+    pillar: 'from-amber-500 to-orange-500',
   },
 }
 
 function capacityTone(pct: number) {
-  if (pct >= 90) return 'text-orange-400'
-  if (pct >= 70) return 'text-amber-300'
-  return 'text-emerald-400'
+  if (pct >= 90) return 'text-orange-600'
+  if (pct >= 70) return 'text-amber-600'
+  return 'text-emerald-600'
 }
 
 function capacityRingColor(pct: number) {
-  if (pct >= 90) return '#fb923c'
-  if (pct >= 70) return '#fbbf24'
-  return '#34d399'
+  if (pct >= 90) return '#ea580c'
+  if (pct >= 70) return '#d97706'
+  return '#16a34a'
 }
 
 export function computeZoneLayoutUtil(zone: {
@@ -157,16 +158,17 @@ export function ZoneUtilization({
   const resetView = () => setViewRot({ x: 52, z: -10 })
 
   return (
-    <div className="glass-panel relative flex min-h-[420px] flex-col overflow-hidden rounded-2xl p-6">
-      <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-cyan-500/10 blur-3xl" />
+    <div className="relative flex min-h-[420px] flex-col overflow-hidden rounded-2xl bg-white p-6 border border-slate-200">
+      {/* Vùng trang trí background mờ dịu mắt cho Light mode */}
+      <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-slate-100 blur-3xl" />
 
       <div className="relative z-10 mb-3 flex items-start justify-between gap-3">
         <div>
-          <h3 className="flex items-center gap-2 text-lg font-bold text-white">
-            <span className="material-symbols-outlined text-emerald-400">grid_view</span>
+          <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+            <span className="material-symbols-outlined text-emerald-600">grid_view</span>
             Mức dùng zone
           </h3>
-          <p className="mt-0.5 text-[10px] text-slate-500">
+          <p className="mt-0.5 text-[10px] text-slate-400 font-medium">
             Kéo sàn để xoay · click ô zone để xem chi tiết
           </p>
         </div>
@@ -174,7 +176,7 @@ export function ZoneUtilization({
           <button
             type="button"
             onClick={() => setViewRot((v) => ({ ...v, z: v.z - 8 }))}
-            className="rounded-lg border border-white/10 bg-white/5 p-1.5 text-slate-400 hover:text-white"
+            className="rounded-lg border border-slate-200 bg-slate-50 p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
             title="Xoay trái"
           >
             <span className="material-symbols-outlined text-lg">rotate_left</span>
@@ -182,7 +184,7 @@ export function ZoneUtilization({
           <button
             type="button"
             onClick={() => setViewRot((v) => ({ ...v, z: v.z + 8 }))}
-            className="rounded-lg border border-white/10 bg-white/5 p-1.5 text-slate-400 hover:text-white"
+            className="rounded-lg border border-slate-200 bg-slate-50 p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
             title="Xoay phải"
           >
             <span className="material-symbols-outlined text-lg">rotate_right</span>
@@ -190,13 +192,13 @@ export function ZoneUtilization({
           <button
             type="button"
             onClick={resetView}
-            className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[10px] text-slate-400 hover:text-white"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-[10px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
           >
             Reset
           </button>
           <div className="relative flex h-16 w-16 shrink-0 items-center justify-center">
             <svg className="-rotate-90" width="64" height="64" viewBox="0 0 64 64" aria-hidden>
-              <circle cx="32" cy="32" r={ringR} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
+              <circle cx="32" cy="32" r={ringR} fill="none" stroke="rgba(0,0,0,0.04)" strokeWidth="5" />
               <circle
                 cx="32"
                 cy="32"
@@ -214,14 +216,13 @@ export function ZoneUtilization({
         </div>
       </div>
 
-      {(usableAreaM2 != null || usedAreaM2 != null) && (
-        <p className="relative z-10 mb-3 text-center text-[10px] text-slate-400">
-          Phân bổ{' '}
-          <strong className="text-white">{fmtM2(usedAreaM2)}</strong> /{' '}
-          <strong className="text-cyan-300">{fmtM2(usableAreaM2)}</strong> m² · còn{' '}
-          <strong className="text-emerald-300">{fmtM2(remainingAreaM2)}</strong> m²
-        </p>
-      )}
+      {usableAreaM2 != null || usedAreaM2 != null}
+      <p className="relative z-10 mb-3 text-center text-[10px] text-slate-500 font-medium">
+        Phân bổ{' '}
+        <strong className="text-slate-800 font-bold">{fmtM2(usedAreaM2)}</strong> /{' '}
+        <strong className="text-sky-700 font-bold">{fmtM2(usableAreaM2)}</strong> m² · còn{' '}
+        <strong className="text-emerald-700 font-bold">{fmtM2(remainingAreaM2)}</strong> m²
+      </p>
 
       <div
         className="zone-floor-scene relative z-10 flex flex-1 cursor-grab touch-none select-none items-center justify-center py-2 active:cursor-grabbing"
@@ -237,7 +238,7 @@ export function ZoneUtilization({
           }}
         >
           <div
-            className="grid gap-2 p-3"
+            className="grid gap-2 p-3 bg-slate-50/60 rounded-xl border border-slate-100"
             style={{
               gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
             }}
@@ -247,7 +248,7 @@ export function ZoneUtilization({
                 return (
                   <div
                     key={`pad-${index}`}
-                    className="aspect-square rounded border border-dashed border-white/5 bg-white/[0.02] opacity-40"
+                    className="aspect-square rounded border border-dashed border-slate-200 bg-slate-100/50 opacity-50"
                   />
                 )
               }
@@ -263,7 +264,7 @@ export function ZoneUtilization({
                 <button
                   key={cell.zoneId}
                   type="button"
-                  className={`zone-voxel-btn relative aspect-square overflow-hidden rounded border text-left ${style.tile} ${style.glow} ${isSelected ? 'is-selected ring-2 ring-white/50' : ''} ${isHovered && !isSelected ? 'ring-1 ring-cyan-300/60' : ''}`}
+                  className={`zone-voxel-btn relative aspect-square overflow-hidden rounded border text-left transition-all ${style.tile} ${style.glow} ${isSelected ? 'is-selected ring-2 ring-slate-800' : ''} ${isHovered && !isSelected ? 'ring-2 ring-sky-400' : ''}`}
                   onClick={() =>
                     setSelectedId((id) => (id === cell.zoneId ? null : cell.zoneId))
                   }
@@ -275,11 +276,11 @@ export function ZoneUtilization({
                     className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t ${style.pillar} transition-all duration-500`}
                     style={{ height: `${fillH}%` }}
                   />
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 p-1">
-                    <span className="font-mono text-[9px] font-bold leading-none text-white drop-shadow-md">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 p-1 z-10">
+                    <span className="font-mono text-[10px] font-bold leading-none text-slate-900 drop-shadow-sm">
                       {cell.zoneCode.replace(/^Z-?/i, '')}
                     </span>
-                    <span className="text-[11px] font-bold leading-none text-white drop-shadow-md">
+                    <span className="text-[11px] font-black leading-none text-slate-900 drop-shadow-sm">
                       {util}%
                     </span>
                   </div>
@@ -289,42 +290,42 @@ export function ZoneUtilization({
           </div>
         </div>
 
+        {/* Khung mô tả chi tiết khi click/hover - Đã được làm trắng tinh, chữ tối màu rõ nét */}
         {focusZone && (
-          <div className="pointer-events-none absolute bottom-2 left-1/2 z-30 w-[min(100%,280px)] -translate-x-1/2 rounded-xl border border-cyan-500/30 bg-[#0b101a]/95 px-3 py-2 text-center shadow-xl backdrop-blur-md">
-            <p className="font-mono text-sm font-bold text-cyan-300">{focusZone.zoneCode}</p>
-            <p className="text-[10px] text-slate-400">
+          <div className="pointer-events-none absolute bottom-2 left-1/2 z-30 w-[min(100%,280px)] -translate-x-1/2 rounded-xl border border-slate-200 bg-white/95 px-4 py-2.5 text-center shadow-xl backdrop-blur-md transition-all">
+            <p className="font-mono text-sm font-bold text-sky-700">{focusZone.zoneCode}</p>
+            <p className="text-[10px] text-slate-500 font-medium mt-0.5">
               {focusZone.zoneName || ZONE_TYPE_LABELS[focusZone.zoneType ?? ''] || focusZone.zoneType}
               {focusZone.areaM2 != null ? ` · ${fmtM2(focusZone.areaM2)} m²` : ''}
             </p>
-            <p className="mt-1 text-xs text-white">
-              Rack <strong>{focusZone.rackCount ?? 0}</strong>
+            <p className="mt-1 text-xs text-slate-800 font-medium">
+              Rack <strong className="text-slate-900 font-bold">{focusZone.rackCount ?? 0}</strong>
               {focusZone.maxRacks ? ` / ${focusZone.maxRacks}` : ''} ·{' '}
-              <strong className={capacityTone(focusZone.utilPct)}>{focusZone.utilPct}%</strong> đã dựng
+              <strong className={`${capacityTone(focusZone.utilPct)} font-bold`}>{focusZone.utilPct}%</strong> đã dựng
             </p>
           </div>
         )}
       </div>
 
-      <div className="relative z-10 mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1.5 border-t border-white/5 pt-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+      {/* Đồ giải thích nhãn màu sắc dưới chân component */}
+      <div className="relative z-10 mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5 border-t border-slate-100 pt-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
         {(Object.keys(STATUS_STYLES) as ZoneUtilStatus[]).map((key) => (
-          <div key={key} className="flex items-center gap-1">
+          <div key={key} className="flex items-center gap-1.5 text-slate-500">
             <div
-              className={`size-2 rounded-full ${
+              className={`size-2.5 rounded-full ${
                 key === 'empty'
-                  ? 'bg-white/15'
+                  ? 'bg-slate-300 border border-slate-400/20'
                   : key === 'active'
-                    ? 'bg-primary shadow-[0_0_5px_cyan]'
+                    ? 'bg-sky-500 shadow-[0_0_4px_rgba(14,165,233,0.4)]'
                     : key === 'stable'
-                      ? 'bg-emerald-500 shadow-[0_0_5px_emerald]'
-                      : 'bg-neon-orange shadow-[0_0_5px_orange]'
+                      ? 'bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]'
+                      : 'bg-orange-500 shadow-[0_0_4px_rgba(249,115,22,0.4)]'
               }`}
             />
             {STATUS_STYLES[key].label}
           </div>
         ))}
       </div>
-
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0b101a] via-transparent to-transparent" />
     </div>
   )
 }

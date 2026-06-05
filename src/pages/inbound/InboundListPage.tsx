@@ -14,6 +14,7 @@ import * as tenantsApi from '../../api/tenants'
 import * as contractsApi from '../../api/contracts'
 import { INBOUND_STATUS_LABELS } from '../../data/inboundStatus'
 import { formatDate } from '../../mappers'
+import { WhiteStatCard } from '../../components/ui/WhiteStatCard'
 
 type Mode = 'tenant' | 'warehouse'
 
@@ -107,6 +108,10 @@ export function InboundListPage({ mode, basePath }: Props) {
   const totalPages = Math.ceil(totalItems / pageSize) || 1
   const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
+  // Tính toán rangeStart và rangeEnd dựa trên trang hiện tại và số phần tử lọc được
+  const rangeStart = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const rangeEnd = Math.min(currentPage * pageSize, totalItems)
+
   const stats = useMemo(
     () => ({
       total: rows.length,
@@ -120,18 +125,18 @@ export function InboundListPage({ mode, basePath }: Props) {
   const canCreate = mode === 'tenant' && isTenantAdmin
 
   return (
-    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
+    <div className="flex max-w-screen overflow-hidden bg-slate-50 text-slate-800">
       <LoadingOverlay show={loading} text="Đang tải yêu cầu nhập kho..." />
-      <main className="relative flex flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072')] bg-cover bg-center">
-        <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" />
+      <main className="relative flex flex-1 flex-col overflow-hidden bg-slate-50/50">
         <div className="relative z-10 p-8">
-          <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
+          <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
+
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-white">
+                <h1 className="text-2xl font-bold text-slate-900">
                   {mode === 'tenant' ? 'Yêu cầu nhập kho' : 'Vận hành nhập kho'}
                 </h1>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm font-medium text-slate-500">
                   {mode === 'tenant'
                     ? 'Tạo và theo dõi đơn nhập hàng (cần hợp đồng ACTIVE)'
                     : 'Duyệt, nhận hàng, putaway và hoàn tất inbound'}
@@ -141,7 +146,7 @@ export function InboundListPage({ mode, basePath }: Props) {
                 <button
                   type="button"
                   onClick={() => navigate(`${basePath}/new`)}
-                  className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-cyan-400"
+                  className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-cyan-700 active:bg-cyan-800 transition-colors"
                 >
                   + Tạo yêu cầu nhập
                 </button>
@@ -153,12 +158,12 @@ export function InboundListPage({ mode, basePath }: Props) {
             )}
 
             {mode === 'tenant' && activeContractCount === 0 && (
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-                Chưa có hợp đồng <strong>ACTIVE</strong> — ký và thanh toán invoice đầu tại{' '}
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm">
+                Chưa có hợp đồng <strong className="font-bold">ACTIVE</strong> — ký và thanh toán invoice đầu tại{' '}
                 <button
                   type="button"
                   onClick={() => navigate('/staff/contracts')}
-                  className="font-semibold text-cyan-300 underline hover:text-cyan-200"
+                  className="font-bold text-cyan-600 underline hover:text-cyan-700"
                 >
                   Hợp đồng
                 </button>{' '}
@@ -167,9 +172,9 @@ export function InboundListPage({ mode, basePath }: Props) {
             )}
 
             {mode === 'tenant' && stats.pending > 0 && (
-              <div className="flex flex-col gap-3 rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100 sm:flex-row sm:items-center sm:justify-between">
-                <p>
-                  Có <strong>{stats.pending}</strong> phiếu nhập chờ kho duyệt.
+              <div className="flex flex-col gap-3 rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                <p className="font-medium">
+                  Có <strong className="font-bold">{stats.pending}</strong> phiếu nhập chờ kho duyệt.
                 </p>
                 <button
                   type="button"
@@ -177,7 +182,7 @@ export function InboundListPage({ mode, basePath }: Props) {
                     setStatusFilter('PENDING')
                     setCurrentPage(1)
                   }}
-                  className="shrink-0 rounded-lg border border-cyan-400/40 px-4 py-2 text-xs font-semibold hover:bg-cyan-400/15"
+                  className="shrink-0 rounded-lg border border-cyan-300 bg-white px-3 py-1.5 text-xs font-bold text-cyan-700 shadow-sm hover:bg-cyan-100/50 transition-colors"
                 >
                   Lọc chờ duyệt
                 </button>
@@ -187,11 +192,11 @@ export function InboundListPage({ mode, basePath }: Props) {
             {mode === 'warehouse' &&
               user?.role === 'WH_ADMIN' &&
               stats.pending > 0 && (
-                <div className="flex flex-col gap-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-start gap-2">
-                    <span className="material-symbols-outlined shrink-0 text-amber-300">pending_actions</span>
-                    <p>
-                      Có <strong>{stats.pending}</strong> yêu cầu nhập kho đang chờ duyệt — mở từng
+                    <span className="material-symbols-outlined shrink-0 text-amber-600">pending_actions</span>
+                    <p className="font-medium">
+                      Có <strong className="font-bold">{stats.pending}</strong> yêu cầu nhập kho đang chờ duyệt — mở từng
                       đơn để duyệt hoặc từ chối.
                     </p>
                   </div>
@@ -201,18 +206,18 @@ export function InboundListPage({ mode, basePath }: Props) {
                       setStatusFilter('PENDING')
                       setCurrentPage(1)
                     }}
-                    className="shrink-0 rounded-lg border border-amber-400/40 bg-amber-400/15 px-4 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-400/25"
+                    className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 shadow-sm hover:bg-amber-100/50 transition-colors"
                   >
                     Lọc chờ duyệt
                   </button>
                 </div>
               )}
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <StatsCard title="Tổng" value={stats.total} icon="inventory_2" accentColor="emerald" />
-              <StatsCard title="Chờ duyệt" value={stats.pending} icon="pending" accentColor="primary" />
-              <StatsCard title="Đang nhận" value={stats.receiving} icon="input" accentColor="orange" />
-              <StatsCard title="Hoàn tất" value={stats.completed} icon="check_circle" accentColor="purple" />
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+              <WhiteStatCard title="Tổng" value={stats.total} icon="inventory_2" accentColor="emerald" />
+              <WhiteStatCard title="Chờ duyệt" value={stats.pending} icon="pending" accentColor="primary" />
+              <WhiteStatCard title="Đang nhận" value={stats.receiving} icon="input" accentColor="orange" />
+              <WhiteStatCard title="Hoàn tất" value={stats.completed} icon="check_circle" accentColor="purple" />
             </div>
 
             <div className="flex flex-wrap gap-4">
@@ -224,7 +229,7 @@ export function InboundListPage({ mode, basePath }: Props) {
                   setSearch(e.target.value)
                   setCurrentPage(1)
                 }}
-                className="min-w-[200px] flex-1 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm"
+                className="min-w-[200px] flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
               />
               <select
                 aria-label="Lọc trạng thái nhập kho"
@@ -233,7 +238,7 @@ export function InboundListPage({ mode, basePath }: Props) {
                   setStatusFilter(e.target.value as InboundStatus | 'all')
                   setCurrentPage(1)
                 }}
-                className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm"
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-800 shadow-sm focus:border-cyan-500 focus:outline-none"
               >
                 <option value="all">Tất cả trạng thái</option>
                 {(Object.keys(INBOUND_STATUS_LABELS) as InboundStatus[]).map((s) => (
@@ -244,60 +249,82 @@ export function InboundListPage({ mode, basePath }: Props) {
               </select>
             </div>
 
-            <div className="overflow-hidden rounded-xl border border-white/10 bg-white/5">
+            {/* Bọc toàn bộ Table và vùng Pagination mới vào cùng một card để tạo sự liền mạch */}
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <table className="w-full text-left text-sm">
-                <thead className="border-b border-white/10 text-slate-400">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
                   <tr>
-                    <th className="px-4 py-3">Mã</th>
-                    {mode === 'warehouse' && <th className="px-4 py-3">Tenant</th>}
-                    <th className="px-4 py-3">Kho</th>
-                    <th className="px-4 py-3">Dự kiến đến</th>
-                    <th className="px-4 py-3">Trạng thái</th>
-                    <th className="px-4 py-3" />
+                    <th className="px-5 py-3.5 font-bold">Mã</th>
+                    {mode === 'warehouse' && <th className="px-5 py-3.5 font-bold">Tenant</th>}
+                    <th className="px-5 py-3.5 font-bold">Kho</th>
+                    <th className="px-5 py-3.5 font-bold">Dự kiến đến</th>
+                    <th className="px-5 py-3.5 font-bold">Trạng thái</th>
+                    <th className="px-5 py-3.5" />
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
                   {paginated.map((r) => (
                     <tr
                       key={r.inboundRequestId}
-                      className="border-b border-white/5 hover:bg-white/5"
+                      className="hover:bg-slate-50/80 transition-colors"
                     >
-                      <td className="px-4 py-3 font-mono text-cyan-300">{r.inboundCode}</td>
+                      <td className="px-5 py-3.5 font-mono font-bold text-cyan-700">{r.inboundCode}</td>
                       {mode === 'warehouse' && (
-                        <td className="px-4 py-3">{tenantNames.get(r.tenantId) ?? '—'}</td>
+                        <td className="px-5 py-3.5 font-medium">{tenantNames.get(r.tenantId) ?? '—'}</td>
                       )}
-                      <td className="px-4 py-3">{whNames.get(r.warehouseId) ?? '—'}</td>
-                      <td className="px-4 py-3">{formatDate(r.expectedArrivalDate)}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-3.5 font-medium">{whNames.get(r.warehouseId) ?? '—'}</td>
+                      <td className="px-5 py-3.5 text-slate-600">{formatDate(r.expectedArrivalDate)}</td>
+                      <td className="px-5 py-3.5">
                         <InboundStatusBadge status={r.status} />
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-5 py-3.5 text-right">
                         <button
                           type="button"
                           onClick={() => navigate(`${basePath}/${r.inboundRequestId}`)}
-                          className="text-cyan-400 hover:text-cyan-300"
+                          className="font-bold text-slate-500 hover:text-slate-700 hover:underline"
                         >
-                          Chi tiết
+                          <span className="material-symbols-outlined text-[20px]">visibility</span>
                         </button>
                       </td>
                     </tr>
                   ))}
                   {paginated.length === 0 && !loading && (
                     <tr>
-                      <td colSpan={mode === 'warehouse' ? 6 : 5} className="px-4 py-8 text-center text-slate-500">
+                      <td colSpan={mode === 'warehouse' ? 6 : 5} className="px-5 py-10 text-center font-medium text-slate-400 bg-slate-50/30">
                         Chưa có yêu cầu nhập kho
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
+
+              {/* Vùng thiết kế Pagination mới theo yêu cầu của bạn nằm ngay dưới Table */}
+              {totalItems > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/50 px-6 py-4">
+                  <p className="font-mono text-xs text-slate-500">
+                    Hiển thị{' '}
+                    <span className="font-bold text-slate-800">
+                      {rangeStart}–{rangeEnd}
+                    </span>{' '}
+                    trong số <span className="font-bold text-slate-800">{totalItems}</span>
+                    {totalPages > 1 && (
+                      <>
+                        {' '}
+                        · Trang <span className="font-bold text-slate-800">{currentPage}</span> / {totalPages}
+                      </>
+                    )}
+                  </p>
+                  {totalPages > 1 && (
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={setCurrentPage}
+                    />
+                  )}
+                </div>
+              )}
             </div>
 
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-            />
           </div>
         </div>
       </main>

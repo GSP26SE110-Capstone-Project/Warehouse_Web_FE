@@ -51,9 +51,9 @@ const LAYERS: {
 
 function SceneFallback() {
   return (
-    <div className="flex h-full min-h-[280px] sm:min-h-[360px] flex-col items-center justify-center gap-3 text-[#9bb9bb]">
-      <span className="material-symbols-outlined animate-pulse text-3xl text-[#06edf9]">view_in_ar</span>
-      <p className="text-sm">Đang tải mô hình 3D…</p>
+    <div className="flex h-full min-h-[280px] sm:min-h-[360px] flex-col items-center justify-center gap-3 text-slate-400">
+      <span className="material-symbols-outlined animate-pulse text-3xl text-cyan-600">view_in_ar</span>
+      <p className="text-sm font-medium">Đang tải mô hình 3D…</p>
     </div>
   )
 }
@@ -62,17 +62,17 @@ function ZoneInfoPanel({ zone }: { zone: DemoZone3D }) {
   const capacity = describeZoneLpnCapacity(zone.zoneType)
 
   return (
-    <div className="mt-4 rounded-xl border border-[#06edf9]/35 bg-[#06edf9]/10 px-4 py-3 text-sm">
-      <p className="font-semibold text-white">
+    <div className="mt-4 rounded-xl border border-cyan-200 bg-cyan-50/50 px-4 py-3 text-sm">
+      <p className="font-bold text-slate-800">
         Khu {zone.id} · {zone.title}
       </p>
-      <p className="mt-2 text-[#9bb9bb] leading-relaxed">
-        Bin mặc định: <strong className="text-white">{capacity.binVolume} volume</strong>
+      <p className="mt-1.5 text-slate-600 leading-relaxed">
+        Bin mặc định: <strong className="text-slate-800 font-semibold">{capacity.binVolume} volume</strong>
         {' · '}
         LPN lớn nhất:{' '}
-        <strong className="text-[#06edf9]">{capacity.maxBoxType}</strong>
+        <strong className="text-cyan-700 font-bold">{capacity.maxBoxType}</strong>
       </p>
-      <p className="mt-2 text-xs text-[#9bb9bb]/90 leading-relaxed">{capacity.note}</p>
+      <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">{capacity.note}</p>
     </div>
   )
 }
@@ -146,10 +146,11 @@ function ScenePanel({
   return (
     <div
       ref={hostRef}
-      className="relative min-h-[280px] sm:min-h-[360px] bg-gradient-to-br from-[#0a1819] to-[#050b0b] overflow-hidden"
+      className="relative min-h-[280px] sm:min-h-[360px] bg-gradient-to-br from-slate-100 to-slate-50 overflow-hidden border-t lg:border-t-0 border-slate-200"
     >
-      <div className="absolute inset-0 opacity-25 pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(6,237,249,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(6,237,249,0.06)_1px,transparent_1px)] bg-[size:24px_24px]" />
+      {/* Light Mode Tech Grid Background Decoration */}
+      <div className="absolute inset-0 opacity-[0.4] pointer-events-none">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,180,216,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(0,180,216,0.04)_1px,transparent_1px)] bg-[size:24px_24px]" />
       </div>
 
       {renderMode === 'idle' && <SceneFallback />}
@@ -179,12 +180,12 @@ function ScenePanel({
         </SceneErrorBoundary>
       )}
 
-      <div className="pointer-events-none absolute bottom-4 left-4 right-4 flex items-center justify-between gap-2 text-[10px] sm:text-xs text-[#9bb9bb]">
-        <span className="flex items-center gap-1">
-          <span className="material-symbols-outlined text-sm text-[#06edf9]">360</span>
+      <div className="pointer-events-none absolute bottom-4 left-4 right-4 flex items-center justify-between gap-2 text-[10px] sm:text-xs text-slate-500 font-medium">
+        <span className="flex items-center gap-1 bg-white/80 backdrop-blur-sm px-2 py-1 rounded-md border border-slate-200/50 shadow-sm">
+          <span className="material-symbols-outlined text-sm text-cyan-600">360</span>
           Kéo để xoay · cuộn để zoom
         </span>
-        <span className="text-right opacity-80">
+        <span className="text-right opacity-80 bg-white/80 backdrop-blur-sm px-2 py-1 rounded-md border border-slate-200/50 shadow-sm">
           {useFallback && renderMode !== 'idle' ? 'Sơ đồ 2D' : 'Three.js'}
         </span>
       </div>
@@ -192,7 +193,7 @@ function ScenePanel({
   )
 }
 
-/** Minh họa cấu trúc kho — scene Three.js (lazy + chỉ mount khi scroll tới). */
+/** Minh họa cấu trúc kho — bộ khám phá trực quan sạch sẽ chuẩn Light Mode. */
 export function WarehouseStructureExplorer() {
   const [active, setActive] = useState<WarehouseLayerId>('warehouse')
   const [selectedZone, setSelectedZone] = useState<DemoZone3D | null>(null)
@@ -212,110 +213,116 @@ export function WarehouseStructureExplorer() {
   }
 
   return (
-    <div className="glass-panel rounded-2xl border-[#06edf9]/15 overflow-hidden">
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
-        <div className="p-6 sm:p-8 border-b lg:border-b-0 lg:border-r border-white/5">
-          <p className="text-xs font-medium tracking-widest uppercase text-[#06edf9] mb-3">
-            Khám phá cấu trúc
-          </p>
-          <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
-            Một kho trông như thế nào?
-          </h3>
-          <p className="text-sm text-[#9bb9bb] mb-6 leading-relaxed">
-            NEXSPACE chia không gian theo 4 cấp — từ tòa kho đến từng ngăn trên kệ. Chọn từng lớp
-            bên dưới; camera 3D sẽ zoom và highlight rack, rack level và bin tương ứng.
-          </p>
-
-          <div className="space-y-2">
-            {LAYERS.map((item) => {
-              const selected = item.id === active
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleLayerChange(item.id)}
-                  className={`w-full text-left rounded-xl px-4 py-3 border transition-all ${
-                    selected
-                      ? 'border-[#06edf9]/50 bg-[#06edf9]/10'
-                      : 'border-white/5 bg-white/[0.02] hover:border-white/15'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <span
-                      className={`material-symbols-outlined text-xl mt-0.5 ${
-                        selected ? 'text-[#06edf9]' : 'text-[#9bb9bb]'
-                      }`}
-                    >
-                      {item.icon}
-                    </span>
-                    <div>
-                      <p className={`font-semibold ${selected ? 'text-white' : 'text-gray-200'}`}>
-                        {item.title}
-                      </p>
-                      <p className="text-xs text-[#9bb9bb] mt-0.5">{item.subtitle}</p>
-                    </div>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-
-          <p className="mt-5 text-sm text-[#9bb9bb] leading-relaxed border-t border-white/5 pt-4">
-            {layer.description}
-          </p>
-
-          {selectedZone && (active === 'zone' || active === 'warehouse') && (
-            <ZoneInfoPanel zone={selectedZone} />
-          )}
-
-          {(active === 'zone' || active === 'warehouse') && !selectedZone && (
-            <p className="mt-4 text-xs text-[#6b8586]">
-              💡 Click một khu trên mô hình 3D bên phải để xem giới hạn loại thùng LPN.
+        <div className="p-6 sm:p-8 border-b lg:border-b-0 lg:border-r border-slate-100 flex flex-col justify-between">
+          <div>
+            <p className="text-xs font-bold tracking-widest uppercase text-cyan-600 mb-3">
+              Khám phá cấu trúc
             </p>
-          )}
-
-          {(active === 'rack' || active === 'bin') && (
-            <p className="mt-4 text-xs text-[#6b8586]">
-              {active === 'rack'
-                ? '💡 Các tầng ngang trên kệ là rack level — chọn Bin để xem ngăn hàng trên từng tầng.'
-                : '💡 Các khối cyan là bin — mỗi bin nằm trên một rack level.'}
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 mb-2">
+              Một kho trông như thế nào?
+            </h3>
+            <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+              NEXSPACE chia không gian theo 4 cấp — từ tòa kho đến từng ngăn trên kệ. Chọn từng lớp
+              bên dưới; camera 3D sẽ zoom và highlight rack, rack level và bin tương ứng.
             </p>
-          )}
 
-          {(active === 'zone' || active === 'warehouse') && (
-            <div className="mt-4 space-y-2 border-t border-white/5 pt-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#06edf9]/80">
-                Bản đồ khu (demo)
-              </p>
-              {DEMO_ZONES.map((zone) => {
-                const cap = describeZoneLpnCapacity(zone.zoneType)
-                const picked = selectedZone?.id === zone.id
+            <div className="space-y-2">
+              {LAYERS.map((item) => {
+                const selected = item.id === active
                 return (
                   <button
-                    key={zone.id}
+                    key={item.id}
                     type="button"
-                    onClick={() => setSelectedZone(zone)}
-                    className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
-                      picked
-                        ? 'border-[#06edf9]/40 bg-[#06edf9]/10'
-                        : 'border-white/5 bg-white/[0.02] hover:border-white/15'
+                    onClick={() => handleLayerChange(item.id)}
+                    className={`w-full text-left rounded-xl px-4 py-3 border transition-all duration-200 ${
+                      selected
+                        ? 'border-cyan-500 bg-cyan-50/70 shadow-sm shadow-cyan-500/5'
+                        : 'border-slate-200 bg-slate-50/50 hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
-                    <span className="flex items-center gap-2">
+                    <div className="flex items-start gap-3">
                       <span
-                        className="inline-block h-2.5 w-2.5 rounded-sm"
-                        style={{ backgroundColor: zone.color }}
-                      />
-                      <span className="text-gray-200">
-                        Khu {zone.id} · {zone.title}
+                        className={`material-symbols-outlined text-xl mt-0.5 transition-colors ${
+                          selected ? 'text-cyan-600 font-semibold' : 'text-slate-400'
+                        }`}
+                      >
+                        {item.icon}
                       </span>
-                    </span>
-                    <span className="shrink-0 font-medium text-[#9bb9bb]">{cap.maxBoxType}</span>
+                      <div>
+                        <p className={`font-bold text-sm sm:text-base ${selected ? 'text-slate-900' : 'text-slate-700'}`}>
+                          {item.title}
+                        </p>
+                        <p className={`text-xs mt-0.5 ${selected ? 'text-cyan-700 font-medium' : 'text-slate-400'}`}>
+                          {item.subtitle}
+                        </p>
+                      </div>
+                    </div>
                   </button>
                 )
               })}
             </div>
-          )}
+
+            <p className="mt-5 text-sm text-slate-600 leading-relaxed border-t border-slate-100 pt-4">
+              {layer.description}
+            </p>
+          </div>
+
+          <div>
+            {selectedZone && (active === 'zone' || active === 'warehouse') && (
+              <ZoneInfoPanel zone={selectedZone} />
+            )}
+
+            {(active === 'zone' || active === 'warehouse') && !selectedZone && (
+              <p className="mt-4 text-xs font-medium text-slate-400 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                💡 Click một khu trên mô hình 3D bên phải hoặc danh sách để xem giới hạn loại thùng LPN.
+              </p>
+            )}
+
+            {(active === 'rack' || active === 'bin') && (
+              <p className="mt-4 text-xs font-medium text-slate-400 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                {active === 'rack'
+                  ? '💡 Các tầng ngang trên kệ là rack level — chọn Bin để xem ngăn hàng trên từng tầng.'
+                  : '💡 Các khối màu trên mô hình là các ô ngăn (bin) trống hoặc đang chứa hàng hóa.'}
+              </p>
+            )}
+
+            {(active === 'zone' || active === 'warehouse') && (
+              <div className="mt-4 space-y-1.5 border-t border-slate-100 pt-4">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400 mb-1">
+                  Bản đồ khu vực (Demo)
+                </p>
+                {DEMO_ZONES.map((zone) => {
+                  const cap = describeZoneLpnCapacity(zone.zoneType)
+                  const picked = selectedZone?.id === zone.id
+                  return (
+                    <button
+                      key={zone.id}
+                      type="button"
+                      onClick={() => setSelectedZone(zone)}
+                      className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
+                        picked
+                          ? 'border-cyan-500 bg-cyan-50/50 shadow-sm'
+                          : 'border-slate-100 bg-slate-50/50 hover:border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-sm shadow-sm"
+                          style={{ backgroundColor: zone.color }}
+                        />
+                        <span className="font-semibold text-slate-700">
+                          Khu {zone.id} · {zone.title}
+                        </span>
+                      </span>
+                      <span className="shrink-0 font-bold text-slate-500">{cap.maxBoxType}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         <ScenePanel

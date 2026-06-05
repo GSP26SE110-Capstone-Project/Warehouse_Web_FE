@@ -175,9 +175,9 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
         })),
       })
 
-      if (deliveryMode === 'TENANT_SELF' && deliveryForm.vehiclePlate.trim()) {
+      if (deliveryMode === 'TENANT_SELF' && deliveryForm.vehiclePlate?.trim()) {
         await deliveryApi.upsertInboundDelivery(inbound.inboundRequestId, {
-          vehiclePlate: deliveryForm.vehiclePlate.trim(),
+          vehiclePlate: deliveryForm.vehiclePlate?.trim(),
           driverName: deliveryForm.driverName?.trim() || undefined,
           driverPhone: deliveryForm.driverPhone?.trim() || undefined,
           driverIdNumber: deliveryForm.driverIdNumber?.trim() || undefined,
@@ -213,19 +213,19 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
   }
 
   return (
-    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
+    <div className="flex max-w-screen overflow-hidden bg-slate-50 text-slate-800">
       <LoadingOverlay show={loading || submitting} text={submitting ? 'Đang tạo...' : 'Đang tải...'} />
-      <main className="relative flex flex-1 flex-col overflow-hidden bg-[#0b101a]">
+      <main className="relative flex flex-1 flex-col overflow-hidden bg-slate-50">
         <div className="relative z-10 mx-auto w-full max-w-3xl p-8">
           <button
             type="button"
             onClick={() => navigate(basePath)}
-            className="mb-4 text-sm text-cyan-400 hover:underline"
+            className="mb-4 text-sm font-medium text-cyan-600 hover:text-cyan-700 hover:underline"
           >
             ← Quay lại danh sách
           </button>
 
-          <h1 className="mb-6 text-2xl font-bold">Tạo yêu cầu nhập kho</h1>
+          <h1 className="mb-6 text-2xl font-bold text-slate-900">Tạo yêu cầu nhập kho</h1>
 
           {error && (
             <InlineAlert
@@ -236,9 +236,9 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
             />
           )}
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-xl border border-white/10 bg-white/5 p-6">
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-slate-400">Hợp đồng (ACTIVE)</span>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <label className="flex flex-col gap-1 text-sm font-semibold text-slate-700">
+              <span className="font-normal text-slate-500">Hợp đồng (ACTIVE)</span>
               <select
                 required
                 value={contractId}
@@ -254,7 +254,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                     setExpectedArrivalDate('')
                   }
                 }}
-                className="rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2"
+                className="font-normal rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-800 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/20"
               >
                 <option value="">— Chọn hợp đồng —</option>
                 {contracts.map((c) => {
@@ -269,7 +269,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
             </label>
 
             <div className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-400">Ngày dự kiến đến kho</span>
+              <span className="font-semibold text-slate-700">Ngày dự kiến đến kho</span>
               <DateTimePickerField
                 id="expected-arrival"
                 value={expectedArrivalDate}
@@ -279,27 +279,27 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                 placeholder="Chọn ngày và giờ dự kiến"
               />
               {selectedContract?.startDate && (
-                <p className="flex items-start gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs text-slate-400">
-                  <span className="material-symbols-outlined mt-0.5 shrink-0 text-base text-cyan-400">
+                <p className="flex items-start gap-2 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs text-slate-600">
+                  <span className="material-symbols-outlined mt-0.5 shrink-0 text-base text-cyan-600">
                     info
                   </span>
                   <span>
                     Không được chọn trước ngày bắt đầu hợp đồng{' '}
-                    <strong className="text-cyan-300">
+                    <strong className="text-cyan-700 font-semibold">
                       {formatContractDateLabel(selectedContract.startDate)}
                     </strong>
-                    . Chọn ngày trên lịch, giờ bên phải, rồi bấm <strong>Xác nhận</strong>.
+                    . Chọn ngày trên lịch, giờ bên phải, rồi bấm <strong className="text-slate-800 font-semibold">Xác nhận</strong>.
                   </span>
                 </p>
               )}
             </div>
 
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-slate-400">Hình thức vận chuyển</span>
+            <label className="flex flex-col gap-1 text-sm font-semibold text-slate-700">
+              <span className="font-normal text-slate-500">Hình thức vận chuyển</span>
               <select
                 value={deliveryMode}
                 onChange={(e) => setDeliveryMode(e.target.value as DeliveryMode)}
-                className="rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2"
+                className="font-normal rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-800 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/20"
               >
                 {DELIVERY_MODE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -307,14 +307,14 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                   </option>
                 ))}
               </select>
-              <span className="text-xs text-slate-500">
+              <span className="font-normal text-xs text-slate-400 mt-0.5">
                 {DELIVERY_MODE_OPTIONS.find((o) => o.value === deliveryMode)?.hint}
               </span>
             </label>
 
             {deliveryMode === 'TENANT_SELF' && (
-              <div className="rounded-lg border border-white/10 bg-black/20 p-4">
-                <p className="mb-3 text-sm font-medium text-slate-300">
+              <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4">
+                <p className="mb-3 text-sm font-semibold text-slate-700">
                   Thông tin xe (khuyến nghị trước khi xe vào cổng)
                 </p>
                 <InboundDeliveryForm
@@ -327,8 +327,8 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
             )}
 
             {deliveryMode === 'WAREHOUSE_TRANSPORT' && (
-              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4">
-                <p className="mb-3 text-sm font-medium text-emerald-200">Điểm lấy hàng</p>
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-4">
+                <p className="mb-3 text-sm font-semibold text-emerald-800">Điểm lấy hàng</p>
                 <InboundPickupForm value={pickupForm} onChange={setPickupForm} />
               </div>
             )}
@@ -336,10 +336,10 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
             <div>
               <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <p className="text-sm font-medium text-slate-300">Dòng hàng (SKU)</p>
-                  <p className="mt-1 max-w-xl text-xs text-slate-500">
+                  <p className="text-sm font-semibold text-slate-700">Dòng hàng (SKU)</p>
+                  <p className="mt-1 max-w-xl text-xs text-slate-400">
                     Mỗi dòng là một mã hàng kèm{' '}
-                    <strong className="font-medium text-slate-400">
+                    <strong className="font-semibold text-slate-500">
                       số lượng dự kiến nhập kho
                     </strong>{' '}
                     — số đơn vị bạn khai báo trước khi hàng tới; kho sẽ đối chiếu khi kiểm đếm.
@@ -348,15 +348,15 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                 <button
                   type="button"
                   onClick={() => setLines((prev) => [...prev, { skuId: '', expectedQuantity: 1 }])}
-                  className="shrink-0 text-xs text-cyan-400 hover:text-cyan-300"
+                  className="shrink-0 text-xs font-semibold text-cyan-600 hover:text-cyan-700 hover:underline"
                 >
                   + Thêm dòng
                 </button>
               </div>
 
-              <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div
-                  className="hidden gap-3 border-b border-white/10 bg-white/5 px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-slate-500 sm:grid sm:grid-cols-[minmax(0,1fr)_10.5rem_2.5rem]"
+                  className="hidden gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500 sm:grid sm:grid-cols-[minmax(0,1fr)_10.5rem_2.5rem]"
                   aria-hidden
                 >
                   <span>Mã hàng (SKU)</span>
@@ -364,7 +364,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                   <span />
                 </div>
 
-                <div className="divide-y divide-white/5">
+                <div className="divide-y divide-slate-100">
                   {lines.map((line, idx) => {
                     const skuSelectId = `inbound-line-sku-${idx}`
                     const qtyInputId = `inbound-line-qty-${idx}`
@@ -374,14 +374,14 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                         className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_10.5rem_2.5rem] sm:items-start"
                       >
                         {lines.length > 1 && (
-                          <p className="col-span-full text-xs font-medium text-slate-500 sm:hidden">
+                          <p className="col-span-full text-xs font-bold text-slate-400 sm:hidden">
                             Dòng {idx + 1}
                           </p>
                         )}
 
                         <label htmlFor={skuSelectId} className="flex min-w-0 flex-col gap-1.5">
-                          <span className="text-xs text-slate-400 sm:sr-only">Mã hàng (SKU)</span>
-                          <span className="text-xs font-medium text-slate-400 sm:hidden">
+                          <span className="text-xs text-slate-500 sm:sr-only">Mã hàng (SKU)</span>
+                          <span className="text-xs font-bold text-slate-500 sm:hidden">
                             Mã hàng (SKU)
                           </span>
                           <select
@@ -395,7 +395,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                                 prev.map((l, i) => (i === idx ? { ...l, skuId } : l))
                               )
                             }}
-                            className="w-full rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2 text-sm"
+                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/20"
                           >
                             <option value="">— Chọn mã hàng —</option>
                             {skus.map((s) => (
@@ -407,7 +407,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                         </label>
 
                         <label htmlFor={qtyInputId} className="flex flex-col gap-1.5">
-                          <span className="text-xs font-medium text-slate-400">
+                          <span className="text-xs font-bold text-slate-500">
                             Số lượng dự kiến nhập kho
                           </span>
                           <div className="relative">
@@ -428,17 +428,17 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                                   )
                                 )
                               }}
-                              className="w-full rounded-lg border border-white/10 bg-[#0f172a] py-2 pl-3 pr-14 text-sm tabular-nums"
+                              className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-14 text-sm text-slate-800 tabular-nums focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/20"
                               placeholder="VD: 100"
                             />
                             <span
-                              className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-slate-500"
+                              className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-slate-400"
                               aria-hidden
                             >
                               đơn vị
                             </span>
                           </div>
-                          <span id={`${qtyInputId}-hint`} className="text-[11px] leading-snug text-slate-600">
+                          <span id={`${qtyInputId}-hint`} className="text-[11px] leading-snug text-slate-400">
                             Tổng số cái/thùng/kiện bạn dự kiến giao cho mã này.
                           </span>
                         </label>
@@ -449,7 +449,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                               type="button"
                               title="Xóa dòng hàng"
                               onClick={() => setLines((prev) => prev.filter((_, i) => i !== idx))}
-                              className="rounded-lg px-2 py-1.5 text-sm text-red-400 hover:bg-red-500/10"
+                              className="rounded-lg px-2 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
                             >
                               Xóa
                             </button>
@@ -465,7 +465,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-lg bg-cyan-500 py-2 font-semibold text-slate-900 hover:bg-cyan-400 disabled:opacity-50"
+              className="rounded-lg bg-cyan-600 py-2.5 font-semibold text-white shadow-sm hover:bg-cyan-700 transition-colors disabled:opacity-50"
             >
               Gửi yêu cầu nhập
             </button>

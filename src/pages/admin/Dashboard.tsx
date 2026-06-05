@@ -13,6 +13,7 @@ import * as warehousesApi from '../../api/warehouses'
 import * as zonesApi from '../../api/zones'
 import type { ApiZone } from '../../api/zones'
 import { useAuth } from '../../auth/AuthContext'
+import { WhiteStatCard } from '../../components/ui/WhiteStatCard'
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth()
@@ -111,11 +112,11 @@ export const Dashboard: React.FC = () => {
           message:
             util > 0
               ? `Mức sử dụng zone hiện tại: ${util}%.`
-              : 'Chưa có dữ liệu quy hoạch zone/usableArea.',
+              : 'Chưa có dữ liệu quy hoạch zone hoặc diện tích khả dụng (usableArea).',
         },
       ])
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Không tải được dữ liệu dashboard')
+      setError(e instanceof ApiError ? e.message : 'Không tải được dữ liệu hệ thống dashboard')
     } finally {
       setLoading(false)
     }
@@ -149,60 +150,63 @@ export const Dashboard: React.FC = () => {
   )
 
   return (
-    <div className="overflow-y-auto overflow-x-hidden p-6 md:p-8 bg-[#0b101a]">
-      <LoadingOverlay show={loading} text="Đang tải dashboard..." />
+    <div className="overflow-y-auto overflow-x-hidden p-6 md:p-8 bg-slate-50 text-slate-800 min-h-screen">
+      <LoadingOverlay show={loading} text="Đang tải dashboard tổng quan..." />
       <div className="max-w-[1600px] mx-auto flex flex-col gap-6">
         {error && (
           <InlineAlert message={error} onDismiss={() => setError('')} />
         )}
         
         {/* Page Title */}
-        <div className="flex justify-between items-end mb-2">
+        <div className="flex flex-wrap items-end justify-between gap-4 mb-1">
           <div>
-            <h2 className="text-2xl font-bold text-white glow-text mb-1">
+            <h2 className="text-2xl font-bold text-slate-900 mb-0.5 tracking-tight">
               Tổng quan kho hàng
             </h2>
-            <p className="text-slate-400 text-sm">
-              Dữ liệu theo thời gian thực từ hệ thống
+            <p className="text-slate-500 text-sm font-medium">
+              Dữ liệu theo thời gian thực từ hệ thống vận hành
             </p>
           </div>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => void loadDashboard()}
-              className="px-4 py-2 rounded-lg glass-panel hover:bg-white/10 text-xs font-bold text-primary border border-primary/30 shadow-neon transition-all flex items-center gap-2"
+              className="px-4 py-2 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 text-xs font-bold text-orange-700 shadow-sm transition-all flex items-center gap-2"
             >
               <span className="material-symbols-outlined text-sm">refresh</span>
               Cập nhật dữ liệu
             </button>
-            <button className="px-4 py-2 rounded-lg glass-panel hover:bg-white/10 text-xs font-bold text-white transition-all flex items-center gap-2">
+            <button 
+              type="button"
+              className="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 shadow-sm transition-all flex items-center gap-2"
+            >
               <span className="material-symbols-outlined text-sm">download</span>
-              Báo cáo
+              Xuất báo cáo
             </button>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatsCard
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <WhiteStatCard
             title="Yêu cầu thuê"
             value={kpis.rentalRequests}
             icon="inventory_2"
             accentColor="emerald"
           />
-          <StatsCard
+          <WhiteStatCard
             title="Phiếu nhập đang mở"
             value={kpis.inboundOpen}
             icon="input"
             accentColor="primary"
           />
-          <StatsCard
+          <WhiteStatCard
             title="Hợp đồng ACTIVE"
             value={kpis.contractsActive}
             icon="description"
             accentColor="orange"
           />
-          <StatsCard
+          <WhiteStatCard
             title="Mức dùng zone"
             value={utilizationForCard}
             icon="grid_view"
@@ -212,37 +216,40 @@ export const Dashboard: React.FC = () => {
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[400px]">
-          <div className="lg:col-span-2 glass-panel p-6 rounded-2xl">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
-              <span className="material-symbols-outlined text-primary">ssid_chart</span>
+          <div className="lg:col-span-2 border border-slate-200 bg-white p-6 rounded-2xl shadow-sm">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-2">
+              <span className="material-symbols-outlined text-orange-600">ssid_chart</span>
               Tình trạng vận hành kho
             </h3>
-            <p className="text-slate-400 text-sm mb-4">
-              Xu hướng 7–14 ngày: yêu cầu thuê mới, phiếu nhập và hợp đồng được tạo — giúp thấy tải
-              vận hành theo thời gian.
+            <p className="text-slate-500 text-sm mb-5 font-medium">
+              Xu hướng 7–14 ngày gần nhất: theo dõi số lượng yêu cầu thuê mới, phiếu nhập kho và hợp đồng được kích hoạt nhằm tối ưu hóa hiệu suất điều độ công việc.
             </p>
-            <WarehouseOpsChart
-              rentalRequests={chartRentals}
-              inboundRequests={chartInbounds}
-              contracts={chartContracts}
-            />
+            <div className="bg-slate-50/50 p-2 rounded-xl border border-slate-100">
+              <WarehouseOpsChart
+                rentalRequests={chartRentals}
+                inboundRequests={chartInbounds}
+                contracts={chartContracts}
+              />
+            </div>
           </div>
 
-          <ZoneUtilization
-            capacityPct={kpis.zoneUtilizationPct}
-            zones={zoneUtilRows}
-            usedAreaM2={zonePlanning?.usedZoneAreaM2}
-            usableAreaM2={zonePlanning?.usableAreaM2}
-            remainingAreaM2={zonePlanning?.remainingZoneAreaM2}
-          />
+          <div className="border border-slate-200 bg-white p-2 rounded-2xl shadow-sm">
+            <ZoneUtilization
+              capacityPct={kpis.zoneUtilizationPct}
+              zones={zoneUtilRows}
+              usedAreaM2={zonePlanning?.usedZoneAreaM2}
+              usableAreaM2={zonePlanning?.usableAreaM2}
+              remainingAreaM2={zonePlanning?.remainingZoneAreaM2}
+            />
+          </div>
         </div>
 
         {/* System Logs */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-3">
+        {/* <div className="grid grid-cols-1">
+          <div className="border border-slate-200 bg-white rounded-2xl shadow-sm overflow-hidden">
             <SystemLogs logs={logs} />
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   )

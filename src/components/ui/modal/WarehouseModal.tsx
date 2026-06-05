@@ -5,6 +5,7 @@ import { listUsers } from '../../../api/users'
 import type { ApiUser, WarehouseStatus } from '../../../api/types'
 import type { WarehouseWhAdmin } from '../../../types/Warehouse'
 import { SearchableSelect } from '../SearchableSelect'
+import { useAuth } from '../../../auth/AuthContext'
 
 type Mode = 'create' | 'edit' | 'view'
 
@@ -39,6 +40,7 @@ type WarehouseModalData = Partial<WarehouseFormPayload> & {
 type Props = {
   mode: Mode
   data?: WarehouseModalData
+  isDarkMode: boolean // Nhận trạng thái dark mode từ parent component dựa trên role
   onClose: () => void
   onSubmit?: (data: WarehouseFormPayload) => void | Promise<void>
 }
@@ -84,7 +86,7 @@ function dataToForm(data?: WarehouseModalData): WarehouseFormPayload {
   }
 }
 
-export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit }) => {
+export const WarehouseModal: React.FC<Props> = ({ mode, data, isDarkMode, onClose, onSubmit }) => {
   const isView = mode === 'view'
   const [form, setForm] = useState<WarehouseFormPayload>(() => dataToForm(data))
   const [totalAreaInput, setTotalAreaInput] = useState('')
@@ -249,47 +251,83 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
     try {
       await onSubmit?.(payload)
       onClose()
+    } catch {
+      // Bắt lỗi nếu có từ API
     } finally {
       setSubmitting(false)
     }
   }
 
-  const labelStyle =
-    'text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block'
+  // Quản lý biến Style động dựa trên prop isDarkMode
+  const labelStyle = `text-[11px] font-bold uppercase tracking-wider mb-1.5 block ${
+    isDarkMode ? 'text-slate-500' : 'text-slate-600'
+  }`
 
-  const inputStyle =
-    'w-full bg-[#1a2333] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 transition-all disabled:opacity-50'
+  const inputStyle = `w-full rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-1 transition-all disabled:opacity-50 ${
+    isDarkMode
+      ? 'bg-[#1a2333] border border-white/10 text-white focus:border-cyan-400 focus:ring-cyan-400/30'
+      : 'bg-white border border-slate-300 text-slate-900 focus:border-blue-500 focus:ring-blue-500/30'
+  }`
 
   const statusLabel = STATUS_OPTIONS.find((o) => o.value === form.status)?.label ?? form.status
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" onClick={onClose} />
+      {/* Background Overlay */}
+      <div
+        className={`absolute inset-0 backdrop-blur-sm transition-opacity ${
+          isDarkMode ? 'bg-[#0b101a]/90' : 'bg-slate-900/40'
+        }`}
+        onClick={onClose}
+      />
 
-      <div className="relative z-10 flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-white/5 bg-[#0b101a] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/5 bg-white/[0.02] px-6 py-5">
-          <h2 className="flex items-center gap-2 text-lg font-bold text-white">
-            <span className="material-symbols-outlined text-cyan-400">warehouse</span>
+      {/* Main Container */}
+      <div
+        className={`relative z-10 flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl shadow-2xl transition-all border ${
+          isDarkMode ? 'border-white/5 bg-[#0b101a]' : 'border-slate-200 bg-white'
+        }`}
+      >
+        {/* Header */}
+        <div
+          className={`flex items-center justify-between border-b px-6 py-5 ${
+            isDarkMode ? 'border-white/5 bg-white/[0.02]' : 'border-slate-100 bg-slate-50'
+          }`}
+        >
+          <h2 className={`flex items-center gap-2 text-lg font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+            <span className={`material-symbols-outlined ${isDarkMode ? 'text-cyan-400' : 'text-blue-600'}`}>
+              warehouse
+            </span>
             {mode === 'create' ? 'Tạo kho' : mode === 'edit' ? 'Chỉnh sửa kho' : 'Chi tiết kho'}
           </h2>
-          <button type="button" onClick={onClose} className="rounded p-2 hover:bg-white/10">
-            <span className="material-symbols-outlined text-slate-400">close</span>
+          <button
+            type="button"
+            onClick={onClose}
+            className={`rounded p-2 transition-colors ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-200/60'}`}
+          >
+            <span className={`material-symbols-outlined ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              close
+            </span>
           </button>
         </div>
 
+        {/* Form Body Content */}
         <div className="flex-1 space-y-6 overflow-y-auto p-6">
           {validationError && (
             <InlineAlert compact hideTitle message={validationError} onDismiss={() => setValidationError('')} />
           )}
 
-          <div className="space-y-4 rounded-lg border border-white/5 bg-white/[0.02] p-4">
-            <h3 className="text-sm font-semibold text-cyan-400">THÔNG TIN KHO</h3>
+          <div
+            className={`space-y-4 rounded-lg border p-4 ${
+              isDarkMode ? 'border-white/5 bg-white/[0.02]' : 'border-slate-100 bg-slate-50'
+            }`}
+          >
+            <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-cyan-400' : 'text-blue-600'}`}>
+              THÔNG TIN KHO
+            </h3>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className={labelStyle} htmlFor="wh-code">
-                  Mã kho
-                </label>
+                <label className={labelStyle} htmlFor="wh-code">Mã kho</label>
                 <input
                   id="wh-code"
                   disabled={mode !== 'create'}
@@ -300,9 +338,7 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
                 />
               </div>
               <div>
-                <label className={labelStyle} htmlFor="wh-name">
-                  Tên kho
-                </label>
+                <label className={labelStyle} htmlFor="wh-name">Tên kho</label>
                 <input
                   id="wh-name"
                   disabled={isView}
@@ -314,9 +350,7 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
             </div>
 
             <div>
-              <label className={labelStyle} htmlFor="wh-address">
-                Địa chỉ
-              </label>
+              <label className={labelStyle} htmlFor="wh-address">Địa chỉ</label>
               <input
                 id="wh-address"
                 disabled={isView}
@@ -329,9 +363,7 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className={labelStyle} htmlFor="wh-city">
-                  Tỉnh / thành phố
-                </label>
+                <label className={labelStyle} htmlFor="wh-city">Tỉnh / thành phố</label>
                 <SearchableSelect
                   id="wh-city"
                   required
@@ -341,13 +373,11 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
                   onChange={(city) => setForm({ ...form, city, district: '' })}
                   options={cityOptions}
                   placeholder="Chọn thành phố..."
+                  isDarkMode={isDarkMode} // Đã sửa: Truyền prop đồng bộ theme
                 />
-                <p className="mt-1 text-[10px] text-slate-500">Dùng để claim yêu cầu thuê regional</p>
               </div>
               <div>
-                <label className={labelStyle} htmlFor="wh-district">
-                  Quận / huyện
-                </label>
+                <label className={labelStyle} htmlFor="wh-district">Quận / huyện</label>
                 <SearchableSelect
                   id="wh-district"
                   required
@@ -357,15 +387,14 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
                   onChange={(district) => setForm({ ...form, district })}
                   options={districtOptions}
                   placeholder={form.city ? 'Chọn quận/huyện...' : 'Chọn thành phố trước'}
+                  isDarkMode={isDarkMode} // Đã sửa: Truyền prop đồng bộ theme
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className={labelStyle} htmlFor="wh-total-area">
-                  Tổng diện tích (m²)
-                </label>
+                <label className={labelStyle} htmlFor="wh-total-area">Tổng diện tích (m²)</label>
                 <input
                   id="wh-total-area"
                   type="number"
@@ -379,9 +408,7 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
                 />
               </div>
               <div>
-                <label className={labelStyle} htmlFor="wh-usable-area">
-                  Diện tích sử dụng (m²)
-                </label>
+                <label className={labelStyle} htmlFor="wh-usable-area">Diện tích sử dụng (m²)</label>
                 <input
                   id="wh-usable-area"
                   type="number"
@@ -393,26 +420,39 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
                   placeholder="VD: 4200"
                   onChange={(e) => setUsableAreaInput(e.target.value)}
                 />
-                <p className="mt-1 text-[10px] text-slate-500">Hiển thị cho guest khi xem kho theo vùng</p>
+                <p className={`mt-1 text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                  Hiển thị cho guest khi xem kho theo vùng
+                </p>
               </div>
             </div>
 
+            {/* Warehouse Admin Subsection */}
             {(mode === 'view' || mode === 'create' || mode === 'edit') && (
-              <div className="space-y-4 rounded-lg border border-cyan-400/20 bg-cyan-400/5 p-4">
+              <div
+                className={`space-y-4 rounded-lg border p-4 ${
+                  isDarkMode ? 'border-cyan-400/20 bg-cyan-400/5' : 'border-blue-200 bg-blue-50/50'
+                }`}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-cyan-300">Warehouse Admin</h3>
-                    <p className="mt-1 text-xs text-slate-400">
+                    <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-cyan-300' : 'text-blue-700'}`}>
+                      Warehouse Admin
+                    </h3>
+                    <p className={`mt-1 text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
                       Tài khoản <strong>WH_ADMIN</strong> quản lý kho này.
                     </p>
                   </div>
                   {(mode === 'create' || mode === 'edit') && (
-                    <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+                    <label className={`flex cursor-pointer items-center gap-2 text-sm select-none font-medium ${
+                      isDarkMode ? 'text-slate-300' : 'text-slate-700'
+                    }`}>
                       <input
                         type="checkbox"
                         checked={assignWhAdmin}
                         onChange={(e) => setAssignWhAdmin(e.target.checked)}
-                        className="rounded border-white/20"
+                        className={`rounded ${
+                          isDarkMode ? 'border-white/20 bg-slate-900 text-cyan-500 focus:ring-cyan-400/30' : 'border-slate-300 text-blue-600 focus:ring-blue-500/30'
+                        }`}
                       />
                       {currentWhAdmin ? 'Đổi admin' : 'Gán admin'}
                     </label>
@@ -420,17 +460,17 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
                 </div>
 
                 {mode === 'view' && (
-                  <div className="rounded-lg border border-white/10 bg-[#1a2333]/80 p-4">
+                  <div className={`rounded-lg border p-4 ${isDarkMode ? 'border-white/10 bg-[#1a2333]/80' : 'border-slate-200 bg-white'}`}>
                     {currentWhAdmin ? (
                       <div className="space-y-1 text-sm">
-                        <p className="font-medium text-white">{currentWhAdmin.fullName}</p>
-                        <p className="text-slate-400">{currentWhAdmin.email}</p>
+                        <p className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{currentWhAdmin.fullName}</p>
+                        <p className={isDarkMode ? 'text-slate-400' : 'text-slate-600'}>{currentWhAdmin.email}</p>
                         {currentWhAdmin.phone && (
-                          <p className="text-slate-500">{currentWhAdmin.phone}</p>
+                          <p className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{currentWhAdmin.phone}</p>
                         )}
                       </div>
                     ) : (
-                      <p className="flex items-center gap-2 text-sm text-amber-300">
+                      <p className={`flex items-center gap-2 text-sm font-medium ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
                         <span className="material-symbols-outlined text-lg">warning</span>
                         Kho chưa có Warehouse Admin
                       </p>
@@ -439,9 +479,9 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
                 )}
 
                 {mode === 'edit' && currentWhAdmin && !assignWhAdmin && (
-                  <div className="rounded-lg border border-white/10 bg-[#1a2333]/80 p-4 text-sm">
-                    <p className="font-medium text-white">{currentWhAdmin.fullName}</p>
-                    <p className="text-slate-400">{currentWhAdmin.email}</p>
+                  <div className={`rounded-lg border p-4 text-sm ${isDarkMode ? 'border-white/10 bg-[#1a2333]/80' : 'border-slate-200 bg-white'}`}>
+                    <p className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{currentWhAdmin.fullName}</p>
+                    <p className={isDarkMode ? 'text-slate-400' : 'text-slate-600'}>{currentWhAdmin.email}</p>
                   </div>
                 )}
 
@@ -451,10 +491,10 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
                       <button
                         type="button"
                         onClick={() => setWhAdminMode('create')}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-bold ${
+                        className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
                           whAdminMode === 'create'
-                            ? 'bg-cyan-500 text-black'
-                            : 'bg-white/5 text-slate-400'
+                            ? isDarkMode ? 'bg-cyan-500 text-black shadow-md' : 'bg-blue-600 text-white shadow-sm'
+                            : isDarkMode ? 'bg-white/5 text-slate-400 hover:text-white' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
                         }`}
                       >
                         Tạo tài khoản mới
@@ -462,10 +502,10 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
                       <button
                         type="button"
                         onClick={() => setWhAdminMode('existing')}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-bold ${
+                        className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
                           whAdminMode === 'existing'
-                            ? 'bg-cyan-500 text-black'
-                            : 'bg-white/5 text-slate-400'
+                            ? isDarkMode ? 'bg-cyan-500 text-black shadow-md' : 'bg-blue-600 text-white shadow-sm'
+                            : isDarkMode ? 'bg-white/5 text-slate-400 hover:text-white' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
                         }`}
                       >
                         Gán user có sẵn
@@ -475,9 +515,7 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
                     {whAdminMode === 'create' ? (
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="sm:col-span-2">
-                          <label className={labelStyle} htmlFor="wh-admin-name">
-                            Họ tên
-                          </label>
+                          <label className={labelStyle} htmlFor="wh-admin-name">Họ tên</label>
                           <input
                             id="wh-admin-name"
                             className={inputStyle}
@@ -487,32 +525,28 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
                           />
                         </div>
                         <div>
-                          <label className={labelStyle} htmlFor="wh-admin-email">
-                            Email đăng nhập
-                          </label>
+                          <label className={labelStyle} htmlFor="wh-admin-email">Email đăng nhập</label>
                           <input
                             id="wh-admin-email"
                             type="email"
                             className={inputStyle}
                             value={whAdminEmail}
                             onChange={(e) => setWhAdminEmail(e.target.value)}
+                            placeholder="example@gmail.com"
                           />
                         </div>
                         <div>
-                          <label className={labelStyle} htmlFor="wh-admin-phone">
-                            Số điện thoại
-                          </label>
+                          <label className={labelStyle} htmlFor="wh-admin-phone">Số điện thoại</label>
                           <input
                             id="wh-admin-phone"
                             className={inputStyle}
                             value={whAdminPhone}
                             onChange={(e) => setWhAdminPhone(e.target.value)}
+                            placeholder="090xxxxxxx"
                           />
                         </div>
                         <div>
-                          <label className={labelStyle} htmlFor="wh-admin-pw">
-                            Mật khẩu
-                          </label>
+                          <label className={labelStyle} htmlFor="wh-admin-pw">Mật khẩu</label>
                           <input
                             id="wh-admin-pw"
                             type="password"
@@ -522,9 +556,7 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
                           />
                         </div>
                         <div>
-                          <label className={labelStyle} htmlFor="wh-admin-pw2">
-                            Xác nhận mật khẩu
-                          </label>
+                          <label className={labelStyle} htmlFor="wh-admin-pw2">Xác nhận mật khẩu</label>
                           <input
                             id="wh-admin-pw2"
                             type="password"
@@ -536,25 +568,29 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
                       </div>
                     ) : (
                       <div>
-                        <label className={labelStyle} htmlFor="wh-admin-existing">
-                          WH Admin chưa gán kho
-                        </label>
+                        <label className={labelStyle} htmlFor="wh-admin-existing">WH Admin chưa gán kho</label>
                         {whAdminsLoading ? (
-                          <p className="text-xs text-slate-500">Đang tải...</p>
+                          <p className={`text-xs italic ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Đang tải danh sách...</p>
                         ) : unassignedWhAdmins.length === 0 ? (
-                          <p className="text-xs text-amber-300">
-                            Không có WH Admin trống — chọn &quot;Tạo tài khoản mới&quot; hoặc tạo user tại Quản lý tài khoản.
+                          <p className={`text-xs p-2.5 rounded-lg border font-medium ${
+                            isDarkMode ? 'text-amber-300 bg-amber-950/20 border-amber-900/50' : 'text-amber-800 bg-amber-50 border-amber-200'
+                          }`}>
+                            Không có WH Admin trống — chọn "Tạo tài khoản mới" hoặc tạo user tại Quản lý tài khoản.
                           </p>
                         ) : (
                           <select
                             id="wh-admin-existing"
-                            className={inputStyle}
+                            className={`w-full rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-1 transition-all disabled:opacity-50 ${
+                              isDarkMode
+                                ? 'bg-[#1a2333] border border-white/10 text-white focus:border-cyan-400 focus:ring-cyan-400/30'
+                                : 'bg-white border border-slate-300 text-slate-900 focus:border-blue-500 focus:ring-blue-500/30'
+                            }`}
                             value={whAdminUserId}
                             onChange={(e) => setWhAdminUserId(e.target.value)}
                           >
-                            <option value="">— Chọn user —</option>
+                            <option value="" className={isDarkMode ? 'bg-[#1a2333]' : 'bg-white'}>— Chọn user —</option>
                             {unassignedWhAdmins.map((u) => (
-                              <option key={u.userId} value={u.userId}>
+                              <option key={u.userId} value={u.userId} className={isDarkMode ? 'bg-[#1a2333]' : 'bg-white'}>
                                 {u.fullName} ({u.email})
                               </option>
                             ))}
@@ -568,24 +604,28 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
             )}
 
             <div>
-              <label className={labelStyle} htmlFor="wh-status">
-                Trạng thái
-              </label>
+              <label className={labelStyle} htmlFor="wh-status">Trạng thái</label>
               {isView ? (
-                <span className="inline-flex rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-400 ring-1 ring-emerald-400/20 ring-inset">
+                <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset ${
+                  isDarkMode
+                    ? 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/20'
+                    : 'bg-emerald-50 text-emerald-700 ring-emerald-600/20'
+                }`}>
                   {statusLabel}
                 </span>
               ) : (
                 <select
                   id="wh-status"
-                  className={inputStyle}
+                  className={`w-full rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-1 transition-all disabled:opacity-50 ${
+                    isDarkMode
+                      ? 'bg-[#1a2333] border border-white/10 text-white focus:border-cyan-400 focus:ring-cyan-400/30'
+                      : 'bg-white border border-slate-300 text-slate-900 focus:border-blue-500 focus:ring-blue-500/30'
+                  }`}
                   value={form.status}
-                  onChange={(e) =>
-                    setForm({ ...form, status: e.target.value as WarehouseStatus })
-                  }
+                  onChange={(e) => setForm({ ...form, status: e.target.value as WarehouseStatus })}
                 >
                   {STATUS_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
+                    <option key={o.value} value={o.value} className={isDarkMode ? 'bg-[#1a2333]' : 'bg-white'}>
                       {o.label}
                     </option>
                   ))}
@@ -595,13 +635,22 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t border-white/5 bg-white/[0.02] px-6 py-4">
-          <span className="text-xs text-slate-500">System Admin · quản lý kho</span>
+        {/* Footer Actions */}
+        <div
+          className={`flex items-center justify-between border-t px-6 py-4 ${
+            isDarkMode ? 'border-white/5 bg-white/[0.02]' : 'border-slate-100 bg-slate-50'
+          }`}
+        >
+          <span className={`text-xs font-medium ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+            {isDarkMode ? 'System Admin · Toàn quyền tối cao' : 'Warehouse Admin · Quản lý khu vực'}
+          </span>
           <div className="flex gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-slate-400 hover:text-white"
+              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                isDarkMode ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              }`}
             >
               Đóng
             </button>
@@ -610,9 +659,13 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
                 type="button"
                 disabled={submitting}
                 onClick={handleSubmit}
-                className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold text-black disabled:opacity-50"
+                className={`flex items-center gap-2 rounded-lg px-6 py-2 text-sm font-bold shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isDarkMode
+                    ? 'bg-cyan-500 hover:bg-cyan-400 text-slate-950'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
               >
-                <span className="material-symbols-outlined text-[18px] text-black">save</span>
+                <span className="material-symbols-outlined text-[18px]">save</span>
                 {submitting ? 'Đang lưu...' : mode === 'create' ? 'Tạo kho' : 'Cập nhật'}
               </button>
             )}

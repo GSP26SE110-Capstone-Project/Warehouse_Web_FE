@@ -23,6 +23,7 @@ function formatArea(m2?: number | null) {
 export const WarehouseManagement: React.FC = () => {
   const { user } = useAuth()
   const isWhAdmin = user?.role === 'WH_ADMIN'
+  const isDarkMode = user?.role === 'SYSTEM_ADMIN' // Dark mode cho SYSTEM_ADMIN, Light mode cho các role khác
   const fixedWarehouseId = isWhAdmin ? user?.warehouseId ?? '' : ''
   const [search, setSearch] = useState('')
   const [onlyMissingAdmin, setOnlyMissingAdmin] = useState(false)
@@ -255,22 +256,36 @@ export const WarehouseManagement: React.FC = () => {
 
   if (isWhAdmin && !fixedWarehouseId) {
     return (
-      <div className="p-8 text-amber-300">
+      <div className={`p-8 font-semibold ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
         Tài khoản Warehouse Admin chưa được gắn kho. Liên hệ System Admin.
       </div>
     )
   }
 
   return (
-    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
+    <div className={`flex max-w-screen overflow-hidden transition-colors ${
+      isDarkMode ? 'bg-[#0b101a] text-slate-100' : 'bg-slate-50 text-slate-800'
+    }`}>
       <LoadingOverlay show={loading} text="Đang tải kho..." />
-      <main className="relative flex h-full flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop')] bg-cover bg-center">
-        <div className="absolute inset-0 z-0 bg-[#0b101a]/90 backdrop-blur-sm" />
+      
+      {/* Wrapper chính thay thế hoặc áp dụng ảnh nền động dựa trên Theme */}
+      <main className={`relative flex h-full flex-1 flex-col overflow-hidden bg-cover bg-center ${
+        isDarkMode 
+          ? "bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop')]" 
+          : "bg-none"
+      }`}>
+        {/* Lớp Overlay lót nền */}
+        <div className={`absolute inset-0 z-0 ${
+          isDarkMode ? 'bg-[#0b101a]/90 backdrop-blur-sm' : 'bg-transparent'
+        }`} />
+
         <div className="relative z-10 flex-1 p-8">
           <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
             {error && (
               <InlineAlert message={error} onDismiss={() => setError('')} />
             )}
+
+            {/* Các thẻ thống kê (StatsCard) */}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               <StatsCard title="Số lượng kho" value={warehouse.length} icon="group" accentColor="emerald" />
               <StatsCard
@@ -288,10 +303,22 @@ export const WarehouseManagement: React.FC = () => {
                 />
               )}
             </div>
-            <section className="glass-panel flex flex-col overflow-hidden rounded-xl border border-white/5">
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 bg-white/[0.02] px-6 py-5">
-                <h3 className="text-2xl font-bold tracking-wide text-white">QUẢN LÝ KHO</h3>
+
+            {/* Khu vực bảng dữ liệu chính (Panel) */}
+            <section className={`flex flex-col overflow-hidden rounded-xl border transition-colors shadow-sm ${
+              isDarkMode ? 'bg-[#111827]/40 border-white/5 backdrop-blur-md' : 'bg-white border-slate-200'
+            }`}>
+              
+              {/* Header của bảng quản lý */}
+              <div className={`flex flex-wrap items-center justify-between gap-4 border-b px-6 py-5 ${
+                isDarkMode ? 'border-white/5 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/70'
+              }`}>
+                <h3 className={`text-2xl font-bold tracking-wide ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                  QUẢN LÝ KHO
+                </h3>
                 <div className="flex flex-wrap gap-3">
+                  
+                  {/* Ô tìm kiếm dữ liệu */}
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                       search
@@ -301,25 +328,41 @@ export const WarehouseManagement: React.FC = () => {
                       placeholder="Tìm mã, tên, admin..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      className="rounded-lg border border-white/10 bg-[#1a2333] py-2 pl-10 pr-4 text-sm text-white focus:border-cyan-400 focus:outline-none"
+                      className={`rounded-lg border py-2 pl-10 pr-4 text-sm focus:outline-none transition-all ${
+                        isDarkMode 
+                          ? 'border-white/10 bg-[#1a2333] text-white focus:border-cyan-400' 
+                          : 'border-slate-300 bg-white text-slate-900 focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600'
+                      }`}
                     />
                   </div>
+
+                  {/* Checkbox lọc WH Admin */}
                   {!isWhAdmin && (
-                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-400/5 px-3 py-2 text-xs text-amber-200">
+                    <label className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium ${
+                      isDarkMode 
+                        ? 'border-amber-400/30 bg-amber-400/5 text-amber-200' 
+                        : 'border-amber-300 bg-amber-50 text-amber-800 shadow-sm'
+                    }`}>
                       <input
                         type="checkbox"
                         checked={onlyMissingAdmin}
                         onChange={(e) => setOnlyMissingAdmin(e.target.checked)}
-                        className="rounded border-white/20"
+                        className={`rounded ${isDarkMode ? 'border-white/20' : 'border-slate-300 text-amber-600 focus:ring-amber-500'}`}
                       />
                       Chưa có WH Admin
                     </label>
                   )}
+
+                  {/* Nút Tạo Kho mới */}
                   {!isWhAdmin && (
                     <button
                       type="button"
                       onClick={() => setModal({ open: true, mode: 'create' })}
-                      className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold text-black"
+                      className={`flex items-center gap-2 rounded-lg px-6 py-2 text-sm font-bold shadow-sm transition-all active:scale-[0.98] ${
+                        isDarkMode
+                          ? 'btn-glow bg-gradient-to-r from-cyan-500 to-blue-600 text-black'
+                          : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white'
+                      }`}
                     >
                       <span className="material-symbols-outlined text-lg">add</span>
                       TẠO KHO
@@ -328,10 +371,13 @@ export const WarehouseManagement: React.FC = () => {
                 </div>
               </div>
 
+              {/* Bảng hiển thị thông tin */}
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left">
                   <thead>
-                    <tr className="border-b border-white/5 bg-[#131b29] text-xs uppercase tracking-wider text-slate-400">
+                    <tr className={`border-b text-xs uppercase tracking-wider font-semibold ${
+                      isDarkMode ? 'border-white/5 bg-[#131b29] text-slate-400' : 'border-slate-200 bg-slate-100 text-slate-600'
+                    }`}>
                       <th className="px-6 py-4 font-medium">Mã kho</th>
                       <th className="px-6 py-4 font-medium">Tên kho</th>
                       {!isWhAdmin && (
@@ -345,72 +391,107 @@ export const WarehouseManagement: React.FC = () => {
                       <th className="px-6 py-4 text-center font-medium">Thao tác</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5 text-sm">
+                  
+                  <tbody className={`divide-y text-sm ${isDarkMode ? 'divide-white/5' : 'divide-slate-200'}`}>
                     {paginatedWarehouses.map((item) => (
                       <tr
                         key={item.warehouseId}
-                        className={`group transition-colors hover:bg-white/5 ${
-                          !isWhAdmin && !item.whAdmin ? 'bg-amber-400/[0.03]' : ''
+                        className={`group transition-colors ${
+                          isDarkMode 
+                            ? `hover:bg-white/5 ${!isWhAdmin && !item.whAdmin ? 'bg-amber-400/[0.03]' : ''}` 
+                            : `hover:bg-slate-50 ${!isWhAdmin && !item.whAdmin ? 'bg-amber-50/50' : ''}`
                         }`}
                       >
-                        <td className="px-6 py-4 font-mono text-xs text-cyan-400">
+                        {/* Mã kho */}
+                        <td className={`px-6 py-4 font-mono text-xs font-semibold ${isDarkMode ? 'text-cyan-400' : 'text-cyan-600'}`}>
                           {item.warehouseCode ?? item.warehouseId.slice(0, 8)}
                         </td>
-                        <td className="px-6 py-4 font-medium text-white">{item.warehouseName}</td>
+
+                        {/* Tên kho */}
+                        <td className={`px-6 py-4 font-medium ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                          {item.warehouseName}
+                        </td>
+
+                        {/* Cột Admin điều phối kho */}
                         {!isWhAdmin && (
                           <td className="px-6 py-4">
                             {item.whAdmin ? (
                               <div>
-                                <p className="font-medium text-white">{item.whAdmin.fullName}</p>
-                                <p className="text-xs text-slate-400">{item.whAdmin.email}</p>
+                                <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{item.whAdmin.fullName}</p>
+                                <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{item.whAdmin.email}</p>
                               </div>
                             ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/10 px-2 py-0.5 text-xs font-medium text-amber-300 ring-1 ring-amber-400/30">
+                              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ring-1 ring-inset ${
+                                isDarkMode 
+                                  ? 'bg-amber-400/10 text-amber-300 ring-amber-400/30' 
+                                  : 'bg-amber-100 text-amber-800 ring-amber-200'
+                              }`}>
                                 <span className="material-symbols-outlined text-sm">warning</span>
                                 Chưa gán
                               </span>
                             )}
                           </td>
                         )}
-                        <td className="px-6 py-4 text-slate-300">
+
+                        {/* Khu vực */}
+                        <td className={isDarkMode ? 'text-slate-300' : 'text-slate-600'}>
                           {item.district && item.city
                             ? `${item.district}, ${item.city}`
                             : '—'}
                         </td>
-                        <td className="px-6 py-4 text-white">{item.address}</td>
-                        <td className="px-6 py-4 text-center text-white">
+
+                        {/* Địa chỉ */}
+                        <td className={`px-6 py-4 ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{item.address}</td>
+
+                        {/* Diện tích sử dụng */}
+                        <td className={`px-6 py-4 text-center font-medium ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                           {formatArea(item.usableAreaM2)}
                         </td>
+
+                        {/* Trạng thái hoạt động */}
                         <td className="px-6 py-4 text-center">
                           <span
-                            className={`rounded px-2 py-0.5 text-xs ${
+                            className={`rounded px-2.5 py-0.5 text-xs font-bold ${
                               item.status === 'ACTIVE'
-                                ? 'bg-emerald-500/20 text-emerald-400'
-                                : 'bg-slate-500/20 text-slate-400'
+                                ? isDarkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-800'
+                                : isDarkMode ? 'bg-slate-500/20 text-slate-400' : 'bg-slate-100 text-slate-600'
                             }`}
                           >
                             {item.status ?? '—'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-center text-slate-400">{item.lastUpdated}</td>
+
+                        {/* Ngày cập nhật */}
+                        <td className={`px-6 py-4 text-center ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{item.lastUpdated}</td>
+
+                        {/* Các nút hành động (Thao tác) */}
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {/* Nút Xem chi tiết */}
                             <button
                               type="button"
                               title="Xem chi tiết"
                               onClick={() => setModal({ open: true, mode: 'view', data: item })}
-                              className="rounded p-1.5 text-slate-300 opacity-70 transition hover:bg-white/10 hover:text-white group-hover:opacity-100"
+                              className={`rounded p-1.5 opacity-70 transition group-hover:opacity-100 ${
+                                isDarkMode ? 'text-slate-300 hover:bg-white/10 hover:text-white' : 'text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                              }`}
                             >
                               <span className="material-symbols-outlined text-lg">visibility</span>
                             </button>
+
+                            {/* Nút Chỉnh sửa */}
                             <button
                               type="button"
                               title="Chỉnh sửa"
                               onClick={() => setModal({ open: true, mode: 'edit', data: item })}
-                              className="rounded p-1.5 text-slate-300 opacity-70 transition hover:bg-white/10 hover:text-white group-hover:opacity-100"
+                              className={`rounded p-1.5 opacity-70 transition group-hover:opacity-100 ${
+                                isDarkMode ? 'text-slate-300 hover:bg-white/10 hover:text-white' : 'text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                              }`}
                             >
                               <span className="material-symbols-outlined text-lg">edit</span>
                             </button>
+
+                            {/* Nút Xóa kho */}
                             {!isWhAdmin && (
                               <button
                                 type="button"
@@ -426,7 +507,11 @@ export const WarehouseManagement: React.FC = () => {
                                     onConfirm: () => handleDelete(item.warehouseId),
                                   })
                                 }
-                                className="inline-flex items-center gap-1 rounded-md border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-xs font-semibold text-red-300 transition hover:border-red-400 hover:bg-red-500/20 hover:text-red-100"
+                                className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-bold transition shadow-sm ${
+                                  isDarkMode
+                                    ? 'border-red-500/30 bg-red-500/10 text-red-300 hover:border-red-400 hover:bg-red-500/20 hover:text-red-100'
+                                    : 'border-red-200 bg-red-50 text-red-700 hover:border-red-300 hover:bg-red-100'
+                                }`}
                               >
                                 <span className="material-symbols-outlined text-base">delete</span>
                                 Xóa
@@ -440,10 +525,13 @@ export const WarehouseManagement: React.FC = () => {
                 </table>
               </div>
 
-              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-4">
-                <p className="font-mono text-xs text-slate-400">
-                  Showing <span className="text-white">{start}-{end}</span> of{' '}
-                  <span className="text-white">{totalItems}</span> items
+              {/* Chân trang bảng (Footer Pagination) */}
+              <div className={`flex items-center justify-between border-t px-6 py-4 ${
+                isDarkMode ? 'border-white/5 bg-[#131b29]' : 'border-slate-200 bg-slate-50'
+              }`}>
+                <p className={`font-mono text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Showing <span className={isDarkMode ? 'text-white' : 'text-slate-900 font-bold'}>{start}-{end}</span> of{' '}
+                  <span className={isDarkMode ? 'text-white' : 'text-slate-900 font-bold'}>{totalItems}</span> items
                 </p>
                 <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
               </div>
@@ -451,12 +539,15 @@ export const WarehouseManagement: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/* Cấu trúc Modal bổ trợ */}
       {modal.open && (
         <WarehouseModal
           mode={modal.mode}
           data={modal.data}
           onClose={() => setModal({ ...modal, open: false })}
           onSubmit={handleSubmit}
+          isDarkMode={isDarkMode}
         />
       )}
       {alert.open && (

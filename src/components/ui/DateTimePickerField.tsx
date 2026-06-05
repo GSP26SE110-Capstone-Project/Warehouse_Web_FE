@@ -11,7 +11,8 @@ import {
   WEEKDAY_LABELS,
 } from '../../utils/datePicker'
 
-const inputWrapStyle = { border: '1px solid #3a5455', background: 'rgba(11,22,23,0.8)' } as const
+// Cập nhật khung bọc ô input sang style Light Mode
+const inputWrapStyle = { border: '1px solid #cbd5e1', background: '#ffffff' } as const
 
 const TIME_PRESETS = ['08:00', '09:00', '13:00', '14:00', '16:00']
 
@@ -234,8 +235,8 @@ export function DateTimePickerField({
       <input type="hidden" id={id} name={id} value={value} required={required} readOnly />
 
       <div
-        className={`input-glow relative rounded-lg transition-colors ${
-          open ? 'ring-1 ring-[#06edf9]/40 border-[#06edf9]/50' : ''
+        className={`relative rounded-lg transition-all ${
+          open ? 'ring-1 ring-cyan-500 border-cyan-500 shadow-sm' : 'hover:border-slate-400'
         }`}
         style={inputWrapStyle}
       >
@@ -246,15 +247,15 @@ export function DateTimePickerField({
           aria-controls={listId}
           disabled={disabled}
           onClick={openPicker}
-          className="flex w-full items-center gap-3 px-4 py-3 bg-transparent border-0 text-left cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full items-center gap-3 px-4 py-3 bg-transparent border-0 text-left cursor-pointer disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60 rounded-lg"
         >
-          <span className="material-symbols-outlined text-[#06edf9] text-xl shrink-0">
+          <span className="material-symbols-outlined text-cyan-600 text-xl shrink-0">
             event
           </span>
-          <span className={`flex-1 text-base ${displayValue ? 'text-white' : 'text-[#7a9496]'}`}>
+          <span className={`flex-1 text-base ${displayValue ? 'text-slate-800 font-medium' : 'text-slate-400'}`}>
             {displayValue || placeholder}
           </span>
-          <span className="material-symbols-outlined text-[#9bb9bb] text-lg shrink-0">
+          <span className="material-symbols-outlined text-slate-400 text-lg shrink-0">
             {open ? 'expand_less' : 'expand_more'}
           </span>
         </button>
@@ -265,7 +266,7 @@ export function DateTimePickerField({
           id={listId}
           role="dialog"
           aria-label="Chọn ngày và giờ"
-          className="absolute z-50 mt-2 w-full min-w-[min(100%,340px)] max-w-[400px] rounded-xl border border-[#06edf9]/25 bg-[#0b1617]/98 p-4 shadow-2xl shadow-black/60 backdrop-blur-xl"
+          className="absolute z-50 mt-2 w-full min-w-[min(100%,340px)] max-w-[400px] rounded-xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/80"
         >
           <div className="flex flex-col gap-4 sm:flex-row">
             <div className="min-w-0 flex-1">
@@ -274,18 +275,18 @@ export function DateTimePickerField({
                   type="button"
                   aria-label="Tháng trước"
                   onClick={() => setViewMonth((m) => addMonths(m, -1))}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-[#9bb9bb] hover:border-[#06edf9]/40 hover:text-[#06edf9] transition-colors cursor-pointer bg-transparent"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors cursor-pointer bg-transparent"
                 >
                   <span className="material-symbols-outlined text-lg">chevron_left</span>
                 </button>
-                <p className="text-sm font-semibold text-white capitalize">
+                <p className="text-sm font-semibold text-slate-800 capitalize">
                   {formatMonthYear(viewMonth)}
                 </p>
                 <button
                   type="button"
                   aria-label="Tháng sau"
                   onClick={() => setViewMonth((m) => addMonths(m, 1))}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-[#9bb9bb] hover:border-[#06edf9]/40 hover:text-[#06edf9] transition-colors cursor-pointer bg-transparent"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors cursor-pointer bg-transparent"
                 >
                   <span className="material-symbols-outlined text-lg">chevron_right</span>
                 </button>
@@ -295,7 +296,7 @@ export function DateTimePickerField({
                 {WEEKDAY_LABELS.map((label) => (
                   <div
                     key={label}
-                    className="py-1 text-center text-[10px] font-semibold uppercase tracking-wide text-[#7a9496]"
+                    className="py-1 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-400"
                   >
                     {label}
                   </div>
@@ -317,16 +318,16 @@ export function DateTimePickerField({
                       disabled={disabledDay}
                       onClick={() => selectDay(day)}
                       className={[
-                        'relative flex h-9 w-full items-center justify-center rounded-lg text-sm transition-all cursor-pointer border bg-transparent',
+                        'relative flex h-9 w-full items-center justify-center rounded-lg text-sm font-medium transition-all cursor-pointer border bg-transparent',
                         disabledDay
-                          ? 'opacity-30 cursor-not-allowed'
-                          : 'hover:bg-[#06edf9]/10 hover:border-[#06edf9]/30',
+                          ? 'text-slate-300 opacity-50 cursor-not-allowed border-transparent'
+                          : 'hover:bg-slate-100 border-transparent text-slate-700',
                         selected
-                          ? 'bg-[#06edf9] text-[#0f2223] font-bold border-[#06edf9] shadow-[0_0_12px_rgba(6,237,249,0.35)]'
-                          : inMonth
-                            ? 'text-white border-transparent'
-                            : 'text-[#5f7577] border-transparent',
-                        isToday && !selected ? 'ring-1 ring-[#06edf9]/50' : '',
+                          ? '!bg-cyan-600 !text-white font-bold border-cyan-600 shadow-md shadow-cyan-600/20'
+                          : !inMonth && !disabledDay
+                            ? 'text-slate-400'
+                            : '',
+                        isToday && !selected ? 'ring-1 ring-cyan-500/70' : '',
                       ].join(' ')}
                     >
                       {day.getDate()}
@@ -336,15 +337,15 @@ export function DateTimePickerField({
               </div>
             </div>
 
-            <div className="sm:w-36 sm:border-l sm:border-white/10 sm:pl-4">
-              <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#06edf9]">
+            <div className="sm:w-36 sm:border-l sm:border-slate-200 sm:pl-4">
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-cyan-700">
                 <span className="material-symbols-outlined text-base">schedule</span>
                 Giờ đến
               </p>
 
               <div className="flex gap-2">
                 <label className="flex-1">
-                  <span className="mb-1 block text-[10px] text-[#7a9496]">Giờ</span>
+                  <span className="mb-1 block text-[10px] text-slate-400 font-medium">Giờ</span>
                   <select
                     value={draftHour}
                     disabled={!draftDate}
@@ -356,7 +357,7 @@ export function DateTimePickerField({
                       setDraftHour(c.hour)
                       setDraftMinute(c.minute)
                     }}
-                    className="w-full rounded-lg border border-white/10 bg-[#0f2223] px-2 py-2 text-center text-sm text-white focus:border-[#06edf9]/50 focus:outline-none"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-center text-sm text-slate-800 font-medium focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/20 disabled:bg-slate-50"
                   >
                     {hours.map((h) => (
                       <option key={h} value={h}>
@@ -366,7 +367,7 @@ export function DateTimePickerField({
                   </select>
                 </label>
                 <label className="flex-1">
-                  <span className="mb-1 block text-[10px] text-[#7a9496]">Phút</span>
+                  <span className="mb-1 block text-[10px] text-slate-400 font-medium">Phút</span>
                   <select
                     value={draftMinute}
                     disabled={!draftDate}
@@ -378,7 +379,7 @@ export function DateTimePickerField({
                       setDraftHour(c.hour)
                       setDraftMinute(c.minute)
                     }}
-                    className="w-full rounded-lg border border-white/10 bg-[#0f2223] px-2 py-2 text-center text-sm text-white focus:border-[#06edf9]/50 focus:outline-none"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-center text-sm text-slate-800 font-medium focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/20 disabled:bg-slate-50"
                   >
                     {minutes.map((m) => (
                       <option key={m} value={m}>
@@ -396,7 +397,7 @@ export function DateTimePickerField({
                     type="button"
                     disabled={!draftDate}
                     onClick={() => setPresetTime(t)}
-                    className="rounded-md border border-white/10 bg-white/[0.03] px-2 py-1 text-[10px] font-medium text-slate-300 hover:border-[#06edf9]/40 hover:text-[#06edf9] disabled:opacity-40"
+                    className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-600 hover:border-cyan-500 hover:text-cyan-600 disabled:opacity-40 transition-colors"
                   >
                     {t}
                   </button>
@@ -404,24 +405,24 @@ export function DateTimePickerField({
               </div>
 
               {timeInvalid && (
-                <p className="mt-2 text-[10px] text-amber-300">Giờ không hợp lệ với ngày đã chọn</p>
+                <p className="mt-2 text-[10px] font-medium text-amber-600">Giờ không hợp lệ với ngày đã chọn</p>
               )}
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={clearValue}
-                className="rounded-lg px-3 py-1.5 text-xs font-medium text-[#9bb9bb] hover:text-white hover:bg-white/5 transition-colors cursor-pointer bg-transparent border-0"
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer bg-transparent border-0"
               >
                 Xóa
               </button>
               <button
                 type="button"
                 onClick={selectToday}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#06edf9] hover:bg-[#06edf9]/10 transition-colors cursor-pointer bg-transparent border-0"
+                className="rounded-lg px-3 py-1.5 text-xs font-bold text-cyan-600 hover:bg-cyan-50 transition-colors cursor-pointer bg-transparent border-0"
               >
                 Hôm nay
               </button>
@@ -430,7 +431,7 @@ export function DateTimePickerField({
               type="button"
               disabled={!draftDate || Boolean(timeInvalid)}
               onClick={confirmSelection}
-              className="rounded-lg bg-gradient-to-r from-cyan-500 to-[#06edf9] px-4 py-1.5 text-xs font-bold text-[#0b1617] disabled:opacity-40"
+              className="rounded-lg bg-cyan-600 hover:bg-cyan-700 px-4 py-1.5 text-xs font-bold text-white shadow-sm shadow-cyan-600/10 disabled:opacity-40 transition-colors cursor-pointer"
             >
               Xác nhận
             </button>

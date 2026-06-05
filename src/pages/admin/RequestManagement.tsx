@@ -21,6 +21,7 @@ import {
 import { useAuth } from '../../auth/AuthContext'
 import { resolveClaimWarehouseId as resolveClaimWh } from '../../utils/warehouseRegion'
 import type { OnboardingOperator } from '../../components/ui/modal/RentalOnboardingWizard'
+import { WhiteStatCard } from '../../components/ui/WhiteStatCard'
 
 type Status = 'pending' | 'approved' | 'rejected'
 
@@ -44,6 +45,9 @@ export const RequestManagement = () => {
   const [guestAlerts, setGuestAlerts] = useState<GuestAccountAlerts | null>(null)
   const [whPendingAlerts, setWhPendingAlerts] = useState<WhPendingRentalAlerts | null>(null)
   const [whInboundAlerts, setWhInboundAlerts] = useState<WhPendingInboundAlerts | null>(null)
+
+  // Kiểm tra nếu là SYSTEM_ADMIN thì kích hoạt chế độ Dark Mode chuyên sâu
+  const isDarkMode = currentUser?.role === 'SYSTEM_ADMIN'
 
   const operator: OnboardingOperator = useMemo(
     () => ({
@@ -176,15 +180,23 @@ export const RequestManagement = () => {
   }
 
   return (
-    <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
+    <div className={`flex max-w-screen overflow-hidden transition-colors duration-200 ${
+      isDarkMode ? 'bg-[#0b101a] text-slate-100' : 'bg-slate-50 text-slate-800'
+    }`}>
       <LoadingOverlay show={loading} text="Đang tải yêu cầu..." />
       <main className="relative flex flex-1 flex-col overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072')] bg-cover bg-center">
-        <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" />
+        {/* Lớp phủ nền mờ động */}
+        <div className={`absolute inset-0 backdrop-blur-sm ${
+          isDarkMode ? 'bg-[#0b101a]/90' : 'bg-slate-50'
+        }`} />
+        
         <div className="relative z-10 p-8">
           <div className="max-w-[1400px] mx-auto flex flex-col gap-8">
             {error && (
               <InlineAlert message={error} onDismiss={() => setError('')} />
             )}
+            
+            {/* Alert: Guest Accounts (Chỉ hiện cho SYSTEM_ADMIN -> Luôn dùng style Dark/Amber tương phản cao) */}
             {currentUser?.role === 'SYSTEM_ADMIN' &&
               guestAlerts &&
               guestAlerts.guestWithoutAccountCount > 0 && (
@@ -200,24 +212,25 @@ export const RequestManagement = () => {
                           cấp Tenant Admin
                         </>
                       )}
-                      . Vào <strong>Quản lý Tài khoản</strong> để tạo tài khoản sau khi xử lý yêu
-                      cầu.
+                      . Vào <strong>Quản lý Tài khoản</strong> để tạo tài khoản sau khi xử lý yêu cầu.
                     </p>
                   </div>
                   <Link
                     to="/admin/accounts"
-                    className="shrink-0 rounded-lg border border-amber-400/40 bg-amber-400/15 px-4 py-2 text-xs font-semibold text-amber-100 no-underline hover:bg-amber-400/25"
+                    className="shrink-0 rounded-lg border border-amber-400/40 bg-amber-400/15 px-4 py-2 text-xs font-semibold text-amber-100 no-underline hover:bg-amber-400/25 transition-colors"
                   >
                     Cấp tài khoản
                   </Link>
                 </div>
               )}
+
+            {/* Alert: WH Pending (Dành cho WH_ADMIN -> Giao diện Light Mode) */}
             {currentUser?.role === 'WH_ADMIN' &&
               whPendingAlerts &&
               whPendingAlerts.pendingCount > 0 && (
-                <div className="flex flex-col gap-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between shadow-sm">
                   <div className="flex items-start gap-2">
-                    <span className="material-symbols-outlined shrink-0 text-amber-300">
+                    <span className="material-symbols-outlined shrink-0 text-amber-600">
                       notifications_active
                     </span>
                     <p>
@@ -232,18 +245,20 @@ export const RequestManagement = () => {
                   <button
                     type="button"
                     onClick={() => setFilter('pending')}
-                    className="shrink-0 rounded-lg border border-amber-400/40 bg-amber-400/15 px-4 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-400/25"
+                    className="shrink-0 rounded-lg border border-amber-300 bg-amber-100/80 px-4 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-200 transition-colors"
                   >
                     Lọc chờ duyệt
                   </button>
                 </div>
               )}
-              {currentUser?.role === 'WH_ADMIN' &&
-                whInboundAlerts &&
-                whInboundAlerts.pendingCount > 0 && (
-                <div className="flex flex-col gap-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
+
+            {/* Alert: WH Inbound (Dành cho WH_ADMIN -> Giao diện Light Mode) */}
+            {currentUser?.role === 'WH_ADMIN' &&
+              whInboundAlerts &&
+              whInboundAlerts.pendingCount > 0 && (
+                <div className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between shadow-sm">
                   <div className="flex items-start gap-2">
-                    <span className="material-symbols-outlined shrink-0 text-amber-300">
+                    <span className="material-symbols-outlined shrink-0 text-amber-600">
                       inventory_2
                     </span>
                     <p>
@@ -259,32 +274,36 @@ export const RequestManagement = () => {
                   </div>
                   <Link
                     to="/admin/inbound"
-                    className="shrink-0 rounded-lg border border-amber-400/40 bg-amber-400/15 px-4 py-2 text-xs font-semibold text-amber-100 no-underline hover:bg-amber-400/25"
+                    className="shrink-0 rounded-lg border border-amber-300 bg-amber-100/80 px-4 py-2 text-xs font-semibold text-amber-900 no-underline hover:bg-amber-200 transition-colors"
                   >
                     Xem nhập kho
                   </Link>
                 </div>
               )}
-              {currentUser?.role === 'WH_ADMIN' && currentUser.warehouseId && (
-              <p className="rounded-lg border border-cyan-400/20 bg-cyan-400/5 px-4 py-2 text-sm text-cyan-200">
-                Hộp thư vùng <strong>{operatorWithWhName.warehouseName ?? 'kho của bạn'}</strong>: yêu cầu
-                chưa claim trong cùng quận/thành phố. Duyệt = claim cho kho bạn — kho khác cùng vùng cạnh tranh,
-                ai duyệt trước nhận.
-              </p>
-            )}
+
+            {/* Thẻ thống kê */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <StatsCard title="Tổng" value={stats.total} icon="description" accentColor="emerald" />
-              <StatsCard title="Chờ duyệt" value={stats.pending} icon="pending" accentColor="primary" />
-              <StatsCard title="Đã duyệt" value={stats.approved} icon="check" accentColor="orange" />
-              <StatsCard title="Từ chối" value={stats.rejected} icon="close" accentColor="purple" />
+              <WhiteStatCard title="Tổng" value={stats.total} icon="description" accentColor="emerald" isDarkMode={isDarkMode} />
+              <WhiteStatCard title="Chờ duyệt" value={stats.pending} icon="pending" accentColor="primary" isDarkMode={isDarkMode} />
+              <WhiteStatCard title="Đã duyệt" value={stats.approved} icon="check" accentColor="orange" isDarkMode={isDarkMode} />
+              <WhiteStatCard title="Từ chối" value={stats.rejected} icon="close" accentColor="purple" isDarkMode={isDarkMode} />
             </div>
 
-            <section className="glass-panel rounded-xl border border-white/5 overflow-hidden flex flex-col">
-              <div className="flex justify-between items-center px-6 py-5 border-b border-white/5 bg-white/[0.02]">
-                <h3 className="text-lg font-bold text-white">QUẢN LÝ YÊU CẦU</h3>
+            {/* Khung chứa bảng dữ liệu chính (Main Panel) */}
+            <section className={`rounded-xl border shadow-sm overflow-hidden flex flex-col transition-all ${
+              isDarkMode ? 'bg-[#0b101a]/40 backdrop-blur-md border-white/5' : 'bg-white border-slate-200'
+            }`}>
+              {/* Header của Panel */}
+              <div className={`flex justify-between items-center px-6 py-5 border-b transition-colors ${
+                isDarkMode ? 'border-white/5 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/50'
+              }`}>
+                <h3 className={`text-lg font-bold tracking-wide ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                  QUẢN LÝ YÊU CẦU
+                </h3>
                 <div className="flex gap-3">
+                  {/* Ô tìm kiếm */}
                   <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">
                       search
                     </span>
                     <input
@@ -292,15 +311,24 @@ export const RequestManagement = () => {
                       placeholder="Tìm yêu cầu..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      className="pl-10 pr-4 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
+                      className={`pl-10 pr-4 py-2 rounded-lg text-sm transition-all focus:outline-none focus:ring-1 ${
+                        isDarkMode
+                          ? 'bg-[#1a2333] border border-white/10 text-white focus:border-cyan-400 focus:ring-cyan-400/20'
+                          : 'bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:border-cyan-500 focus:ring-cyan-500'
+                      }`}
                     />
                   </div>
+                  {/* Dropdown bộ lọc */}
                   <select
                     title="Lọc trạng thái yêu cầu"
                     aria-label="Lọc trạng thái yêu cầu"
                     value={filter}
                     onChange={(e) => setFilter(e.target.value as Status | 'all')}
-                    className="px-3 py-2 rounded-lg bg-[#1a2333] border border-white/10 text-sm"
+                    className={`px-3 py-2 rounded-lg text-sm focus:outline-none transition-all ${
+                      isDarkMode
+                        ? 'bg-[#1a2333] border border-white/10 text-slate-300 focus:border-cyan-400'
+                        : 'bg-white border border-slate-300 text-slate-700 focus:border-cyan-500'
+                    }`}
                   >
                     <option value="all">Tất cả</option>
                     <option value="approved">Đã duyệt</option>
@@ -310,58 +338,76 @@ export const RequestManagement = () => {
                 </div>
               </div>
 
+              {/* Bảng hiển thị dữ liệu */}
               <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
+                <table className="w-full text-sm text-left border-collapse">
                   <thead>
-                    <tr className="bg-[#131b29] text-xs uppercase text-slate-400 border-b border-white/5">
-                      <th className="p-3">Mã</th>
-                      <th>Khách hàng</th>
-                      <th>Khu vực</th>
-                      <th>Loại HĐ</th>
-                      <th>Kho</th>
-                      <th>Thời gian</th>
-                      <th>Trạng thái</th>
-                      <th>Hành động</th>
+                    <tr className={`text-xs uppercase font-semibold border-b border-slate-200 ${
+                      isDarkMode ? 'bg-[#131b29] text-slate-400 border-white/5' : 'bg-slate-50/75 text-slate-500 border-slate-200'
+                    }`}>
+                      <th className="p-4 pl-6">Mã</th>
+                      <th className="p-4">Khách hàng</th>
+                      <th className="p-4">Khu vực</th>
+                      <th className="p-4">Loại HĐ</th>
+                      <th className="p-4">Kho</th>
+                      <th className="p-4">Thời gian</th>
+                      <th className="p-4">Trạng thái</th>
+                      <th className="p-4 pr-6 text-right">Hành động</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5">
+                  <tbody className={`divide-y ${
+                    isDarkMode ? 'divide-white/5 bg-transparent' : 'divide-slate-100 bg-white'
+                  }`}>
                     {paginatedRequests.map((r) => (
-                      <tr key={r.rentalRequestId}>
-                        <td className="p-3 font-mono text-cyan-400 text-xs">{r.id}</td>
-                        <td>{r.customer}</td>
-                        <td>
+                      <tr 
+                        key={r.rentalRequestId} 
+                        className={`transition-colors ${
+                          isDarkMode ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/50'
+                        }`}
+                      >
+                        <td className="p-4 pl-6 font-mono text-cyan-400 text-xs font-semibold">{r.id}</td>
+                        <td className={`p-4 font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-900'}`}>{r.customer}</td>
+                        <td className={isDarkMode ? 'text-slate-400' : 'text-slate-600'}>
                           {r.district}, {r.city}
                         </td>
-                        <td className="text-xs">{contractTypeLabel(r)}</td>
-                        <td>{r.warehouse}</td>
-                        <td>
+                        <td className={`p-4 text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>{contractTypeLabel(r)}</td>
+                        <td className={isDarkMode ? 'text-slate-400' : 'text-slate-600'}>{r.warehouse}</td>
+                        <td className={`p-4 text-xs font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                           {r.startDate} → {r.endDate}
                         </td>
-                        <td>
+                        <td className="p-4">
                           <span
-                            className={`rounded px-2 py-1 text-xs ${rentalRequestStatusClass(r.apiStatus)}`}
+                            className={`rounded px-2.5 py-1 text-xs font-medium inline-block ${rentalRequestStatusClass(r.apiStatus, isDarkMode)}`}
                           >
                             {rentalRequestStatusLabel(r.apiStatus)}
                           </span>
                         </td>
-                        <td className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setModal({ open: true, data: r })}
-                            className="hover:bg-white/10 rounded p-1"
-                            title="Xem"
-                          >
-                            <span className="material-symbols-outlined text-[20px]">visibility</span>
-                          </button>
-                          {canOnboard(r) && (
+                        <td className="p-4 pr-6 text-right">
+                          <div className="flex items-center justify-end gap-2">
                             <button
                               type="button"
-                              onClick={() => setWizard({ open: true, data: r })}
-                              className="hover:bg-cyan-400/10 rounded px-2 py-1 text-xs font-bold text-cyan-400"
+                              onClick={() => setModal({ open: true, data: r })}
+                              className={`rounded p-1.5 transition-colors ${
+                                isDarkMode ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-600 hover:text-slate-900'
+                              }`}
+                              title="Xem chi tiết"
                             >
-                              Xử lý
+                              <span className="material-symbols-outlined text-[20px]">visibility</span>
                             </button>
-                          )}
+                            {canOnboard(r) && (
+                              <button
+                                type="button"
+                                onClick={() => setWizard({ open: true, data: r })}
+                                className={`rounded px-2.5 py-1 text-xs font-semibold transition-colors ${
+                                  isDarkMode 
+                                    ? 'hover:bg-cyan-400/10 text-cyan-400' 
+                                    : 'hover:bg-cyan-50 text-cyan-600 border border-cyan-200'
+                                }`}
+                              >
+                                Xử lý
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -369,10 +415,13 @@ export const RequestManagement = () => {
                 </table>
               </div>
 
-              <div className="flex items-center justify-between border-t border-white/5 bg-[#131b29] px-6 py-4">
+              {/* Thanh phân trang bên dưới */}
+              <div className={`flex items-center justify-between border-t px-6 py-4 ${
+                isDarkMode ? 'border-white/5 bg-[#131b29]' : 'border-slate-200 bg-slate-50/50'
+              }`}>
                 <p className="font-mono text-xs text-slate-400">
-                  Showing <span className="text-white">{start}-{end}</span> of{' '}
-                  <span className="text-white">{totalItems}</span> items
+                  Hiển thị <span className={isDarkMode ? 'text-white' : 'text-slate-900 font-medium'}>{start}-{end}</span> trong số{' '}
+                  <span className={isDarkMode ? 'text-white' : 'text-slate-900 font-medium'}>{totalItems}</span>
                 </p>
                 <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
               </div>
@@ -381,6 +430,7 @@ export const RequestManagement = () => {
         </div>
       </main>
 
+      {/* Logic quản lý Modals & Wizards */}
       {modal.open && modal.data && (
         <RequestDetailModal
           data={modal.data}

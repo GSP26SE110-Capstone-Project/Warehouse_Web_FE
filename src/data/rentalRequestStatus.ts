@@ -16,12 +16,25 @@ export const RENTAL_REQUEST_STATUS_CLASS: Record<RentalRequestStatus, string> = 
   CONVERTED: 'bg-violet-500/20 text-violet-300',
 }
 
+// Style dành riêng cho Light Mode (Nền pastel, chữ đậm tương phản cao)
+const LIGHT_STATUS_CLASS: Record<RentalRequestStatus, string> = {
+  PENDING: 'bg-amber-100 text-amber-800 border border-amber-200',
+  UNDER_REVIEW: 'bg-sky-100 text-sky-800 border border-sky-200',
+  APPROVED: 'bg-emerald-100 text-emerald-800 border border-emerald-200',
+  REJECTED: 'bg-red-100 text-red-800 border border-red-200',
+  CONVERTED: 'bg-violet-100 text-violet-800 border border-violet-200',
+}
+
 export function rentalRequestStatusLabel(status: RentalRequestStatus | string | null | undefined): string {
   if (!status) return '—'
   return RENTAL_REQUEST_STATUS_LABEL[status as RentalRequestStatus] ?? status
 }
 
-export function rentalRequestStatusClass(status: RentalRequestStatus | string | null | undefined): string {
+export function rentalRequestStatusClass(status: RentalRequestStatus | string | null | undefined, isDarkMode: boolean = false): string {
   if (!status) return 'bg-white/10 text-slate-400'
-  return RENTAL_REQUEST_STATUS_CLASS[status as RentalRequestStatus] ?? 'bg-white/10 text-slate-300'
+  if (isDarkMode) {
+    return RENTAL_REQUEST_STATUS_CLASS[status as RentalRequestStatus] ?? 'bg-slate-100 text-slate-300'
+  } else {
+    return LIGHT_STATUS_CLASS[status as RentalRequestStatus] ?? 'bg-white/10 text-slate-300'
+  }
 }

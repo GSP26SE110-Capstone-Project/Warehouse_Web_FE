@@ -86,10 +86,10 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
     ['DRAFT', 'PENDING'].includes(outbound.status)
 
   return (
-    <div className="min-h-screen bg-[#0b101a] text-slate-100">
+    <div className="min-h-screen bg-slate-50 text-slate-800 p-4 md:p-8">
       <LoadingOverlay show={loading} text="Đang tải phiếu xuất..." />
-      <div className="mx-auto max-w-4xl p-8">
-        <Link to={basePath} className="text-sm text-slate-400 hover:text-white">
+      <div className="mx-auto max-w-4xl">
+        <Link to={basePath} className="inline-flex items-center text-sm font-bold text-slate-500 hover:text-orange-600 transition-colors">
           ← Danh sách xuất kho
         </Link>
 
@@ -101,15 +101,15 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
 
         {outbound && (
           <div className="mt-6 space-y-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex flex-wrap items-start justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <div>
-                <h1 className="font-mono text-2xl font-bold text-orange-300">
+                <h1 className="font-mono text-2xl font-bold text-slate-900 tracking-tight">
                   {outbound.outboundCode}
                 </h1>
-                <p className="mt-2 text-sm text-slate-400">
-                  Ngày xuất dự kiến: {formatDate(outbound.requestedShipDate)}
+                <p className="mt-2 text-sm font-medium text-slate-500">
+                  Ngày xuất dự kiến: <span className="text-slate-800">{formatDate(outbound.requestedShipDate)}</span>
                   {outbound.actualShippedAt && (
-                    <> · Thực xuất: {formatDate(outbound.actualShippedAt)}</>
+                    <> · Thực xuất: <span className="text-slate-800">{formatDate(outbound.actualShippedAt)}</span></>
                   )}
                 </p>
               </div>
@@ -117,16 +117,16 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
             </div>
 
             {canWhAct && nextAction && (
-              <section className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-4">
-                <p className="text-sm font-medium text-orange-200">Bước tiếp theo (kho)</p>
+              <section className="rounded-xl border border-orange-200 bg-orange-50 p-5 shadow-sm">
+                <h3 className="text-sm font-bold text-orange-950 uppercase tracking-wide">Bước tiếp theo (Kho vận hành)</h3>
                 {nextAction.hint && (
-                  <p className="mt-1 text-xs text-slate-400">{nextAction.hint}</p>
+                  <p className="mt-1 text-sm text-orange-800/90 font-medium">{nextAction.hint}</p>
                 )}
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => void patchStatus(nextAction.status)}
-                  className="mt-3 rounded-lg bg-orange-500 px-5 py-2 text-sm font-semibold text-slate-900 hover:bg-orange-400 disabled:opacity-50"
+                  className="mt-4 rounded-lg bg-orange-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-orange-500 transition-colors disabled:opacity-50 shadow-sm"
                 >
                   {busy ? 'Đang xử lý…' : nextAction.label}
                 </button>
@@ -140,9 +140,9 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
                     type="button"
                     disabled={busy}
                     onClick={() => void handleCancel()}
-                    className="rounded-lg border border-red-500/40 px-4 py-2 text-sm text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+                    className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 shadow-sm"
                   >
-                    Hủy phiếu
+                    Hủy phiếu yêu cầu
                   </button>
                 )}
                 {canWhAct &&
@@ -151,81 +151,88 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
                       type="button"
                       disabled={busy}
                       onClick={() => void handleCancel()}
-                      className="rounded-lg border border-red-500/40 px-4 py-2 text-sm text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+                      className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 shadow-sm"
                     >
-                      Hủy & giải phóng reserve
+                      Hủy & giải phóng tồn kho đã giữ (Reserve)
                     </button>
                   )}
               </div>
             )}
 
-            <section className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-              <h2 className="text-sm font-semibold text-white">Dòng SKU</h2>
+            <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h2 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-2">Danh sách dòng SKU</h2>
               {outbound.items?.length ? (
-                <table className="mt-3 w-full text-left text-sm">
-                  <thead className="text-xs uppercase text-slate-500">
-                    <tr>
-                      <th className="py-2">SKU</th>
-                      <th className="py-2">Sản phẩm</th>
-                      <th className="py-2 text-right">Yêu cầu</th>
-                      <th className="py-2 text-right">Allocate</th>
-                      <th className="py-2 text-right">Đã pick</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {outbound.items.map((line) => (
-                      <tr key={line.outboundRequestItemId}>
-                        <td className="py-2 font-mono text-cyan-300">
-                          {line.sku?.skuCode ?? line.skuId}
-                        </td>
-                        <td className="py-2 text-slate-300">
-                          {line.sku?.productName ?? '—'}
-                          {line.sku?.size ? ` · ${line.sku.size}` : ''}
-                        </td>
-                        <td className="py-2 text-right tabular-nums">
-                          {line.requestedQuantity}
-                        </td>
-                        <td className="py-2 text-right tabular-nums text-violet-300">
-                          {line.allocatedQuantity ?? 0}
-                        </td>
-                        <td className="py-2 text-right tabular-nums text-emerald-300">
-                          {line.pickedQuantity ?? 0}
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="mt-3 w-full text-left text-sm">
+                    <thead className="text-xs font-bold uppercase tracking-wider text-slate-500 bg-slate-50/50">
+                      <tr>
+                        <th className="py-2.5 px-2">SKU</th>
+                        <th className="py-2.5 px-2">Sản phẩm</th>
+                        <th className="py-2.5 px-2 text-right">Yêu cầu</th>
+                        <th className="py-2.5 px-2 text-right">Đã giữ hàng (Allocated)</th>
+                        <th className="py-2.5 px-2 text-right">Đã lấy hàng (Picked)</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                      {outbound.items.map((line) => (
+                        <tr key={line.outboundRequestItemId} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="py-3 px-2 font-mono font-bold text-cyan-700">
+                            {line.sku?.skuCode ?? line.skuId}
+                          </td>
+                          <td className="py-3 px-2 text-slate-800 font-semibold">
+                            {line.sku?.productName ?? '—'}
+                            {line.sku?.size ? ` · ${line.sku.size}` : ''}
+                          </td>
+                          <td className="py-3 px-2 text-right tabular-nums text-slate-900 font-bold">
+                            {line.requestedQuantity}
+                          </td>
+                          <td className="py-3 px-2 text-right tabular-nums text-indigo-700 font-semibold">
+                            {line.allocatedQuantity ?? 0}
+                          </td>
+                          <td className="py-3 px-2 text-right tabular-nums text-emerald-700 font-bold">
+                            {line.pickedQuantity ?? 0}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
-                <p className="mt-2 text-sm text-slate-500">Chưa có dòng SKU</p>
+                <p className="mt-4 text-sm font-semibold text-slate-400 text-center py-4">Chưa có thông tin dòng hàng SKU</p>
               )}
             </section>
 
             {picking && (
-              <section className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-                <h2 className="text-sm font-semibold text-white">Lệnh pick (FIFO)</h2>
+              <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-2">Lệnh lấy hàng thực tế (Mô hình FIFO)</h2>
                 {picking.hint && picking.tasks.length === 0 && (
-                  <p className="mt-2 text-xs text-amber-300/90">{picking.hint}</p>
+                  <p className="mt-3 text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">{picking.hint}</p>
                 )}
                 {picking.tasks.length === 0 && !picking.hint && (
-                  <p className="mt-2 text-sm text-slate-500">Chưa có picking task</p>
+                  <p className="mt-4 text-sm font-semibold text-slate-400 text-center py-4">Chưa có tác vụ picking task nào được tạo</p>
                 )}
                 {picking.tasks.map((task) => (
-                  <div key={task.pickingTaskId} className="mt-4 space-y-2">
-                    <p className="text-xs text-slate-400">
-                      Task {task.pickingTaskId.slice(0, 8)}… · {task.status}
+                  <div key={task.pickingTaskId} className="mt-4 space-y-2 border border-slate-100 rounded-lg p-3 bg-slate-50/50">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      Mã lệnh Task: <span className="font-mono text-slate-700">{task.pickingTaskId.slice(0, 8)}…</span> · Trạng thái: <span className="text-slate-800">{task.status}</span>
                     </p>
-                    <ul className="space-y-1 text-sm">
+                    <ul className="space-y-2 text-sm">
                       {task.items.map((item) => (
                         <li
                           key={item.pickingTaskItemId}
-                          className="rounded-lg border border-white/5 bg-black/20 px-3 py-2"
+                          className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 flex flex-wrap gap-2 justify-between items-center shadow-xs font-medium"
                         >
-                          <span className="font-mono text-cyan-300">{item.lpnCode}</span>
-                          {' · '}
-                          bin <span className="font-mono">{item.binCode}</span>
-                          {' · '}
-                          pick {item.quantityToPick}
-                          {item.pickedQuantity != null ? ` / picked ${item.pickedQuantity}` : ''}
+                          <div>
+                            Mã kiện LPN: <span className="font-mono text-cyan-700 font-bold">{item.lpnCode}</span>
+                            <span className="mx-2 text-slate-300">|</span>
+                            Vị trí ô kệ (Bin): <span className="font-mono text-slate-900 font-bold bg-slate-100 px-1.5 py-0.5 rounded">{item.binCode}</span>
+                          </div>
+                          <div className="text-slate-800 font-semibold">
+                            Số lượng cần lấy: <span className="text-slate-900 font-bold tabular-nums">{item.quantityToPick}</span>
+                            {item.pickedQuantity != null ? (
+                              <> / Đã lấy: <span className="text-emerald-600 font-bold tabular-nums">{item.pickedQuantity}</span></>
+                            ) : ''}
+                          </div>
                         </li>
                       ))}
                     </ul>

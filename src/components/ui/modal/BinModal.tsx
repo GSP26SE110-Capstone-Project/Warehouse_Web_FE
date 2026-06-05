@@ -24,11 +24,6 @@ const BOX_TYPE_VOLUME: { type: 'EXTRA' | 'LARGE' | 'MEDIUM' | 'SMALL'; volume: n
   { type: 'SMALL', volume: 1, label: 'SMALL' },
 ]
 
-/**
- * Đề xuất maxLpnCount mặc định = maxVolumeUnits.
- * Mỗi SMALL = 1 volume unit nên đây là upper bound vật lý của LPN.
- * Bin sẽ chỉ bị chặn bởi volume → tối ưu mọi tổ hợp box type tenant nhập vào.
- */
 function suggestLpnCount(volume: number, presetLpn: number): number {
   if (volume <= 0) return presetLpn
   return Math.max(presetLpn, volume)
@@ -47,10 +42,11 @@ type Props = {
   onDelete?: () => void
 }
 
+// Cập nhật nhãn và ô input sang Light Mode (Nền sáng, chữ tối, viền rõ ràng)
 const labelStyle =
-  'text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block'
+  'text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5 block'
 const inputStyle =
-  'w-full bg-[#1a2333] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400'
+  'w-full bg-white border border-slate-300 rounded-lg px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 placeholder-slate-400 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed'
 
 export function BinModal({
   mode,
@@ -71,17 +67,16 @@ export function BinModal({
   const [reservationType, setReservationType] = useState(data?.reservationType ?? 'SHARED')
   const [blocked, setBlocked] = useState(data?.status === 'BLOCKED')
   const [showAdvanced, setShowAdvanced] = useState(false)
-  /** Cho phép user bật chế độ chỉnh tay maxLpnCount; mặc định auto-suggest theo volume. */
   const [autoLpn, setAutoLpn] = useState(
     mode === 'create' || data?.maxLpnCount === suggestLpnCount(data?.maxVolumeUnits ?? 0, preset.maxLpnCount)
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  /** LPN đang nằm trong bin (status=STORED) — chỉ load ở edit mode khi đã có binId. */
   const binId = (data as ApiBin | undefined)?.binId
   const [lpns, setLpns] = useState<ApiLpn[]>([])
   const [lpnsLoading, setLpnsLoading] = useState(false)
+
   useEffect(() => {
     if (mode !== 'edit' || !binId) return
     let cancelled = false
@@ -134,7 +129,6 @@ export function BinModal({
     setAutoLpn(true)
   }
 
-  /** Breakdown: với maxVolumeUnits hiện tại + maxLpnCount, mỗi loại box chứa được bao nhiêu LPN. */
   const breakdown = useMemo(
     () =>
       BOX_TYPE_VOLUME.map((b) => {
@@ -183,25 +177,26 @@ export function BinModal({
 
   const occupancy =
     mode === 'edit' && data ? (
-      <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-300">
-        <p className="font-mono text-cyan-300">{data.binCode}</p>
+      /* Card thông tin sử dụng: Nền xám rất nhẹ, viền mỏng */
+      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+        {/* <p className="font-mono text-cyan-700 font-semibold">{data.binCode}</p> */}
 
-        {/* Volume usage bar — single source of truth (bin chỉ chặn bởi volume) */}
+        {/* Volume usage bar */}
         <div className="mt-2">
           <div className="flex items-baseline justify-between text-xs">
-            <span className="text-slate-400">Sức chứa đã dùng</span>
-            <span className="font-mono text-slate-200">
+            <span className="text-slate-500">Sức chứa đã dùng</span>
+            <span className="font-mono text-slate-800 font-bold">
               {data.usedVolumeUnits ?? 0}/{data.maxVolumeUnits ?? '?'} vol
             </span>
           </div>
-          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
+          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200">
             <div
               className={`h-full transition-all ${
                 isBinAtCapacity(data)
-                  ? 'bg-amber-400'
+                  ? 'bg-amber-500'
                   : isBinEmpty(data)
-                  ? 'bg-emerald-400/30'
-                  : 'bg-cyan-400'
+                  ? 'bg-emerald-500/40'
+                  : 'bg-cyan-500'
               }`}
               style={{
                 width: `${Math.min(
@@ -213,7 +208,7 @@ export function BinModal({
           </div>
         </div>
 
-        {/* LPN đang chứa — group theo box type, ẩn dòng "LPN X/Y" */}
+        {/* LPN Breakdown badges */}
         <div className="mt-2">
           <p className="text-xs text-slate-500">
             {lpnsLoading
@@ -228,7 +223,7 @@ export function BinModal({
                 lpnByBoxType[bt] > 0 ? (
                   <span
                     key={bt}
-                    className="inline-flex items-center gap-1 rounded border border-cyan-400/30 bg-cyan-400/10 px-2 py-0.5 font-mono text-[11px] text-cyan-200"
+                    className="inline-flex items-center gap-1 rounded border border-cyan-200 bg-cyan-50 px-2 py-0.5 font-mono text-[11px] text-cyan-800 font-medium"
                   >
                     {lpnByBoxType[bt]} × {bt}
                   </span>
@@ -239,10 +234,10 @@ export function BinModal({
           {!lpnsLoading &&
             lpns.length > 0 &&
             (data.usedVolumeUnits ?? 0) !== totalActualVolume && (
-              <p className="mt-1 text-[11px] text-amber-300/90">
+              <p className="mt-1 text-[11px] text-amber-700 font-medium">
                 ⚠ Counter trên bin lệch với thực tế LPN ({data.usedVolumeUnits ?? 0} ≠{' '}
                 {totalActualVolume} vol). Chạy migration{' '}
-                <code className="rounded bg-white/10 px-1">
+                <code className="rounded bg-slate-200 px-1 text-slate-800">
                   bins_resync_lpn_volume.sql
                 </code>{' '}
                 để sync lại.
@@ -250,31 +245,35 @@ export function BinModal({
             )}
         </div>
 
-        <p className="mt-2 text-xs text-slate-500">
-          Trạng thái: {BIN_STATUS_LABELS[data.status ?? ''] ?? data.status ?? '—'} ·{' '}
-          {RESERVATION_TYPE_LABELS[data.reservationType ?? ''] ?? data.reservationType}
+        <p className="mt-2 text-xs text-slate-500 border-t border-slate-200/60 pt-1.5">
+          Trạng thái: <span className="text-slate-700 font-medium">{BIN_STATUS_LABELS[data.status ?? ''] ?? data.status ?? '—'}</span> ·{' '}
+          <span className="text-slate-700 font-medium">{RESERVATION_TYPE_LABELS[data.reservationType ?? ''] ?? data.reservationType}</span>
         </p>
       </div>
     ) : null
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-      <button type="button" className="absolute inset-0 bg-black/70" onClick={onClose} aria-label="Đóng" />
-      <div className="relative z-10 flex max-h-[90vh] w-full max-w-md flex-col overflow-y-auto rounded-xl border border-white/5 bg-[#0b101a] p-6 shadow-2xl">
-        <h2 className="text-lg font-bold text-white">
+      {/* Backdrop nền tối nhẹ mờ vừa phải */}
+      <button type="button" className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" onClick={onClose} aria-label="Đóng" />
+      
+      {/* Khung Modal chính: Nền trắng shadow dày dặn */}
+      <div className="relative z-10 flex max-h-[90vh] w-full max-w-md flex-col overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <h2 className="text-lg font-bold text-slate-900">
           {mode === 'create' ? 'Tạo bin' : 'Cấu hình bin'}
         </h2>
-        <p className="mt-1 text-sm text-slate-400">
+        <p className="mt-1 text-sm text-slate-500">
           {zoneLabel} · Rack {rackCode} · {levelLabel}
         </p>
-        <p className="mt-2 font-mono text-sm text-cyan-400">{binCode}</p>
+        <p className="mt-2 font-mono text-sm text-cyan-600 font-semibold">{binCode}</p>
 
-        <p className="mt-3 rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2 text-xs text-violet-200/90">
+        {/* Banner Gợi ý Zone dạng màu Violet Pastel */}
+        {/* <p className="mt-3 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
           Gợi ý zone{' '}
-          <strong>{ZONE_TYPE_LABELS[zoneType ?? ''] ?? zoneType ?? 'SHARED'}</strong>:{' '}
+          <strong className="text-violet-950">{ZONE_TYPE_LABELS[zoneType ?? ''] ?? zoneType ?? 'SHARED'}</strong>:{' '}
           <strong>{preset.maxVolumeUnits}</strong> volume units (LPN cap ={' '}
           <strong>{preset.maxLpnCount}</strong>) — {preset.note}
-        </p>
+        </p> */}
 
         {occupancy}
 
@@ -287,55 +286,56 @@ export function BinModal({
               <input
                 id="bin-max-vol"
                 type="number"
-                className={`${inputStyle} cursor-not-allowed opacity-60`}
+                className={`${inputStyle} opacity-60 bg-slate-50`}
                 value={maxVolumeUnits}
                 disabled
                 readOnly
                 aria-describedby="bin-volume-help"
               />
-              <span className="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+              <span className="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
                 lock
               </span>
             </div>
-            <p id="bin-volume-help" className="mt-1 text-[11px] text-slate-500">
-              Lock theo preset zone{' '}
-              <strong className="text-slate-300">
+            <p id="bin-volume-help" className="mt-1 text-[11px] text-slate-400 leading-relaxed">
+              {/* Lock theo preset zone{' '} */}
+              {/* <strong className="text-slate-600">
                 {ZONE_TYPE_LABELS[zoneType ?? ''] ?? zoneType ?? 'SHARED'}
-              </strong>{' '}
-              ({preset.maxVolumeUnits} vol). Quy ước: 1 SMALL = 1, MEDIUM = 2, LARGE = 4,
-              EXTRA = 8 volume unit. Đổi sức chứa = đổi physical shelf design → cần cập
-              nhật ở binCapacityDefaults thay vì sửa từng bin.
+              </strong>{' '} */}
+              {/* ({preset.maxVolumeUnits} vol).  */}
+              Quy ước: 1 SMALL = 1, MEDIUM = 2, LARGE = 4,
+              EXTRA = 8 volume unit.
             </p>
           </div>
 
-          <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-cyan-300">
+          {/* Khối Breakdown các loại Box: Nền Cyan nhạt pastel */}
+          <div className="rounded-lg border border-cyan-200 bg-cyan-50/50 p-3">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-cyan-800">
               Với {maxVolumeUnits} volume + tối đa {maxLpnCount} LPN, bin chứa được
             </p>
             <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {breakdown.map((b) => (
                 <div
                   key={b.type}
-                  className={`rounded-md border px-2 py-1.5 ${
+                  className={`rounded-md border px-2 py-1.5 transition-colors ${
                     b.fit > 0
-                      ? 'border-cyan-400/30 bg-cyan-400/5'
-                      : 'border-white/5 bg-white/[0.02]'
+                      ? 'border-cyan-300 bg-white shadow-sm'
+                      : 'border-slate-200 bg-slate-50'
                   }`}
                 >
-                  <p className="text-[10px] uppercase tracking-wider text-slate-400">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
                     {b.label}
                   </p>
                   <p
-                    className={`mt-0.5 text-sm font-semibold ${
-                      b.fit > 0 ? 'text-white' : 'text-slate-500'
+                    className={`mt-0.5 text-sm font-bold ${
+                      b.fit > 0 ? 'text-slate-900' : 'text-slate-400'
                     }`}
                   >
                     {b.fit} LPN
                   </p>
                   {b.fit > 0 && (
                     <p
-                      className={`text-[10px] ${
-                        b.limitedBy === 'lpn' ? 'text-amber-300/80' : 'text-slate-500'
+                      className={`text-[10px] font-medium ${
+                        b.limitedBy === 'lpn' ? 'text-amber-700' : 'text-slate-400'
                       }`}
                     >
                       {b.limitedBy === 'lpn' ? 'chặn bởi số LPN' : `${b.volume}×${b.fit} vol`}
@@ -344,58 +344,59 @@ export function BinModal({
                 </div>
               ))}
             </div>
-            <p className="mt-2 text-[11px] text-slate-400">
-              Ví dụ: <strong className="text-cyan-200">16 volume</strong> → 2 EXTRA, 4
+            {/* <p className="mt-2 text-[11px] text-slate-500">
+              Ví dụ: <strong className="text-cyan-800">16 volume</strong> → 2 EXTRA, 4
               LARGE, 8 MEDIUM hoặc 16 SMALL — bin chỉ chặn bởi tổng volume.
-            </p>
+            </p> */}
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2">
             <button
               type="button"
               onClick={applyZonePreset}
-              className="text-xs text-cyan-400 hover:underline"
+              className="text-xs font-medium text-cyan-600 hover:text-cyan-700 hover:underline"
             >
               Áp mặc định zone ({preset.maxLpnCount} LPN / {preset.maxVolumeUnits} vol)
             </button>
             <button
               type="button"
               onClick={() => setShowAdvanced((v) => !v)}
-              className="text-xs text-slate-400 hover:text-white"
+              className="text-xs font-medium text-slate-500 hover:text-slate-800"
             >
-              {showAdvanced ? '▾ Ẩn nâng cao' : '▸ Tùy chọn nâng cao (maxLpnCount)'}
+              {showAdvanced ? '▾ Ẩn ' : '▸ Tùy chọn giới hạn số LPN (maxLpnCount)'}
             </button>
           </div>
 
           {showAdvanced && (
-            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
-              <label className="mb-2 flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
+              <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-700 select-none">
                 <input
                   type="checkbox"
                   checked={autoLpn}
                   onChange={(e) => setAutoLpn(e.target.checked)}
-                  className="rounded border-white/20"
+                  className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
                 />
                 Tự động đề xuất maxLpnCount theo volume
               </label>
-              <label className={labelStyle} htmlFor="bin-max-lpn">
-                maxLpnCount (giới hạn số LPN)
-              </label>
-              <input
-                id="bin-max-lpn"
-                type="number"
-                min={1}
-                className={inputStyle}
-                value={maxLpnCount}
-                disabled={autoLpn}
-                onChange={(e) => setMaxLpnCount(Number(e.target.value))}
-              />
-              <p className="mt-1 text-[11px] text-slate-500">
-                Mặc định <strong className="text-slate-300">= maxVolumeUnits</strong> để LPN
-                không phải là constraint (mỗi SMALL = 1 volume nên upper bound vật lý của
-                LPN = volume). Chỉ override khi muốn ép bin chứa ít LPN hơn vì lý do thao
-                tác (ví dụ hàng cồng kềnh, khó pick chồng nhiều). Auto-suggest hiện tại:{' '}
-                <strong className="text-slate-300">
+              <div>
+                <label className={labelStyle} htmlFor="bin-max-lpn">
+                  maxLpnCount (giới hạn số LPN)
+                </label>
+                <input
+                  id="bin-max-lpn"
+                  type="number"
+                  min={1}
+                  className={inputStyle}
+                  value={maxLpnCount}
+                  disabled={autoLpn}
+                  onChange={(e) => setMaxLpnCount(Number(e.target.value))}
+                />
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Mặc định <strong className="text-slate-600">= maxVolumeUnits</strong> để LPN
+                không phải là constraint. Chỉ override khi muốn ép bin chứa ít LPN hơn vì lý do thao
+                tác. Auto-suggest hiện tại:{' '}
+                <strong className="text-slate-600">
                   {suggestLpnCount(maxVolumeUnits, preset.maxLpnCount)}
                 </strong>
                 .
@@ -420,12 +421,12 @@ export function BinModal({
           </div>
 
           {mode === 'edit' && (
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700 select-none">
               <input
                 type="checkbox"
                 checked={blocked}
                 onChange={(e) => setBlocked(e.target.checked)}
-                className="rounded border-white/20"
+                className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
               />
               Khóa bin (BLOCKED) — không putaway
             </label>
@@ -435,7 +436,8 @@ export function BinModal({
             <InlineAlert compact hideTitle message={error} onDismiss={() => setError('')} />
           )}
 
-          <div className="flex items-center justify-between gap-2 pt-2">
+          {/* Các nút điều khiển Footer */}
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 mt-2">
             {mode === 'edit' && onDelete ? (
               <button
                 type="button"
@@ -446,7 +448,7 @@ export function BinModal({
                     ? 'Xóa bin trống'
                     : 'Chỉ xóa được bin trống (không có LPN/hàng tồn)'
                 }
-                className="rounded-lg border border-red-500/30 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:bg-slate-50 disabled:border-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors"
               >
                 Xóa bin
               </button>
@@ -457,14 +459,14 @@ export function BinModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300"
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
               >
                 Hủy
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-bold text-white hover:bg-cyan-700 disabled:opacity-50 transition-colors shadow-sm"
               >
                 {saving ? 'Đang lưu…' : mode === 'create' ? 'Tạo bin' : 'Lưu'}
               </button>

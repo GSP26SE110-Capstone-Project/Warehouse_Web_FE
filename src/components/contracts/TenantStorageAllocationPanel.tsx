@@ -49,69 +49,69 @@ function ZoneGroupCard({
   const typeLabel = RESERVATION_TYPE_LABELS[group.primaryType] ?? group.primaryType
 
   return (
-    <div className="rounded-lg border border-white/10 bg-black/20">
+    <div className="rounded-lg border border-slate-200 bg-slate-50/50 shadow-sm overflow-hidden">
       <button
         type="button"
         onClick={hasDetails ? onToggle : undefined}
-        className={`flex w-full items-start justify-between gap-3 px-4 py-3 text-left ${hasDetails ? 'hover:bg-white/5' : ''}`}
+        className={`flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors ${hasDetails ? 'hover:bg-slate-100/70' : ''}`}
       >
         <div>
-          <p className="font-mono text-sm text-cyan-300">{group.contractCode}</p>
-          <p className="mt-1 text-base font-medium text-white">
-            {group.warehouseName} · <span className="text-cyan-400">{group.zoneCode}</span>
+          <p className="font-mono text-sm font-semibold text-sky-600">{group.contractCode}</p>
+          <p className="mt-0.5 text-base font-bold text-slate-800">
+            {group.warehouseName} · <span className="text-sky-700">{group.zoneCode}</span>
           </p>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs font-medium text-slate-500">
             {levelLabel} · {typeLabel}
             {group.totalReservedCapacity > 0 && (
-              <span>
+              <span className="text-slate-400">
                 {' '}
                 · Giữ ~{' '}
-                <strong className="text-slate-300">
+                <strong className="text-slate-600 font-semibold">
                   {group.totalReservedCapacity.toLocaleString('vi-VN')} LPN
                 </strong>
               </span>
             )}
           </p>
           {!hasDetails && group.primaryLevel === 'ZONE' && (
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-1.5 text-xs text-slate-400">
               Rack/bin cụ thể do kho xếp khi putaway — xem tab{' '}
-              <strong className="text-slate-400">Bin đang chứa hàng</strong>.
+              <strong className="text-slate-500 font-semibold">Bin đang chứa hàng</strong>.
             </p>
           )}
         </div>
         {hasDetails && (
-          <span className="material-symbols-outlined shrink-0 text-slate-400">
+          <span className="material-symbols-outlined shrink-0 text-slate-400 transition-transform">
             {expanded ? 'expand_less' : 'expand_more'}
           </span>
         )}
       </button>
 
       {hasDetails && expanded && (
-        <div className="border-t border-white/5 px-4 py-3">
-          <p className="mb-2 text-xs text-slate-500">
+        <div className="border-t border-slate-200 bg-white px-4 py-3">
+          <p className="mb-2 text-xs font-medium text-slate-400">
             {group.detailReservations.length} vị trí chi tiết (rack / tầng / bin) trên HĐ:
           </p>
-          <div className="max-h-48 overflow-y-auto rounded border border-white/5">
+          <div className="max-h-48 overflow-y-auto rounded border border-slate-200 light-scrollbar shadow-inner">
             <table className="w-full text-left text-xs">
-              <thead className="bg-[#131b29] text-slate-500">
+              <thead className="sticky top-0 bg-slate-100 text-slate-500 font-bold border-b border-slate-200">
                 <tr>
-                  <th className="px-3 py-2">Cấp</th>
-                  <th className="px-3 py-2">Rack</th>
-                  <th className="px-3 py-2">Tầng</th>
-                  <th className="px-3 py-2">Bin</th>
+                  <th className="px-3 py-2 font-semibold">Cấp</th>
+                  <th className="px-3 py-2 font-semibold">Rack</th>
+                  <th className="px-3 py-2 font-semibold">Tầng</th>
+                  <th className="px-3 py-2 font-semibold">Bin</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 text-slate-300">
+              <tbody className="divide-y divide-slate-100 text-slate-600 font-medium">
                 {group.detailReservations.map((r) => (
-                  <tr key={r.reservationId}>
+                  <tr key={r.reservationId} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-3 py-2">
                       {STORAGE_LEVEL_LABELS[r.storageLevel] ?? r.storageLevel}
                     </td>
-                    <td className="px-3 py-2">{r.rackCode ?? '—'}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 text-slate-500">{r.rackCode ?? '—'}</td>
+                    <td className="px-3 py-2 text-slate-500">
                       {r.levelNumber != null ? `T${r.levelNumber}` : '—'}
                     </td>
-                    <td className="px-3 py-2 font-mono">{r.binCode ?? '—'}</td>
+                    <td className="px-3 py-2 font-mono text-sky-700">{r.binCode ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -224,22 +224,22 @@ export function TenantStorageAllocationPanel({
   }
 
   return (
-    <section className="glass-panel overflow-hidden rounded-xl border border-white/5">
-      <div className="border-b border-white/5 px-6 py-4">
-        <p className="text-sm font-semibold text-cyan-300">Vị trí đã được cấp</p>
-        <p className="mt-1 text-xs text-slate-500">
-          <strong className="text-slate-400">Tổng quan HĐ</strong> gom theo zone (ít dòng, dễ đọc).{' '}
-          <strong className="text-slate-400">Bin đang chứa hàng</strong> chỉ hiện sau putaway — gom theo
+    <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden text-slate-700">
+      <div className="border-b border-slate-200 bg-slate-50/50 px-6 py-4">
+        <p className="text-sm font-bold text-sky-700">Vị trí đã được cấp</p>
+        <p className="mt-0.5 text-xs text-slate-400 leading-relaxed">
+          <strong className="text-slate-500 font-semibold">Tổng quan HĐ</strong> gom theo zone (ít dòng, dễ đọc).{' '}
+          <strong className="text-slate-500 font-semibold">Bin đang chứa hàng</strong> chỉ hiện sau putaway — gom theo
           bin, không liệt kê từng dòng inventory.
         </p>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setTab('overview')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+            className={`rounded-lg px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors ${
               tab === 'overview'
-                ? 'bg-cyan-500 text-slate-900'
-                : 'bg-white/5 text-slate-400 hover:text-white'
+                ? 'bg-sky-600 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
             }`}
           >
             Tổng quan phân bổ HĐ
@@ -248,10 +248,10 @@ export function TenantStorageAllocationPanel({
           <button
             type="button"
             onClick={() => setTab('bins')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+            className={`rounded-lg px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors ${
               tab === 'bins'
-                ? 'bg-cyan-500 text-slate-900'
-                : 'bg-white/5 text-slate-400 hover:text-white'
+                ? 'bg-sky-600 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
             }`}
           >
             Bin đang chứa hàng
@@ -259,7 +259,7 @@ export function TenantStorageAllocationPanel({
           </button>
           <Link
             to={inventoryLink}
-            className="ml-auto text-xs text-cyan-400 hover:underline"
+            className="ml-auto text-xs font-semibold text-sky-600 hover:text-sky-700 hover:underline transition-colors"
           >
             Xem tồn kho chi tiết{inboundFilterId ? ' (đợt này)' : ''} →
           </Link>
@@ -270,11 +270,11 @@ export function TenantStorageAllocationPanel({
         {tab === 'overview' && (
           <>
             {zoneGroups.length === 0 ? (
-              <p className="text-sm text-slate-500">Chưa có phân bổ kho trên hợp đồng.</p>
+              <p className="text-sm text-slate-400">Chưa có phân bổ kho trên hợp đồng.</p>
             ) : (
               <div className="space-y-3">
                 {detailCount > 0 && (
-                  <p className="text-xs text-amber-200/90">
+                  <p className="text-xs font-semibold text-amber-700 bg-amber-50 rounded px-3 py-1.5 border border-amber-100">
                     Có {detailCount} dòng rack/bin trên HĐ — mở từng zone để xem chi tiết (không trải
                     hết ra bảng).
                   </p>
@@ -295,14 +295,14 @@ export function TenantStorageAllocationPanel({
         {tab === 'bins' && (
           <>
             <div className="mb-4 space-y-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                <label className="min-w-[220px] flex-1 text-xs text-slate-500">
+              <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end">
+                <label className="min-w-[220px] flex-1 text-xs font-bold uppercase tracking-wide text-slate-400">
                   Lọc theo đợt nhập kho
                   <select
                     value={inboundFilterId}
                     onChange={(e) => setInboundFilterId(e.target.value)}
                     disabled={inboundsLoading}
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2 text-sm text-white"
+                    className="mt-1.5 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-colors"
                     aria-label="Lọc theo đợt nhập kho"
                   >
                     <option value="">Tất cả đợt nhập (đã putaway)</option>
@@ -313,27 +313,29 @@ export function TenantStorageAllocationPanel({
                     ))}
                   </select>
                 </label>
-                <input
-                  type="search"
-                  value={binSearch}
-                  onChange={(e) => setBinSearch(e.target.value)}
-                  placeholder="Lọc mã bin hoặc LPN..."
-                  className="min-w-[160px] flex-1 rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2 text-sm"
-                  aria-label="Tìm bin hoặc LPN"
-                />
+                <div className="flex flex-1 gap-2 items-center min-w-[160px]">
+                  <input
+                    type="search"
+                    value={binSearch}
+                    onChange={(e) => setBinSearch(e.target.value)}
+                    placeholder="Lọc mã bin hoặc LPN..."
+                    className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-colors"
+                    aria-label="Tìm bin hoặc LPN"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => loadBinUsage()}
                   disabled={binLoading}
-                  className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/5"
+                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors shadow-sm disabled:opacity-50"
                 >
                   {binLoading ? 'Đang tải...' : 'Tải lại'}
                 </button>
               </div>
               {selectedInbound && (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-amber-700 font-medium">
                   Đang xem bin của đợt{' '}
-                  <strong className="font-mono text-cyan-400/90">{selectedInbound.inboundCode}</strong>{' '}
+                  <strong className="font-mono font-bold text-amber-800">{selectedInbound.inboundCode}</strong>{' '}
                   ({INBOUND_STATUS_LABELS[selectedInbound.status] ?? selectedInbound.status}). Chỉ hiện
                   hàng thuộc phiếu nhập này.
                 </p>
@@ -342,39 +344,39 @@ export function TenantStorageAllocationPanel({
             {binError && (
               <InlineAlert className="mb-3" message={binError} onDismiss={() => setBinError('')} />
             )}
-            {binLoading && <p className="text-sm text-slate-500">Đang tải tồn kho...</p>}
+            {binLoading && <p className="text-sm text-slate-400">Đang tải tồn kho...</p>}
             {!binLoading && filteredBins.length === 0 && (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-400 leading-relaxed bg-slate-50 border border-slate-200 rounded-lg p-4">
                 Chưa có hàng trong bin (hoặc chưa putaway). Sau khi nhập kho và putaway, bin sẽ hiện ở
                 đây.
               </p>
             )}
             {!binLoading && filteredBins.length > 0 && (
               <>
-                <p className="mb-3 text-xs text-slate-500">
-                  Hiển thị <strong className="text-slate-300">{filteredBins.length}</strong> bin
+                <p className="mb-3 text-xs text-slate-400">
+                  Hiển thị <strong className="text-slate-600 font-semibold">{filteredBins.length}</strong> bin
                   {inboundFilterId ? ' cho đợt nhập đã chọn' : ' (mọi đợt)'} — gom theo vị trí. Bấm
                   &quot;Xem tồn kho chi tiết&quot; để xem từng SKU/LPN.
                 </p>
-                <div className="max-h-[420px] overflow-y-auto rounded-lg border border-white/10">
+                <div className="max-h-[420px] overflow-y-auto rounded-lg border border-slate-200 shadow-sm light-scrollbar">
                   <table className="w-full text-left text-sm">
-                    <thead className="sticky top-0 bg-[#131b29] text-xs uppercase text-slate-400">
+                    <thead className="sticky top-0 bg-slate-100 border-b border-slate-200 text-xs font-bold uppercase text-slate-500 z-10">
                       <tr>
-                        <th className="px-4 py-3">Bin</th>
-                        <th className="px-4 py-3 text-right">LPN</th>
-                        <th className="px-4 py-3 text-right">Dòng SKU</th>
-                        <th className="px-4 py-3">LPN (tối đa 3)</th>
+                        <th className="px-4 py-3 font-semibold">Bin</th>
+                        <th className="px-4 py-3 text-right font-semibold">LPN</th>
+                        <th className="px-4 py-3 text-right font-semibold">Dòng SKU</th>
+                        <th className="px-4 py-3 font-semibold">LPN (tối đa 3)</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
+                    <tbody className="divide-y divide-slate-100 font-medium text-slate-700 bg-white">
                       {filteredBins.map((b) => (
-                        <tr key={b.binId} className="hover:bg-white/[0.02]">
-                          <td className="px-4 py-2 font-mono text-cyan-300">{b.binCode}</td>
-                          <td className="px-4 py-2 text-right tabular-nums">{b.lpnCount}</td>
-                          <td className="px-4 py-2 text-right tabular-nums text-slate-400">
+                        <tr key={b.binId} className="hover:bg-slate-50/40 transition-colors">
+                          <td className="px-4 py-2.5 font-mono text-sky-700 font-bold">{b.binCode}</td>
+                          <td className="px-4 py-2.5 text-right tabular-nums text-slate-800 font-semibold">{b.lpnCount}</td>
+                          <td className="px-4 py-2.5 text-right tabular-nums text-slate-400">
                             {b.skuLines}
                           </td>
-                          <td className="px-4 py-2 text-xs text-slate-500">
+                          <td className="px-4 py-2.5 text-xs text-slate-500 leading-normal">
                             {b.lpnCodes.slice(0, 3).join(', ')}
                             {b.lpnCodes.length > 3 ? ` +${b.lpnCodes.length - 3}` : ''}
                           </td>

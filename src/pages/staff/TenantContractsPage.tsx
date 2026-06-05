@@ -23,51 +23,33 @@ import { formatVnd } from '../../data/pricing'
 import type { ApiContract } from '../../api/types'
 
 import {
-
   contractSigningStepLabel,
-
   contractStatusLabel,
-
   needsTenantSignature,
-
   parseContractAmount,
-
   waitingForStorageAssignment,
-
 } from '../../utils/contractSigning'
 
 
-
 function formatContractPeriod(start?: string, end?: string) {
-
   const fmt = (iso?: string) =>
-
     iso ? new Date(iso).toLocaleDateString('vi-VN') : '—'
-
   return `${fmt(start)} → ${fmt(end)}`
-
 }
 
 
-
+// Cấu hình lại mã màu Badge Trạng thái cho giao diện sáng (Light Mode)
 function statusBadgeClass(status: ApiContract['status']) {
-
-  if (status === 'ACTIVE') return 'bg-emerald-400/10 text-emerald-300 ring-emerald-400/20'
-
-  if (status === 'PENDING_APPROVAL') return 'bg-amber-400/10 text-amber-300 ring-amber-400/20'
-
-  if (status === 'PENDING_PAYMENT') return 'bg-orange-400/10 text-orange-300 ring-orange-400/20'
-
-  if (status === 'DRAFT') return 'bg-slate-400/10 text-slate-300 ring-slate-400/20'
-
-  return 'bg-white/5 text-slate-400 ring-white/10'
-
+  if (status === 'ACTIVE') return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20'
+  if (status === 'PENDING_APPROVAL') return 'bg-amber-50 text-amber-700 ring-amber-600/20'
+  if (status === 'PENDING_PAYMENT') return 'bg-orange-50 text-orange-700 ring-orange-600/20'
+  if (status === 'DRAFT') return 'bg-slate-100 text-slate-700 ring-slate-600/10'
+  return 'bg-slate-50 text-slate-500 ring-slate-600/10'
 }
 
 const PAYOS_WINDOW_NAME = 'smartwarehouse_payos_checkout'
 
 export function TenantContractsPage() {
-
   const { user } = useAuth()
 
   const tenantId = user?.tenantId ?? ''
@@ -80,9 +62,7 @@ export function TenantContractsPage() {
   const [contracts, setContracts] = useState<ApiContract[]>([])
 
   const [reservations, setReservations] = useState<Awaited<
-
     ReturnType<typeof storageReservationsApi.listStorageReservations>
-
   >['items']>([])
 
   const [warehouseNames, setWarehouseNames] = useState<Map<string, string>>(new Map())
@@ -95,44 +75,31 @@ export function TenantContractsPage() {
   const [pendingTerminationIds, setPendingTerminationIds] = useState<Set<string>>(new Set())
 
   const load = useCallback(async () => {
-
     if (!tenantId) {
-
       setContracts([])
-
       setReservations([])
-
       setLoading(false)
-
       return
-
     }
 
     setLoading(true)
-
     setError('')
 
     try {
-
       const [contractRes, reservationRes, whRes] = await Promise.all([
-
         contractsApi.listContracts({ tenantId, limit: 100 }),
-
         storageReservationsApi.listStorageReservations({ tenantId, limit: 200 }),
-
         warehousesApi.listWarehouses({ limit: 100 }),
-
       ])
 
       setContracts(contractRes.items)
-
       setReservations(reservationRes.items)
-
       setWarehouseNames(new Map(whRes.items.map((w) => [w.warehouseId, w.warehouseName])))
 
       const activeIds = contractRes.items
         .filter((c) => c.status === 'ACTIVE')
         .map((c) => c.contractId)
+
       if (activeIds.length > 0) {
         const pendingLists = await Promise.all(
           activeIds.map((id) =>
@@ -149,32 +116,22 @@ export function TenantContractsPage() {
       }
 
     } catch (e) {
-
       setError(e instanceof ApiError ? e.message : 'Không tải được hợp đồng / phân bổ kho')
-
     } finally {
-
       setLoading(false)
-
     }
-
   }, [tenantId])
 
 
-
   useEffect(() => {
-
     load()
-
   }, [load])
-
 
 
   const contractCodeById = useMemo(
     () => new Map(contracts.map((c) => [c.contractId, c.contractCode])),
     [contracts]
   )
-
 
 
   const activeReservationByContract = useMemo(() => {
@@ -257,29 +214,24 @@ export function TenantContractsPage() {
         setPayingContractId(null)
       }
     },
-    []
+    [load]
   )
 
 
-
   return (
-
-    <div className="overflow-y-auto overflow-x-hidden bg-[#0b101a] p-6 text-slate-100 md:p-8">
-
+    <div className="overflow-y-auto overflow-x-hidden bg-slate-50 p-6 text-slate-700 md:p-8">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
-
-        <h2 className="text-2xl font-bold text-white">Hợp đồng & vị trí đã cấp</h2>
+        <h2 className="text-2xl font-bold text-slate-900">Hợp đồng & vị trí đã cấp</h2>
 
         {error && (
           <InlineAlert message={error} onDismiss={() => setError('')} />
         )}
 
 
-
         {!loading && waitingStorageContracts.length > 0 && (
-          <div className="rounded-xl border border-slate-500/30 bg-slate-500/10 px-5 py-4">
-            <p className="flex items-start gap-2 text-sm text-slate-200">
-              <span className="material-symbols-outlined shrink-0 text-lg text-slate-400">
+          <div className="rounded-xl border border-slate-200 bg-slate-100 px-5 py-4">
+            <p className="flex items-start gap-2 text-sm text-slate-700">
+              <span className="material-symbols-outlined shrink-0 text-lg text-slate-500">
                 inventory_2
               </span>
               <span>
@@ -291,14 +243,14 @@ export function TenantContractsPage() {
         )}
 
         {!loading && pendingPaymentContracts.length > 0 && (
-          <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 px-5 py-4">
-            <p className="flex items-start gap-2 text-sm text-orange-100">
-              <span className="material-symbols-outlined shrink-0 text-lg text-orange-400">
+          <div className="rounded-xl border border-orange-200 bg-orange-50 px-5 py-4">
+            <p className="flex items-start gap-2 text-sm text-orange-800">
+              <span className="material-symbols-outlined shrink-0 text-lg text-orange-500">
                 payments
               </span>
               <span>
                 <strong>{pendingPaymentContracts.length}</strong> hợp đồng chờ thanh toán invoice
-                đầu qua <strong className="text-white">PayOS</strong>. Sau khi trả, HĐ ACTIVE và mở
+                đầu qua <strong className="text-orange-950">PayOS</strong>. Sau khi trả, HĐ ACTIVE và mở
                 inbound.
               </span>
             </p>
@@ -306,142 +258,78 @@ export function TenantContractsPage() {
         )}
 
         {!loading && pendingSignContracts.length > 0 && (
-
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-4">
-
-            <p className="flex items-start gap-2 text-sm text-amber-100">
-
-              <span className="material-symbols-outlined shrink-0 text-lg text-amber-400">
-
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+            <p className="flex items-start gap-2 text-sm text-amber-800">
+              <span className="material-symbols-outlined shrink-0 text-lg text-amber-500">
                 draw
-
               </span>
-
               <span>
-
                 Bạn có <strong>{pendingSignContracts.length}</strong> hợp đồng chờ ký (bước cuối
-
-                của tenant).                 Ký xong cần thanh toán invoice đầu; khi đã trả, HĐ{' '}
-
-                <strong className="text-white">ACTIVE</strong> và có thể tạo yêu cầu nhập kho.
-
+                của tenant). Ký xong cần thanh toán invoice đầu; khi đã trả, HĐ{' '}
+                <strong className="text-amber-950">ACTIVE</strong> và có thể tạo yêu cầu nhập kho.
               </span>
-
             </p>
-
           </div>
-
         )}
 
 
-
-        <section className="glass-panel overflow-hidden rounded-xl border border-white/5">
-
-          <div className="border-b border-white/5 px-6 py-4 text-sm font-semibold text-cyan-300">
-
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 bg-slate-50 px-6 py-4 text-sm font-semibold text-sky-700">
             Hợp đồng của tenant
-
           </div>
-
           <div className="overflow-x-auto">
-
             <table className="w-full text-left text-sm">
-
-              <thead className="bg-[#131b29] text-xs uppercase text-slate-400">
-
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500 border-b border-slate-200">
                 <tr>
-
                   <th className="px-6 py-3">Mã HĐ</th>
-
-                  <th className="px-6 py-3">Loại</th>
-
-                  <th className="px-6 py-3">Kho</th>
-
+                  {/* <th className="px-6 py-3">Kho</th> */}
                   <th className="px-6 py-3">Thời hạn</th>
-
                   <th className="px-6 py-3 text-right">Giá trị ước tính</th>
-
                   <th className="px-6 py-3">Trạng thái</th>
-
                   <th className="px-6 py-3">Tiến độ ký</th>
-
                   <th className="px-6 py-3" />
-
                 </tr>
-
               </thead>
-
-              <tbody className="divide-y divide-white/5">
-
+              <tbody className="divide-y divide-slate-200">
                 {contracts.map((c) => {
-
                   const ct = c.contractType as ContractTypeValue
-
                   const amount = parseContractAmount(c.estimatedTotalAmount)
 
                   const signCtx = signingContextFor(c.contractId)
                   const canSign = needsTenantSignature(c, signCtx)
 
                   return (
-
-                    <tr key={c.contractId}>
-
-                      <td className="px-6 py-3 font-mono text-cyan-300">{c.contractCode}</td>
-
-                      <td className="px-6 py-3">{CONTRACT_TYPE_LABELS[ct] ?? c.contractType}</td>
-
-                      <td className="px-6 py-3">
-
+                    <tr key={c.contractId} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-3 font-mono font-medium text-sky-600">{c.contractCode}</td>
+                      {/* <td className="px-6 py-3 text-slate-600">
                         {warehouseNames.get(c.warehouseId) ?? c.warehouseId}
-
-                      </td>
-
-                      <td className="px-6 py-3 whitespace-nowrap">
-
+                      </td> */}
+                      <td className="px-6 py-3 whitespace-nowrap text-slate-600">
                         {formatContractPeriod(c.startDate, c.endDate)}
-
                       </td>
-
                       <td className="px-6 py-3 text-right tabular-nums">
-
                         {amount != null ? (
-
-                          <span className="font-medium text-cyan-300">{formatVnd(amount)}</span>
-
+                          <span className="font-semibold text-slate-900">{formatVnd(amount)}</span>
                         ) : (
-
-                          <span className="text-slate-500">—</span>
-
+                          <span className="text-slate-400">—</span>
                         )}
-
                       </td>
-
                       <td className="px-6 py-3">
-
                         <span
-
                           className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${statusBadgeClass(c.status)}`}
-
                         >
-
                           {contractStatusLabel(c.status)}
-
                         </span>
-
                       </td>
-
-                      <td className="px-6 py-3 text-xs text-slate-400">
-
+                      <td className="px-6 py-3 text-xs text-slate-500">
                         {contractSigningStepLabel(c, signCtx)}
-
                       </td>
-
                       <td className="px-6 py-3 text-right">
                         <div className="flex justify-end gap-2">
                           <button
                             type="button"
                             onClick={() => setDetailContractId(c.contractId)}
-                            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5"
+                            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-sm"
                           >
                             Chi tiết
                           </button>
@@ -449,7 +337,7 @@ export function TenantContractsPage() {
                             <button
                               type="button"
                               onClick={() => setSignContractId(c.contractId)}
-                              className="rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-cyan-400"
+                              className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700 shadow-sm transition-colors"
                             >
                               Ký HĐ
                             </button>
@@ -462,7 +350,7 @@ export function TenantContractsPage() {
                                 e.preventDefault()
                                 void handlePayWithPayOS(c.contractId)
                               }}
-                              className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-orange-400 disabled:opacity-50"
+                              className="rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-700 disabled:opacity-50 shadow-sm transition-colors"
                             >
                               {payingContractId === c.contractId
                                 ? 'Đang mở PayOS…'
@@ -473,7 +361,7 @@ export function TenantContractsPage() {
                             <button
                               type="button"
                               onClick={() => setTerminationContractId(c.contractId)}
-                              className="rounded-lg border border-amber-500/40 px-3 py-1.5 text-xs text-amber-300 hover:bg-amber-500/10"
+                              className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50 shadow-sm transition-colors"
                             >
                               {pendingTerminationIds.has(c.contractId)
                                 ? 'Chờ duyệt CD'
@@ -482,35 +370,20 @@ export function TenantContractsPage() {
                           ) : null}
                         </div>
                       </td>
-
                     </tr>
-
                   )
-
                 })}
-
                 {!loading && contracts.length === 0 && (
-
                   <tr>
-
-                    <td colSpan={8} className="px-6 py-4 text-slate-500">
-
+                    <td colSpan={8} className="px-6 py-8 text-center text-slate-400 bg-slate-50/30">
                       Chưa có hợp đồng nào.
-
                     </td>
-
                   </tr>
-
                 )}
-
               </tbody>
-
             </table>
-
           </div>
-
         </section>
-
 
 
         <TenantStorageAllocationPanel
@@ -518,9 +391,7 @@ export function TenantContractsPage() {
           reservations={reservations}
           contractCodeById={contractCodeById}
         />
-
       </div>
-
 
 
       {detailContractId && (
@@ -545,23 +416,12 @@ export function TenantContractsPage() {
       )}
 
       {signContractId && (
-
         <TenantContractSignModal
-
           contractId={signContractId}
-
           onClose={() => setSignContractId(null)}
-
           onSigned={load}
-
         />
-
       )}
-
     </div>
-
   )
-
 }
-
-

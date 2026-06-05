@@ -161,42 +161,44 @@ export function InboundLpnReceivingSection({
   }
 
   return (
-    <section className="mb-8 grid gap-6 md:grid-cols-2">
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-        <h2 className="mb-3 font-semibold">Batch</h2>
+    <section className="mb-8 grid gap-6 md:grid-cols-2 text-slate-800">
+      {/* Cụm Batch */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="mb-3 font-semibold text-slate-900">Batch</h2>
         <div className="mb-2 flex gap-2">
           <input
             value={batchCode}
             onChange={(e) => onBatchCodeChange(e.target.value)}
             placeholder="BATCH-001"
-            className="flex-1 rounded border border-white/10 bg-[#0f172a] px-3 py-2 text-sm"
+            className="flex-1 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
           />
           <button
             type="button"
             onClick={onCreateBatch}
-            className="rounded bg-cyan-600 px-3 py-2 text-sm"
+            className="rounded bg-cyan-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cyan-700 transition-colors"
           >
             Tạo
           </button>
         </div>
-        <ul className="text-xs text-slate-400">
+        <ul className="text-xs text-slate-500 divide-y divide-slate-100">
           {batches.map((b) => (
-            <li key={b.batchId} className="py-1 font-mono">
+            <li key={b.batchId} className="py-2 font-mono text-slate-700">
               {b.batchCode}
             </li>
           ))}
         </ul>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-        <h2 className="mb-3 font-semibold">LPN &amp; đóng thùng</h2>
-        <p className="mb-3 text-xs text-slate-500">
+      {/* Cụm LPN & đóng thùng */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="mb-3 font-semibold text-slate-900">LPN &amp; đóng thùng</h2>
+        <p className="mb-3 text-xs text-slate-500 leading-relaxed">
           Gán SKU vào LPN theo số đã nhận.
           {detailSkuId ? (
             <>
               {' '}
-              Mỗi thùng <strong className="text-slate-300">{formatBoxTypeName(boxType)}</strong>: ~
-              <strong className="text-cyan-300">{piecesPerLpn}</strong> cái
+              Mỗi thùng <strong className="text-slate-700">{formatBoxTypeName(boxType)}</strong>: ~
+              <strong className="text-cyan-600 font-bold"> {piecesPerLpn}</strong> cái
               {packInfo.skuVolume ? (
                 <>
                   {' '}
@@ -208,7 +210,7 @@ export function InboundLpnReceivingSection({
                   )
                 </>
               ) : (
-                <span className="text-amber-300/90"> (chưa có productKind/size — dùng ước tính cũ)</span>
+                <span className="text-amber-700 font-medium"> (chưa có productKind/size — dùng ước tính cũ)</span>
               )}
               .
             </>
@@ -222,7 +224,7 @@ export function InboundLpnReceivingSection({
           value={selectedBatchId}
           onChange={(e) => onSelectedBatchIdChange(e.target.value)}
           aria-label="Chọn batch"
-          className="mb-2 w-full rounded border border-white/10 bg-[#0f172a] px-3 py-2 text-sm"
+          className="mb-2 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-cyan-500 focus:outline-none"
         >
           <option value="">— Batch —</option>
           {batches.map((b) => (
@@ -241,22 +243,22 @@ export function InboundLpnReceivingSection({
             return (
               <div
                 key={item.inboundRequestItemId}
-                className={`rounded border px-2 py-1.5 text-xs ${
+                className={`rounded border px-3 py-2 text-xs shadow-sm ${
                   rem === 0 && target > 0
-                    ? 'border-emerald-500/30 bg-emerald-500/5'
-                    : 'border-white/10 bg-black/20'
+                    ? 'border-emerald-200 bg-emerald-50/60'
+                    : 'border-slate-200 bg-slate-50/50'
                 }`}
               >
                 <div className="flex justify-between gap-2">
-                  <span className="text-slate-300">{item.sku?.skuCode ?? item.skuId.slice(0, 8)}</span>
-                  <span className="text-slate-400">
-                    LPN: <strong className="text-slate-200">{done}</strong> / {target} cái
-                    {rem > 0 && <span className="text-amber-300"> · còn {rem}</span>}
+                  <span className="font-semibold text-slate-700">{item.sku?.skuCode ?? item.skuId.slice(0, 8)}</span>
+                  <span className="text-slate-500 font-medium">
+                    LPN: <strong className="text-slate-800 font-bold">{done}</strong> / {target} cái
+                    {rem > 0 && <span className="text-amber-700 ml-1 font-bold">· còn {rem}</span>}
                   </span>
                 </div>
-                <div className="mt-1 h-1 overflow-hidden rounded bg-white/10">
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded bg-slate-200">
                   <div
-                    className="h-full bg-cyan-500/70 transition-all"
+                    className="h-full bg-cyan-600 transition-all"
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -273,7 +275,7 @@ export function InboundLpnReceivingSection({
             onDetailQtyChange(Math.min(piecesPerLpn, rem || 1))
           }}
           aria-label="Chọn SKU đóng thùng"
-          className="mb-2 w-full rounded border border-white/10 bg-[#0f172a] px-3 py-2 text-sm"
+          className="mb-2 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-cyan-500 focus:outline-none"
         >
           <option value="">— SKU đóng thùng —</option>
           {items.map((item) => {
@@ -291,13 +293,13 @@ export function InboundLpnReceivingSection({
             value={lpnCode}
             onChange={(e) => onLpnCodeChange(e.target.value)}
             placeholder={`${inboundCode}-LPN-001 (tự sinh nếu trống)`}
-            className="min-w-[140px] flex-1 rounded border border-white/10 bg-[#0f172a] px-3 py-2 text-sm"
+            className="min-w-[140px] flex-1 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-cyan-500 focus:outline-none"
           />
           <select
             value={boxType}
             onChange={(e) => onBoxTypeChange(e.target.value as BoxType)}
             aria-label="Chọn box type"
-            className="rounded border border-white/10 bg-[#0f172a] px-2 text-sm"
+            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-cyan-500 focus:outline-none"
           >
             {allowedBoxTypeOptions.map((o) => (
               <option key={o.value} value={o.value}>
@@ -308,9 +310,9 @@ export function InboundLpnReceivingSection({
         </div>
 
         {readiness?.boxTypeSuggestion?.contractZoneTypes?.length ? (
-          <p className="mb-2 text-[11px] text-slate-500">
+          <p className="mb-2 text-[11px] text-slate-500 font-medium">
             Zone HĐ: {readiness.boxTypeSuggestion.contractZoneTypes.join(', ')} — tối đa{' '}
-            <strong className="text-slate-400">{formatBoxTypeName(maxBoxType)}</strong>
+            <strong className="text-slate-700">{formatBoxTypeName(maxBoxType)}</strong>
           </p>
         ) : null}
 
@@ -318,24 +320,24 @@ export function InboundLpnReceivingSection({
           allowedBoxTypeOptions.some(
             (o) => o.value === readiness.boxTypeSuggestion.recommendedBoxType
           ) && (
-          <p className="mb-2 text-xs text-slate-400">
+          <p className="mb-2 text-xs text-slate-600 font-medium">
             Gợi ý:{' '}
             <button
               type="button"
               onClick={onApplySuggestedBoxType}
-              className="font-medium text-cyan-300 hover:underline"
+              className="font-bold text-cyan-600 hover:text-cyan-700 hover:underline"
             >
               {readiness.boxTypeSuggestion.recommendedBoxType}
             </button>
           </p>
         )}
 
-        <div className="mb-2 flex flex-wrap gap-2">
+        <div className="mb-3 flex flex-wrap gap-2">
           <button
             type="button"
             disabled={!selectedBatchId || !detailSkuId || selectedRemaining <= 0}
             onClick={onCreateNextLpn}
-            className="rounded bg-cyan-600 px-3 py-2 text-sm disabled:opacity-40"
+            className="rounded bg-cyan-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cyan-700 disabled:opacity-40 transition-colors"
           >
             Tạo 1 LPN (+{suggestedQty} cái)
           </button>
@@ -343,24 +345,24 @@ export function InboundLpnReceivingSection({
             type="button"
             disabled={!selectedBatchId || !detailSkuId || selectedRemaining <= 0}
             onClick={onFillSkuLpns}
-            className="rounded bg-cyan-700/80 px-3 py-2 text-sm disabled:opacity-40"
+            className="rounded bg-cyan-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cyan-800 disabled:opacity-40 transition-colors"
           >
             Tạo đủ LPN cho SKU
           </button>
         </div>
 
-        <details className="mb-3 text-xs text-slate-500">
-          <summary className="cursor-pointer text-slate-400">Thêm SKU vào LPN có sẵn</summary>
-          <p className="mt-2 text-[11px] text-slate-600">
-            Chọn LPN → nhập <strong className="text-slate-500">số lượng SKU (cái)</strong> → Gán. SKU
+        <details className="mb-4 text-xs text-slate-500 border border-slate-200 bg-slate-50/50 p-2.5 rounded-lg">
+          <summary className="cursor-pointer text-slate-700 font-medium hover:text-slate-900">Thêm SKU vào LPN có sẵn</summary>
+          <p className="mt-2 text-[11px] text-slate-500 leading-relaxed">
+            Chọn LPN → nhập <strong className="text-slate-700 font-medium">số lượng SKU (cái)</strong> → Gán. SKU
             lấy từ dropdown &quot;SKU đóng thùng&quot; phía trên.
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
             <select
               value={selectedLpnId}
               onChange={(e) => onSelectedLpnIdChange(e.target.value)}
               aria-label="Chọn LPN"
-              className="min-w-[200px] flex-1 rounded border border-white/10 bg-[#0f172a] px-2 py-1.5 text-sm"
+              className="min-w-[200px] flex-1 rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 focus:outline-none"
             >
               <option value="">— LPN —</option>
               {lpns.map((l) => (
@@ -378,14 +380,14 @@ export function InboundLpnReceivingSection({
               placeholder="SL"
               value={detailQty}
               onChange={(e) => onDetailQtyChange(Number(e.target.value))}
-              className="w-20 rounded border border-white/10 bg-[#0f172a] px-2 py-1.5 text-sm"
+              className="w-20 rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 text-right focus:outline-none"
             />
-            <span className="text-[11px] text-slate-500">cái</span>
+            <span className="text-[11px] text-slate-500 font-medium">cái</span>
             <button
               type="button"
               disabled={!selectedLpnId || !detailSkuId || detailQty < 1}
               onClick={onAddLpnDetail}
-              className="rounded bg-slate-600 px-3 py-1.5 text-sm disabled:opacity-40"
+              className="rounded bg-slate-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 shadow-sm disabled:opacity-40 transition-colors"
             >
               Gán
             </button>
@@ -393,27 +395,27 @@ export function InboundLpnReceivingSection({
         </details>
 
         {lpns.length > 0 && (
-          <>
-            <p className="mb-1 text-[11px] text-slate-600">
+          <div className="mb-4">
+            <p className="mb-1 text-[11px] text-slate-500 font-medium">
               Định dạng: mã LPN · loại thùng ·{' '}
-              <span className="text-slate-500">số lượng×mã SKU</span> (hàng đã gán vào thùng)
+              <span className="text-slate-400">số lượng×mã SKU</span> (hàng đã gán vào thùng)
             </p>
-            <ul className="mb-3 max-h-32 overflow-y-auto text-xs text-slate-400">
+            <ul className="max-h-32 overflow-y-auto text-xs text-slate-700 divide-y divide-slate-100 bg-slate-50 p-2 rounded-lg border border-slate-200">
               {lpns.map((l) => (
-                <li key={l.lpnId} className="border-t border-white/5 py-1 font-mono">
-                  {l.lpnCode} · {l.boxType}
+                <li key={l.lpnId} className="py-1.5 font-mono">
+                  <span className="font-bold text-cyan-700">{l.lpnCode}</span> · <span className="text-slate-600">{l.boxType}</span>
                   {(lpnDetailsByLpn[l.lpnId] ?? []).map((d) => (
-                    <span key={d.lpnDetailId} className="ml-2 text-slate-500" title="Số lượng × mã SKU">
+                    <span key={d.lpnDetailId} className="ml-2 font-sans font-medium text-slate-500" title="Số lượng × mã SKU">
                       {formatDetailLabel(d)}
                     </span>
                   ))}
                 </li>
               ))}
             </ul>
-          </>
+          </div>
         )}
 
-        <h3 className="mb-2 text-sm font-medium text-slate-300">Putaway</h3>
+        <h3 className="mb-2 text-sm font-semibold text-slate-900 border-t border-slate-200 pt-3">Putaway</h3>
         {putawaySlot}
       </div>
     </section>

@@ -30,10 +30,13 @@ type Props = {
   onSubmit?: (data: ContractFormPayload) => void | Promise<void>
 }
 
+/* Cập nhật style cho nhãn (label) sắc nét hơn trên nền sáng */
 const labelStyle =
   'text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block'
+
+/* Cập nhật style cho ô nhập liệu (input/select) sang Light Mode */
 const inputStyle =
-  'w-full bg-[#1a2333] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 disabled:opacity-60'
+  'w-full bg-white border border-slate-300 rounded-lg px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:opacity-80 transition-colors'
 
 const STATUS_OPTIONS: { value: ContractStatus; label: string }[] = [
   { value: 'DRAFT', label: 'Nháp (DRAFT)' },
@@ -150,32 +153,37 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" onClick={onClose} />
+      {/* Đổi Backdrop tối mờ sang lớp phủ xám đen mờ sáng dịu hơn */}
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative z-10 flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-white/5 bg-[#0b101a] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/5 bg-white/[0.02] px-6 py-5">
+      {/* Đổi khung Modal từ đen sang trắng (`bg-white`), viền và đổ bóng rõ nét */}
+      <div className="relative z-10 flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+        
+        {/* Header Modal */}
+        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-6 py-4">
           <div>
-            <h2 className="flex items-center gap-2 text-lg font-bold text-white">
-              <span className="material-symbols-outlined text-cyan-400">description</span>
+            <h2 className="flex items-center gap-2 text-lg font-bold text-slate-800">
+              <span className="material-symbols-outlined text-cyan-600">description</span>
               {mode === 'edit' ? 'Chỉnh sửa hợp đồng' : 'Chi tiết hợp đồng'}
             </h2>
-            <p className="mt-1 text-xs text-slate-400">
-              Mã: <span className="font-mono text-cyan-400">{contractCode || '—'}</span>
+            <p className="mt-1 text-xs text-slate-500">
+              Mã: <span className="font-mono font-bold text-cyan-600">{contractCode || '—'}</span>
               {apiStatus && (
-                <span className="ml-2 rounded bg-white/5 px-2 py-0.5 text-slate-300">
+                <span className="ml-2 rounded bg-slate-200/70 px-2 py-0.5 font-medium text-slate-700">
                   {apiStatus}
                 </span>
               )}
             </p>
           </div>
-          <button type="button" onClick={onClose} className="rounded p-2 hover:bg-white/10">
-            <span className="material-symbols-outlined text-slate-400">close</span>
+          <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+            <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
-        <div className="dark-scrollbar flex-1 space-y-6 overflow-y-auto p-6 pr-5 [scrollbar-gutter:stable]">
+        {/* Nội dung cuộn bên trong Modal */}
+        <div className="flex-1 space-y-6 overflow-y-auto p-6 pr-5 [scrollbar-gutter:stable]">
           {loading && (
-            <p className="text-center text-sm text-slate-400">Đang tải hợp đồng...</p>
+            <p className="text-center text-sm text-slate-500">Đang tải hợp đồng...</p>
           )}
           {error && (
             <InlineAlert message={error} onDismiss={() => setError('')} />
@@ -183,14 +191,16 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
 
           {!loading && !error && (
             <>
+              {/* Khu vực thông tin 2 bên */}
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className="rounded-lg border border-white/5 bg-white/[0.02] p-4">
-                  <h3 className="mb-3 text-sm font-semibold text-cyan-400">BÊN CHO THUÊ / KHO</h3>
-                  <p className="text-sm text-white">{warehouseLabel || '—'}</p>
+                {/* Đổi các box con sang màu nền xám siêu sáng (`bg-slate-50`) và viền mỏng (`border-slate-100`) */}
+                <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-4">
+                  <h3 className="mb-3 text-sm font-bold text-cyan-600">BÊN CHO THUÊ / KHO</h3>
+                  <p className="text-sm font-medium text-slate-800">{warehouseLabel || '—'}</p>
                 </div>
 
-                <div className="space-y-3 rounded-lg border border-white/5 bg-white/[0.02] p-4">
-                  <h3 className="text-sm font-semibold text-emerald-400">KHÁCH HÀNG (TENANT)</h3>
+                <div className="space-y-3 rounded-lg border border-slate-100 bg-slate-50/50 p-4">
+                  <h3 className="text-sm font-bold text-emerald-600">KHÁCH HÀNG (TENANT)</h3>
                   <div>
                     <label className={labelStyle}>Tên công ty</label>
                     <input disabled className={inputStyle} value={tenantCompany} />
@@ -199,21 +209,22 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
                     <label className={labelStyle}>Email</label>
                     <input disabled className={inputStyle} value={tenantEmail} />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3">
                     <div>
-                      <label className={labelStyle}>MST</label>
+                      <label className={labelStyle}>Tax code</label>
                       <input disabled className={inputStyle} value={tenantTaxCode} />
                     </div>
-                    <div>
+                    {/* <div>
                       <label className={labelStyle}>Địa chỉ</label>
                       <input disabled className={inputStyle} value={tenantAddress} />
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-lg border border-white/5 bg-white/[0.02] p-4 space-y-4">
-                <h3 className="text-sm font-semibold text-cyan-400">ĐIỀU KHOẢN HỢP ĐỒNG</h3>
+              {/* Khu vực Điều khoản Hợp đồng */}
+              <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-4 space-y-4">
+                <h3 className="text-sm font-bold text-cyan-600">ĐIỀU KHOẢN HỢP ĐỒNG</h3>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
                     <label className={labelStyle}>Loại hợp đồng</label>
@@ -239,7 +250,7 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
                       }
                     />
                   </div>
-                  <div className="sm:col-span-2">
+                  <div className="sm:col-span-1">
                     <label className={labelStyle}>Tên hợp đồng</label>
                     <input
                       disabled={isView}
@@ -248,7 +259,7 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
                       onChange={(e) => setContractName(e.target.value)}
                     />
                   </div>
-                  {rentalRequestId && (
+                  {/* {rentalRequestId && (
                     <div>
                       <label className={labelStyle}>Yêu cầu thuê (RR)</label>
                       <input
@@ -257,7 +268,7 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
                         value={rentalRequestId}
                       />
                     </div>
-                  )}
+                  )} */}
                   <div>
                     <label className={labelStyle}>Ngày bắt đầu</label>
                     <input
@@ -306,7 +317,9 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
                     </div>
                   )}
                 </div>
-                <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-lg font-bold text-cyan-400">
+
+                {/* Box hiển thị số tiền định dạng vi-VN: Đổi sang màu sáng dịu bắt mắt */}
+                <div className="rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-lg font-bold text-cyan-700">
                   {new Intl.NumberFormat('vi-VN').format(Number(amountInput) || 0)} ₫
                 </div>
               </div>
@@ -328,10 +341,15 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
           )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-white/5 bg-white/[0.02] px-6 py-4">
-          <span className="text-xs text-slate-500">Hợp đồng thuê kho · db4</span>
+        {/* Footer Modal */}
+        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/70 px-6 py-4">
+          <span className="text-xs font-medium text-slate-400">Hợp đồng thuê kho · db4</span>
           <div className="flex gap-3">
-            <button type="button" onClick={onClose} className="text-sm text-slate-400 hover:text-white">
+            <button 
+              type="button" 
+              onClick={onClose} 
+              className="text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors"
+            >
               Đóng
             </button>
             {!isView && !loading && !error && (
@@ -339,7 +357,7 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
                 type="button"
                 disabled={submitting}
                 onClick={handleSubmit}
-                className="rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold text-black disabled:opacity-50"
+                className="rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 px-6 py-2 text-sm font-bold text-white shadow-sm hover:from-cyan-700 hover:to-blue-700 disabled:opacity-50 transition-all"
               >
                 {submitting ? 'Đang lưu...' : 'Cập nhật'}
               </button>

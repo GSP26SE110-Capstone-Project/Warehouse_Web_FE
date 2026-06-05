@@ -103,14 +103,15 @@ export function OutboundCreatePage({ basePath }: { basePath: string }) {
     }
   }
 
+  // Định nghĩa style chung cho các ô select và input ở Light Mode
+  const inputClass =
+    'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/20 disabled:bg-slate-50 transition-colors'
+
   return (
-    <div className="min-h-screen bg-[#0b101a] text-slate-100">
+    <div className="min-h-screen bg-slate-50 text-slate-800">
       <LoadingOverlay show={loading} text="Đang tải..." />
-      <form onSubmit={handleSubmit} className="mx-auto max-w-2xl p-8">
-        <h1 className="text-2xl font-bold text-white">Tạo yêu cầu xuất kho</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          Cần HĐ ACTIVE hoặc TERMINATED, đã có inbound hoàn tất và tồn khả dụng.
-        </p>
+      <form onSubmit={handleSubmit} className="mx-auto max-w-2xl p-8 bg-white my-6 rounded-xl border border-slate-200 shadow-sm">
+        <h1 className="text-2xl font-bold text-slate-900">Tạo yêu cầu xuất kho</h1>
 
         {error && (
           <div className="mt-4">
@@ -120,7 +121,7 @@ export function OutboundCreatePage({ basePath }: { basePath: string }) {
 
         <div className="mt-6 space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label className="mb-1 block text-xs font-bold uppercase text-slate-500">
               Hợp đồng *
             </label>
             <select
@@ -128,7 +129,7 @@ export function OutboundCreatePage({ basePath }: { basePath: string }) {
               aria-label="Chọn hợp đồng"
               value={contractId}
               onChange={(e) => setContractId(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-[#1a2333] px-3 py-2 text-sm"
+              className={inputClass}
             >
               <option value="">— Chọn HĐ —</option>
               {contracts.map((c) => (
@@ -140,26 +141,31 @@ export function OutboundCreatePage({ basePath }: { basePath: string }) {
             </select>
           </div>
 
-          <DateTimePickerField
-            label="Ngày xuất dự kiến"
-            value={requestedShipDate}
-            onChange={setRequestedShipDate}
-          />
-
           <div>
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase text-slate-500">Dòng SKU *</span>
+            <label className="mb-1 block text-xs font-bold uppercase text-slate-500">
+              Ngày xuất dự kiến
+            </label>
+            <DateTimePickerField
+              id="requestedShipDate"
+              value={requestedShipDate}
+              onChange={setRequestedShipDate}
+            />
+          </div>
+
+          <div className="">
+            <div className="mb-2 items-center flex justify-between">
+              <span className="text-xs font-bold uppercase text-slate-500">Dòng SKU *</span>
               <button
                 type="button"
                 onClick={() =>
                   setLines((prev) => [...prev, { skuId: '', requestedQuantity: 1 }])
                 }
-                className="text-xs text-cyan-400 hover:text-cyan-300"
+                className="text-xs font-semibold text-cyan-600 hover:text-cyan-700 transition-colors"
               >
                 + Thêm dòng
               </button>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 flex-[1]">
               {lines.map((line, idx) => (
                 <div key={idx} className="flex gap-2">
                   <select
@@ -171,7 +177,7 @@ export function OutboundCreatePage({ basePath }: { basePath: string }) {
                         prev.map((l, i) => (i === idx ? { ...l, skuId: v } : l))
                       )
                     }}
-                    className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#1a2333] px-3 py-2 text-sm"
+                    className={`${inputClass} min-w-0 flex-[1]`}
                   >
                     <option value="">SKU</option>
                     {skus.map((s) => (
@@ -193,15 +199,15 @@ export function OutboundCreatePage({ basePath }: { basePath: string }) {
                         )
                       )
                     }}
-                    className="w-24 rounded-lg border border-white/10 bg-[#1a2333] px-3 py-2 text-sm"
+                    className={`${inputClass} w-24 flex-[1]`}
                   />
                   {lines.length > 1 && (
                     <button
                       type="button"
                       onClick={() => setLines((prev) => prev.filter((_, i) => i !== idx))}
-                      className="rounded p-2 text-slate-500 hover:bg-white/5"
+                      className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors border border-transparent"
                     >
-                      <span className="material-symbols-outlined text-lg">close</span>
+                      <span className="material-symbols-outlined text-lg block">close</span>
                     </button>
                   )}
                 </div>
@@ -210,18 +216,18 @@ export function OutboundCreatePage({ basePath }: { basePath: string }) {
           </div>
         </div>
 
-        <div className="mt-8 flex gap-3">
+        <div className="mt-8 flex gap-3 justify-end">
           <button
             type="button"
             onClick={() => navigate(basePath)}
-            className="text-sm text-slate-400 hover:text-white"
+            className="text-sm font-semibold text-slate-500 hover:text-slate-800 px-4 py-2 rounded-lg hover:bg-slate-100 transition-colors"
           >
             Hủy
           </button>
           <button
             type="submit"
             disabled={submitting || loading}
-            className="rounded-lg bg-orange-500 px-6 py-2 text-sm font-semibold text-slate-900 hover:bg-orange-400 disabled:opacity-50"
+            className="rounded-lg bg-orange-600 px-6 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-50 transition-colors shadow-sm shadow-orange-600/10"
           >
             {submitting ? 'Đang gửi…' : 'Gửi phiếu (PENDING)'}
           </button>

@@ -14,8 +14,9 @@ export function emptyPickupForm(): PickupFormState {
   }
 }
 
+// Cập nhật class input sang phong cách Light Mode tiêu chuẩn
 const inputClass =
-  'w-full rounded border border-white/10 bg-[#0f172a] px-3 py-2 text-sm text-white disabled:opacity-50'
+  'w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/20 disabled:bg-slate-100 disabled:opacity-50 transition-colors'
 
 type Props = {
   value: PickupFormState
@@ -28,11 +29,11 @@ export function InboundPickupForm({ value, onChange, disabled }: Props) {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-600">
         Tài xế kho sẽ đến địa chỉ này để lấy hàng, sau đó chuyển về kho trong hợp đồng.
       </p>
       <div>
-        <label className="mb-1 block text-xs text-slate-500" htmlFor="pickupAddress">
+        <label className="mb-1 block text-xs font-medium text-slate-500" htmlFor="pickupAddress">
           Địa chỉ lấy hàng *
         </label>
         <textarea
@@ -47,7 +48,7 @@ export function InboundPickupForm({ value, onChange, disabled }: Props) {
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-xs text-slate-500" htmlFor="pickupContactName">
+          <label className="mb-1 block text-xs font-medium text-slate-500" htmlFor="pickupContactName">
             Người liên hệ tại điểm lấy *
           </label>
           <input
@@ -59,7 +60,7 @@ export function InboundPickupForm({ value, onChange, disabled }: Props) {
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-500" htmlFor="pickupContactPhone">
+          <label className="mb-1 block text-xs font-medium text-slate-500" htmlFor="pickupContactPhone">
             SĐT liên hệ *
           </label>
           <input
@@ -72,7 +73,7 @@ export function InboundPickupForm({ value, onChange, disabled }: Props) {
         </div>
       </div>
       <div>
-        <label className="mb-1 block text-xs text-slate-500" htmlFor="pickupNotes">
+        <label className="mb-1 block text-xs font-medium text-slate-500" htmlFor="pickupNotes">
           Ghi chú điểm lấy (cổng, giờ, hướng dẫn)
         </label>
         <textarea

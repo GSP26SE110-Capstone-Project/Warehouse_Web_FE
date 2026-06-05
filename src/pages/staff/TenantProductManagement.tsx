@@ -15,6 +15,7 @@ import type { ApiProductKindTreeNode, ApiSizeFactor } from '../../api/productCat
 import * as collectionsApi from '../../api/collections'
 import * as seasonsApi from '../../api/seasons'
 import { MOVEMENT_LABELS } from '../../data/skuOptions'
+import { WhiteStatCard } from '../../components/ui/WhiteStatCard'
 
 export const TenantProductManagement = () => {
   const { user } = useAuth()
@@ -177,30 +178,33 @@ export const TenantProductManagement = () => {
 
   if (!tenantId) {
     return (
-      <div className="p-8 text-amber-300">
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 font-medium text-amber-700">
         Tài khoản chưa gắn tenant. Liên hệ System Admin.
       </div>
     )
   }
 
   return (
-    <div className="flex min-h-full flex-col bg-[#0b101a] text-slate-100">
+    // Đổi màu nền bao quát thành màu xám sáng cực nhẹ của Layout
+    <div className="flex min-h-full flex-col bg-slate-50/50 text-slate-700">
       <LoadingOverlay show={loading} text="Đang tải hàng hóa..." />
 
       <div className="flex flex-1 flex-col gap-6 p-6 lg:p-8">
+        {/* Header Section */}
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white">Quản lý hàng hóa</h1>
-            <p className="mt-1 text-sm text-slate-400">
-              SKU và master data (danh mục, bộ sưu tập, mùa) — dùng cho nhập / xuất kho
-            </p>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Quản lý hàng hóa</h1>
           </div>
-          <div className="flex gap-1 rounded-lg border border-white/10 p-1">
+          
+          {/* Tab Switcher - Màu sáng tinh tế */}
+          <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
             <button
               type="button"
               onClick={() => setPageTab('skus')}
-              className={`rounded-md px-4 py-2 text-sm font-medium ${
-                pageTab === 'skus' ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-400'
+              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+                pageTab === 'skus' 
+                  ? 'bg-sky-50 text-sky-700 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
               }`}
             >
               SKU
@@ -208,8 +212,10 @@ export const TenantProductManagement = () => {
             <button
               type="button"
               onClick={() => setPageTab('master')}
-              className={`rounded-md px-4 py-2 text-sm font-medium ${
-                pageTab === 'master' ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-400'
+              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+                pageTab === 'master' 
+                  ? 'bg-sky-50 text-sky-700 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
               }`}
             >
               Danh mục & master
@@ -225,173 +231,188 @@ export const TenantProductManagement = () => {
           <ProductMasterDataPanel
             tenantId={tenantId}
             canEdit={canEdit}
-            categories={categories}
+            categories={categories} 
             collections={collections}
             seasons={seasons}
             onRefresh={loadData}
           />
         ) : (
           <>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <StatsCard title="Tổng SKU" value={skus.length} icon="inventory_2" accentColor="emerald" />
-          <StatsCard title="Đang active" value={activeCount} icon="check_circle" accentColor="primary" />
-          <StatsCard title="Hàng đi nhanh" value={fastCount} icon="speed" accentColor="orange" />
-        </div>
-
-        <section className="glass-panel overflow-hidden rounded-xl border border-white/5">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 bg-white/[0.02] px-6 py-5">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                  search
-                </span>
-                <input
-                  type="text"
-                  placeholder="Tìm mã SKU, tên, màu..."
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value)
-                    setCurrentPage(1)
-                  }}
-                  className="rounded-lg border border-white/10 bg-[#1a2333] py-2 pl-10 pr-4 text-sm text-white focus:border-cyan-400 focus:outline-none"
-                />
-              </div>
-              <select
-                aria-label="Lọc trạng thái"
-                className="rounded-lg border border-white/10 bg-[#1a2333] px-3 py-2 text-sm text-white"
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value as typeof statusFilter)
-                  setCurrentPage(1)
-                }}
-              >
-                <option value="all">Tất cả trạng thái</option>
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
-              </select>
+            {/* Vùng Thẻ Thống Kê (StatsCard nội tại sẽ tự đổi màu sáng từ component của nó) */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <WhiteStatCard title="Tổng SKU" value={skus.length} icon="inventory_2" accentColor="emerald" />
+              <WhiteStatCard title="Đang active" value={activeCount} icon="check_circle" accentColor="primary" />
+              <WhiteStatCard title="Hàng đi nhanh" value={fastCount} icon="speed" accentColor="orange" />
             </div>
-            {canEdit && (
-              <button
-                type="button"
-                onClick={() => setModal({ open: true, mode: 'create' })}
-                className="btn-glow flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 text-sm font-bold text-black"
-              >
-                <span className="material-symbols-outlined text-lg">add</span>
-                THÊM SKU
-              </button>
-            )}
-          </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-white/5 bg-[#131b29] text-xs uppercase text-slate-400">
-                  <th className="px-6 py-4">Mã SKU</th>
-                  <th className="px-6 py-4">Tên sản phẩm</th>
-                  <th className="px-6 py-4">Loại hàng</th>
-                  <th className="px-6 py-4">Màu / Size</th>
-                  <th className="px-6 py-4">Luân chuyển</th>
-                  <th className="px-6 py-4 text-center">Trạng thái</th>
-                  <th className="px-6 py-4 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {paginated.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
-                      {loading ? 'Đang tải…' : 'Chưa có SKU. Thêm mã hàng để chuẩn bị nhập kho.'}
-                    </td>
-                  </tr>
-                ) : (
-                  paginated.map((s) => (
-                    <tr key={s.skuId} className="hover:bg-white/5">
-                      <td className="px-6 py-4 font-mono text-cyan-400">{s.skuCode}</td>
-                      <td className="px-6 py-4 text-white">{s.productName}</td>
-                      <td className="px-6 py-4 text-slate-400 text-xs">
-                        {productKindMap.get(s.productKind ?? '')?.displayName ??
-                          s.productKind ??
-                          '—'}
-                        {s.productKind && productKindMap.get(s.productKind)?.groupName && (
-                          <span className="block text-slate-500">
-                            {productKindMap.get(s.productKind)?.groupName}
-                          </span>
-                        )}
-                        {s.collectionId && (
-                          <span className="block text-slate-600">
-                            {collectionMap.get(s.collectionId) ?? ''}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-slate-300">
-                        {[s.color, s.size].filter(Boolean).join(' · ') || '—'}
-                      </td>
-                      <td className="px-6 py-4 text-slate-300">
-                        {MOVEMENT_LABELS[s.movementCategory ?? ''] ?? s.movementCategory}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span
-                          className={`rounded px-2 py-0.5 text-xs ${
-                            s.status === 'ACTIVE'
-                              ? 'bg-emerald-500/20 text-emerald-400'
-                              : 'bg-slate-500/20 text-slate-400'
-                          }`}
-                        >
-                          {s.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setModal({ open: true, mode: 'view', data: s })}
-                            className="rounded p-1.5 hover:bg-white/10"
-                            title="Xem"
-                          >
-                            <span className="material-symbols-outlined text-lg">visibility</span>
-                          </button>
-                          {canEdit && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => setModal({ open: true, mode: 'edit', data: s })}
-                                className="rounded p-1.5 hover:bg-white/10"
-                                title="Sửa"
-                              >
-                                <span className="material-symbols-outlined text-lg">edit</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDelete(s)}
-                                className="rounded p-1.5 hover:bg-red-500/10 text-red-400"
-                                title="Xóa"
-                              >
-                                <span className="material-symbols-outlined text-lg">delete</span>
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+            {/* Bảng Panel chính - Chuyển sang thẻ nền trắng đổ bóng thanh lịch */}
+            <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              {/* Thanh Toolbar trên đầu bảng */}
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/50 px-6 py-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Ô tìm kiếm sáng */}
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">
+                      search
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Tìm mã SKU, tên, màu..."
+                      value={search}
+                      onChange={(e) => {
+                        setSearch(e.target.value)
+                        setCurrentPage(1)
+                      }}
+                      className="w-64 rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-800 placeholder-slate-400 transition-all focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
+                  
+                  {/* Dropdown Bộ lọc sáng */}
+                  <select
+                    aria-label="Lọc trạng thái"
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-all focus:border-sky-500 focus:outline-none"
+                    value={statusFilter}
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value as typeof statusFilter)
+                      setCurrentPage(1)
+                    }}
+                  >
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                </div>
+
+                {/* Nút thêm mới - Chuyển thành xanh dương Corporate hiện đại */}
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => setModal({ open: true, mode: 'create' })}
+                    className="flex items-center gap-2 rounded-lg bg-sky-600 px-5 py-2 text-sm font-bold text-slate-800 shadow-sm hover:bg-sky-700 transition-all active:scale-[0.98]"
+                  >
+                    <span className="material-symbols-outlined text-lg">add</span>
+                    THÊM SKU
+                  </button>
                 )}
-              </tbody>
-            </table>
-          </div>
+              </div>
 
-          {filtered.length > pageSize && (
-            <div className="border-t border-white/5 px-6 py-4">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={Math.ceil(filtered.length / pageSize)}
-                onPageChange={setCurrentPage}
-              />
-            </div>
-          )}
-        </section>
+              {/* Khu vực Bảng dữ liệu */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    {/* Header Table đổi sang xám nhạt mịn */}
+                    <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      <th className="px-6 py-3.5">Mã SKU</th>
+                      <th className="px-6 py-3.5">Tên sản phẩm</th>
+                      <th className="px-6 py-3.5">Loại hàng</th>
+                      <th className="px-6 py-3.5">Màu / Size</th>
+                      <th className="px-6 py-3.5">Luân chuyển</th>
+                      <th className="px-6 py-3.5 text-center">Trạng thái</th>
+                      <th className="px-6 py-3.5 text-right">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {paginated.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-12 text-center text-slate-400 font-medium">
+                          {loading ? 'Đang tải…' : 'Chưa có SKU. Thêm mã hàng để chuẩn bị nhập kho.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      paginated.map((s) => (
+                        <tr key={s.skuId} className="hover:bg-slate-50/80 transition-colors">
+                          {/* Mã hàng đổi sang font chữ xanh dương đậm rõ ràng */}
+                          <td className="px-6 py-4 font-mono font-semibold text-sky-700">{s.skuCode}</td>
+                          <td className="px-6 py-4 font-medium text-slate-900">{s.productName}</td>
+                          <td className="px-6 py-4 text-xs">
+                            <span className="font-medium text-slate-800">
+                              {productKindMap.get(s.productKind ?? '')?.displayName ?? s.productKind ?? '—'}
+                            </span>
+                            {s.productKind && productKindMap.get(s.productKind)?.groupName && (
+                              <span className="block text-slate-400 mt-0.5">
+                                {productKindMap.get(s.productKind)?.groupName}
+                              </span>
+                            )}
+                            {s.collectionId && (
+                              <span className="block font-mono text-[11px] text-slate-400 mt-0.5">
+                                {collectionMap.get(s.collectionId) ?? ''}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-slate-600">
+                            {[s.color, s.size].filter(Boolean).join(' · ') || '—'}
+                          </td>
+                          <td className="px-6 py-4 text-slate-600 font-medium">
+                            {MOVEMENT_LABELS[s.movementCategory ?? ''] ?? s.movementCategory}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            {/* Badge trạng thái chuẩn hóa màu sắc nền sáng */}
+                            <span
+                              className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                                s.status === 'ACTIVE'
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : 'bg-slate-100 text-slate-600 border border-slate-200'
+                              }`}
+                            >
+                              {s.status}
+                            </span>
+                          </td>
+                          {/* Khối Actions sửa đổi nút nhấn mờ xám dịu */}
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setModal({ open: true, mode: 'view', data: s })}
+                                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all"
+                                title="Xem"
+                              >
+                                <span className="material-symbols-outlined text-lg">visibility</span>
+                              </button>
+                              {canEdit && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => setModal({ open: true, mode: 'edit', data: s })}
+                                    className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all"
+                                    title="Sửa"
+                                  >
+                                    <span className="material-symbols-outlined text-lg">edit</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDelete(s)}
+                                    className="rounded-lg p-2 text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-all"
+                                    title="Xóa"
+                                  >
+                                    <span className="material-symbols-outlined text-lg">delete</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Phân trang với viền sáng */}
+              {filtered.length > pageSize && (
+                <div className="border-t border-slate-100 px-6 py-4">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={Math.ceil(filtered.length / pageSize)}
+                    onPageChange={setCurrentPage}
+                  />
+                </div>
+              )}
+            </section>
           </>
         )}
       </div>
 
+      {/* Modals kế thừa style thông qua props và cấu hình của hệ thống */}
       {modal.open && (
         <SkuModal
           mode={modal.mode}

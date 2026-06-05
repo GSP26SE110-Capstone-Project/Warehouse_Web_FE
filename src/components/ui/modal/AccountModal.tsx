@@ -60,10 +60,20 @@ const ROLE_OPTIONS_TENANT_ADMIN: { value: UserRole; label: string }[] = [
   { value: 'TENANT_STAFF', label: 'Tenant Staff (Nhân viên tenant)' },
 ]
 
-function statusBadgeClass(status: string) {
-  if (status === 'Active') return 'text-emerald-400 bg-emerald-400/10 ring-emerald-400/20'
-  if (status === 'Suspended') return 'text-orange-400 bg-orange-400/10 ring-orange-400/20'
-  return 'text-gray-400 bg-gray-400/10 ring-gray-400/20'
+function statusBadgeClass(status: string, isDarkMode: boolean) {
+  if (status === 'Active') {
+    return isDarkMode 
+      ? 'text-emerald-400 bg-emerald-400/10 ring-emerald-400/20' 
+      : 'text-emerald-700 bg-emerald-50 ring-emerald-600/10'
+  }
+  if (status === 'Suspended') {
+    return isDarkMode 
+      ? 'text-orange-400 bg-orange-400/10 ring-orange-400/20' 
+      : 'text-orange-700 bg-orange-50 ring-orange-600/10'
+  }
+  return isDarkMode 
+    ? 'text-gray-400 bg-gray-400/10 ring-gray-400/20' 
+    : 'text-slate-600 bg-slate-50 ring-slate-500/10'
 }
 
 function displayRole(role?: string) {
@@ -90,6 +100,9 @@ export const AccountModal: React.FC<Props> = ({
 }) => {
   const isView = mode === 'view'
   const isCreate = mode === 'create'
+
+  // Xác định cấu hình giao diện Dark Mode hoặc Light Mode
+  const isDarkMode = creatorRole === 'SYSTEM_ADMIN'
 
   const [form, setForm] = useState({ ...EMPTY_FORM })
   const [warehouses, setWarehouses] = useState<{ id: string; label: string }[]>([])
@@ -254,36 +267,72 @@ export const AccountModal: React.FC<Props> = ({
     onClose()
   }
 
-  const labelStyle =
-    'text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block'
+  const labelStyle = `text-[11px] font-bold uppercase tracking-wider mb-1.5 block ${
+    isDarkMode ? 'text-slate-500' : 'text-slate-600'
+  }`
 
-  const inputStyle =
-    'w-full bg-[#1a2333] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed'
+  const inputStyle = `w-full rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-1 disabled:opacity-50 disabled:cursor-not-allowed ${
+    isDarkMode
+      ? 'bg-[#1a2333] border border-white/10 text-white focus:border-cyan-400 focus:ring-cyan-400/30'
+      : 'bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-cyan-500 focus:ring-cyan-500/20'
+  }`
 
   const title =
     mode === 'create' ? 'Thêm tài khoản' : mode === 'view' ? 'Thông tin tài khoản' : 'Chỉnh sửa tài khoản'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[#0b101a]/90 backdrop-blur-sm" onClick={onClose} />
+      {/* Background Overlay */}
+      <div 
+        className={`absolute inset-0 backdrop-blur-sm transition-opacity ${
+          isDarkMode ? 'bg-[#0b101a]/90' : 'bg-slate-900/40'
+        }`} 
+        onClick={onClose} 
+      />
 
-      <div className="relative z-10 w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-xl border border-white/5 bg-[#0b101a] shadow-2xl flex flex-col">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.02]">
+      {/* Modal Container */}
+      <div 
+        className={`relative z-10 w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-xl border shadow-2xl flex flex-col transition-all ${
+          isDarkMode ? 'border-white/5 bg-[#0b101a]' : 'border-slate-100 bg-white'
+        }`}
+      >
+        {/* Header */}
+        <div 
+          className={`flex items-center justify-between px-6 py-5 border-b ${
+            isDarkMode ? 'border-white/5 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/50'
+          }`}
+        >
           <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <span className="material-symbols-outlined text-cyan-400">account_circle</span>
+            <h2 className={`text-lg font-bold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+              <span className={`material-symbols-outlined ${isDarkMode ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                account_circle
+              </span>
               {title}
             </h2>
-            <p className="text-xs text-slate-400 mt-1">Quản lý thông tin người dùng</p>
+            <p className={`text-xs mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              Quản lý thông tin người dùng
+            </p>
           </div>
-          <button type="button" onClick={onClose} className="p-2 rounded hover:bg-white/10">
-            <span className="material-symbols-outlined text-slate-400">close</span>
+          <button 
+            type="button" 
+            onClick={onClose} 
+            className={`p-2 rounded transition-colors ${isDarkMode ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+          >
+            <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
+        {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          <div className="p-4 rounded-lg bg-white/[0.02] border border-white/5 space-y-4">
-            <h3 className="text-sm font-semibold text-cyan-400">THÔNG TIN CÁ NHÂN</h3>
+          {/* Khối thông tin cá nhân */}
+          <div 
+            className={`p-4 rounded-lg border space-y-4 ${
+              isDarkMode ? 'bg-white/[0.02] border-white/5' : 'bg-slate-50/50 border-slate-100'
+            }`}
+          >
+            <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-cyan-400' : 'text-cyan-600'}`}>
+              THÔNG TIN CÁ NHÂN
+            </h3>
 
             <div>
               <label className={labelStyle}>Họ và tên</label>
@@ -361,15 +410,17 @@ export const AccountModal: React.FC<Props> = ({
               <div>
                 <label className={labelStyle}>Trạng thái</label>
                 {isView ? (
-                  <span
-                    className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ring-1 ${statusBadgeClass(form.status)}`}
-                  >
-                    {form.status === 'Active'
-                      ? 'Đang hoạt động'
-                      : form.status === 'Suspended'
-                        ? 'Tạm ngưng'
-                        : 'Vô hiệu hóa'}
-                  </span>
+                  <div className="pt-1.5">
+                    <span
+                      className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ring-1 ${statusBadgeClass(form.status, isDarkMode)}`}
+                    >
+                      {form.status === 'Active'
+                        ? 'Đang hoạt động'
+                        : form.status === 'Suspended'
+                          ? 'Tạm ngưng'
+                          : 'Vô hiệu hóa'}
+                    </span>
+                  </div>
                 ) : (
                   <select
                     title="Trạng thái"
@@ -387,6 +438,7 @@ export const AccountModal: React.FC<Props> = ({
               </div>
             </div>
 
+            {/* Chọn Kho (Dành cho SYSTEM_ADMIN tạo WH_ADMIN) */}
             {isCreate && creatorRole === 'SYSTEM_ADMIN' && form.role === 'WH_ADMIN' && (
               <div>
                 <label className={labelStyle} htmlFor="account-warehouse">
@@ -394,7 +446,7 @@ export const AccountModal: React.FC<Props> = ({
                 </label>
                 <select
                   id="account-warehouse"
-                    title="Kho"
+                  title="Kho"
                   className={inputStyle}
                   value={form.warehouseId}
                   onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
@@ -430,6 +482,7 @@ export const AccountModal: React.FC<Props> = ({
               </div>
             )}
 
+            {/* Chọn Tenant & Hiển thị thông tin liên kết Tenant */}
             {isCreate && creatorRole === 'SYSTEM_ADMIN' && form.role === 'TENANT_ADMIN' && (
               <>
                 <div>
@@ -459,38 +512,44 @@ export const AccountModal: React.FC<Props> = ({
                 </div>
 
                 {selectedTenant && (
-                  <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-4 space-y-3">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-400">
+                  <div 
+                    className={`rounded-lg border p-4 space-y-3 ${
+                      isDarkMode 
+                        ? 'border-cyan-500/20 bg-cyan-500/5' 
+                        : 'border-cyan-200 bg-cyan-50/30'
+                    }`}
+                  >
+                    <h4 className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-cyan-400' : 'text-cyan-700'}`}>
                       Thông tin tenant
                     </h4>
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
                         <span className={labelStyle}>Tên công ty</span>
-                        <p className="text-white">{selectedTenant.companyName}</p>
+                        <p className={isDarkMode ? 'text-white' : 'text-slate-900'}>{selectedTenant.companyName}</p>
                       </div>
                       <div>
                         <span className={labelStyle}>Mã công ty</span>
-                        <p className="text-slate-300">{selectedTenant.companyCode || '—'}</p>
+                        <p className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>{selectedTenant.companyCode || '—'}</p>
                       </div>
                       <div>
                         <span className={labelStyle}>Mã số thuế</span>
-                        <p className="text-slate-300">{selectedTenant.taxCode || '—'}</p>
+                        <p className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>{selectedTenant.taxCode || '—'}</p>
                       </div>
                       <div>
                         <span className={labelStyle}>Trạng thái tenant</span>
-                        <p className="text-slate-300">{selectedTenant.status}</p>
+                        <p className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>{selectedTenant.status}</p>
                       </div>
                       <div className="col-span-2">
                         <span className={labelStyle}>Địa chỉ</span>
-                        <p className="text-slate-300">{selectedTenant.address || '—'}</p>
+                        <p className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>{selectedTenant.address || '—'}</p>
                       </div>
                       <div>
                         <span className={labelStyle}>Người liên hệ</span>
-                        <p className="text-slate-300">{selectedTenant.contactName || '—'}</p>
+                        <p className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>{selectedTenant.contactName || '—'}</p>
                       </div>
                       <div>
                         <span className={labelStyle}>Email liên hệ</span>
-                        <p className="text-slate-300">{selectedTenant.contactEmail || '—'}</p>
+                        <p className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>{selectedTenant.contactEmail || '—'}</p>
                       </div>
                     </div>
                   </div>
@@ -499,9 +558,14 @@ export const AccountModal: React.FC<Props> = ({
             )}
           </div>
 
+          {/* Khối quản lý mật khẩu */}
           {!isView && (
-            <div className="p-4 rounded-lg bg-white/[0.02] border border-white/5 space-y-4">
-              <h3 className="text-sm font-semibold text-emerald-400">
+            <div 
+              className={`p-4 rounded-lg border space-y-4 ${
+                isDarkMode ? 'bg-white/[0.02] border-white/5' : 'bg-slate-50/50 border-slate-100'
+              }`}
+            >
+              <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
                 {isCreate ? 'MẬT KHẨU' : 'ĐỔI MẬT KHẨU'}
               </h3>
               <div className="grid grid-cols-2 gap-4">
@@ -532,19 +596,28 @@ export const AccountModal: React.FC<Props> = ({
           )}
         </div>
 
-        <div className="flex justify-between items-center px-6 py-4 border-t border-white/5 bg-white/[0.02]">
-          <span className="text-xs text-slate-500">Hệ thống quản lý kho</span>
+        {/* Footer */}
+        <div 
+          className={`flex justify-between items-center px-6 py-4 border-t ${
+            isDarkMode ? 'border-white/5 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/50'
+          }`}
+        >
+          <span className="text-xs text-slate-400">Hệ thống quản lý kho</span>
           <div className="flex gap-3">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-white">
+            <button 
+              type="button" 
+              onClick={onClose} 
+              className={`px-4 py-2 text-sm transition-colors ${isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
+            >
               Đóng
             </button>
             {!isView && (
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="btn-glow bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 rounded-lg text-sm font-bold text-black flex items-center gap-2"
+                className="bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-2 rounded-lg text-sm font-bold text-white shadow-md shadow-blue-500/10 hover:opacity-95 transition-opacity flex items-center gap-2"
               >
-                <span className="material-symbols-outlined text-black text-[18px]">save</span>
+                <span className="material-symbols-outlined text-white text-[18px]">save</span>
                 {isCreate ? 'Tạo tài khoản' : 'Lưu thay đổi'}
               </button>
             )}

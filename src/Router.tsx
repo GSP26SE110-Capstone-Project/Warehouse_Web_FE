@@ -39,6 +39,7 @@ import { TenantRentalRequestsPage } from './pages/staff/TenantRentalRequestsPage
 import { MyDeliveriesPage } from './pages/transporter/MyDeliveriesPage'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { RoleLayout } from './components/common/layout/RoleLayout'
+import { WarehouseDashboard } from './pages/adminWarehouse/WarehouseDashboard'
 import {
   ADMIN_ROLES,
   getHomePathForRole,
@@ -74,6 +75,7 @@ export const Router: React.FC = () => {
             <Route element={<AdminLayout />}>
               <Route path="/admin" element={<AdminHomeRedirect />} />
               <Route path="/admin/dashboard" element={<Dashboard />} />
+              <Route path="/admin/warehouseDashboard" element={<WarehouseDashboard />} />
               <Route path="/admin/warehouse" element={<WarehouseManagement />} />
               <Route path="/admin/zones" element={<ZoneManagement />} />
               <Route path="/admin/racks" element={<RackLayoutManagement />} />
@@ -123,7 +125,7 @@ export const Router: React.FC = () => {
 
           <Route element={<ProtectedRoute allowedRoles={STAFF_ROLES} />}>
             <Route element={<StaffLayout />}>
-              <Route path="/staff" element={<Navigate to="/staff/dashboard" replace />} />
+              <Route path="/staff" element={<Navigate to="/staff/products" replace />} />
               <Route path="/staff/dashboard" element={<StaffDashboard />} />
               <Route path="/staff/contracts" element={<TenantContractsPage />} />
               <Route
