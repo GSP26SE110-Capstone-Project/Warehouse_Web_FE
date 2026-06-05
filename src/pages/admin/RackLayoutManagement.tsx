@@ -11,7 +11,6 @@ import {
   ZoneFloorPlanGrid,
   SeatLegendItem,
   type CinemaSeat,
-  type SeatVisualStatus,
 } from '../../components/rack/ZoneFloorPlanGrid'
 import {
   layoutItemsInGrid,
@@ -45,59 +44,20 @@ import * as rackLevelsApi from '../../api/rackLevels'
 import type { ApiRackLevel } from '../../api/rackLevels'
 import * as binsApi from '../../api/bins'
 import type { ApiBin } from '../../api/bins'
+import * as inventoriesApi from '../../api/inventories'
+import type { ApiInventory } from '../../api/inventories'
 import { useAuth } from '../../auth/AuthContext'
 import { ZONE_TYPE_LABELS } from '../../data/zoneTypes'
 import { BIN_STATUS_LABELS } from '../../data/rackStructure'
-
-function binSeatStatus(bin: ApiBin | null): SeatVisualStatus {
-  if (!bin) return 'empty-bin'
-  switch (bin.status) {
-    case 'FULL':
-      return 'full'
-    case 'PARTIAL':
-      return 'partial'
-    case 'RESERVED':
-      return 'reserved'
-    case 'BLOCKED':
-      return 'blocked'
-    default:
-      return 'empty-bin'
-  }
-}
-
-function rackSeatVisual(rack: ApiRack, selected: boolean): { status: SeatVisualStatus; subLabel?: string; hint: string } {
-  if (selected) {
-    return {
-      status: 'selected',
-      hint: `${rack.rackType ?? 'STANDARD'} · ${rack.status ?? 'ACTIVE'}`,
-    }
-  }
-  if (rack.status === 'BLOCKED') {
-    return { status: 'blocked', hint: 'Rack khóa' }
-  }
-
-  const binCount = rack.binCount ?? 0
-  const usage = rack.usagePercent ?? 0
-  const hasBins = rack.hasBins ?? binCount > 0
-
-  if (!hasBins) {
-    return {
-      status: 'rack-no-bin',
-      subLabel: 'chưa bin',
-      hint: `${rack.rackCode} · chưa tạo bin — dùng Tạo bin hàng loạt`,
-    }
-  }
-
-  let status: SeatVisualStatus = 'rack-low'
-  if (usage >= 85) status = 'rack-heavy'
-  else if (usage >= 35) status = 'rack-partial'
-
-  return {
-    status,
-    subLabel: `${usage}%`,
-    hint: `${rack.rackCode} · ${binCount} bin · ~${usage}% LPN (${rack.usedLpnTotal ?? 0}/${rack.maxLpnTotal ?? 0})`,
-  }
-}
+import {
+  aggregateInventoriesByRackFromBinCodes,
+  binSeatStatusFromInventory,
+  fetchAllWarehouseInventories,
+  filterActiveInventories,
+  filterInventoriesForZone,
+  indexInventoriesByBin,
+  rackSeatVisualFromInventory,
+} from '../../utils/rackInventoryIndex'
 
 export const RackLayoutManagement = () => {
   const { user } = useAuth()
@@ -119,6 +79,9 @@ export const RackLayoutManagement = () => {
 
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [inventoryLoading, setInventoryLoading] = useState(false)
+  const [warehouseInventories, setWarehouseInventories] = useState<ApiInventory[]>([])
+  const [selectedBinId, setSelectedBinId] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   const [rackModal, setRackModal] = useState<{
@@ -201,21 +164,50 @@ export const RackLayoutManagement = () => {
     return map
   }, [selectedRack, levels, binsByLevel, capacity.hasArea, capacity.binsPerLevel])
 
+  const zoneInventories = useMemo(
+    () => filterInventoriesForZone(filterActiveInventories(warehouseInventories), racks),
+    [warehouseInventories, racks]
+  )
+
+  const binInventoryIndex = useMemo(
+    () => indexInventoriesByBin(zoneInventories),
+    [zoneInventories]
+  )
+
+  const rackInventoryById = useMemo(
+    () => aggregateInventoriesByRackFromBinCodes(zoneInventories, racks),
+    [zoneInventories, racks]
+  )
+
+  const selectedRackInventoryRows = useMemo(() => {
+    if (!selectedRack) return []
+    const prefix = `${selectedRack.rackCode}-`
+    return zoneInventories
+      .filter((row) => row.binCode?.startsWith(prefix))
+      .sort((a, b) => (a.binCode ?? '').localeCompare(b.binCode ?? '', 'vi'))
+  }, [zoneInventories, selectedRack])
+
+  const selectedBinInventory = selectedBinId
+    ? binInventoryIndex.get(selectedBinId)
+    : undefined
+
   const deletableBinsForRack = useMemo(() => {
     if (!selectedRack || !levels.length) return []
     return listDeletableBinsForRack(
       levels.map((l) => ({ rackLevelId: l.rackLevelId, levelNumber: l.levelNumber })),
       binsByLevel
-    )
-  }, [selectedRack, levels, binsByLevel])
+    ).filter((bin) => (binInventoryIndex.get(bin.binId)?.totalQuantity ?? 0) <= 0)
+  }, [selectedRack, levels, binsByLevel, binInventoryIndex])
 
   const deletableBinsByLevel = useMemo(() => {
     const map: Record<string, ReturnType<typeof listDeletableBinsForLevel>> = {}
     for (const lv of levels) {
-      map[lv.rackLevelId] = listDeletableBinsForLevel(binsByLevel[lv.rackLevelId] ?? [])
+      map[lv.rackLevelId] = listDeletableBinsForLevel(binsByLevel[lv.rackLevelId] ?? []).filter(
+        (bin) => (binInventoryIndex.get(bin.binId)?.totalQuantity ?? 0) <= 0
+      )
     }
     return map
-  }, [levels, binsByLevel])
+  }, [levels, binsByLevel, binInventoryIndex])
 
   const totalBinCountForRack = useMemo(
     () => Object.values(binsByLevel).reduce((sum, bins) => sum + bins.length, 0),
@@ -259,6 +251,39 @@ export const RackLayoutManagement = () => {
     }
   }, [activeWarehouseId, searchParams])
 
+  const loadInventories = useCallback(async () => {
+    if (!activeWarehouseId) {
+      setWarehouseInventories([])
+      return
+    }
+    setInventoryLoading(true)
+    try {
+      const items = await fetchAllWarehouseInventories(
+        activeWarehouseId,
+        inventoriesApi.listInventories
+      )
+      setWarehouseInventories(items)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Không tải được tồn kho')
+    } finally {
+      setInventoryLoading(false)
+    }
+  }, [activeWarehouseId])
+
+  useEffect(() => {
+    loadInventories()
+  }, [loadInventories])
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && activeWarehouseId) {
+        loadInventories()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [activeWarehouseId, loadInventories])
+
   const loadRacks = useCallback(async () => {
     if (!selectedZoneId) {
       setRacks([])
@@ -284,6 +309,7 @@ export const RackLayoutManagement = () => {
   useEffect(() => {
     loadRacks()
     setSelectedRackId(null)
+    setSelectedBinId(null)
   }, [loadRacks])
 
   useEffect(() => {
@@ -322,10 +348,13 @@ export const RackLayoutManagement = () => {
   }, [capacity.binsPerLevel])
 
   useEffect(() => {
-    if (selectedRackId) loadRackDetail(selectedRackId)
-    else {
+    if (selectedRackId) {
+      setSelectedBinId(null)
+      loadRackDetail(selectedRackId)
+    } else {
       setLevels([])
       setBinsByLevel({})
+      setSelectedBinId(null)
     }
   }, [selectedRackId, loadRackDetail])
 
@@ -350,7 +379,11 @@ export const RackLayoutManagement = () => {
             disabled: overCapacity,
           }
         }
-        const visual = rackSeatVisual(rack, rack.rackId === selectedRackId)
+        const visual = rackSeatVisualFromInventory(
+          rack,
+          rackInventoryById.get(rack.rackId),
+          rack.rackId === selectedRackId
+        )
         return {
           id: rack.rackId,
           label: rack.rackCode,
@@ -362,7 +395,7 @@ export const RackLayoutManagement = () => {
       })
     )
     return seatRows
-  }, [racks, rackGridColumns, selectedRackId, capacity.hasArea, capacity.maxRacks])
+  }, [racks, rackGridColumns, selectedRackId, capacity.hasArea, capacity.maxRacks, rackInventoryById])
 
   const binGrid = useMemo(() => {
     if (!levels.length) return { cells: [] as CinemaSeat[][], cols: 0 }
@@ -380,24 +413,35 @@ export const RackLayoutManagement = () => {
       const row: CinemaSeat[] = []
       for (let c = 0; c < maxCols; c += 1) {
         const bin = bins[c] ?? null
+        const inv = bin ? binInventoryIndex.get(bin.binId) : undefined
+        const hasStock = (inv?.totalQuantity ?? 0) > 0
         row.push({
           id: bin?.binId ?? null,
           label: bin
-            ? `${bin.binCode.slice(-3)}\n${bin.usedVolumeUnits ?? 0}/${bin.maxVolumeUnits ?? '?'} vol`
+            ? hasStock
+              ? `${bin.binCode.slice(-3)}\n${inv!.totalQuantity} cái`
+              : `${bin.binCode.slice(-3)}\n0 cái`
             : '+',
           hint: bin
-            ? `${bin.binCode} · ${formatBinOccupancy(bin)} · ${
-                BIN_STATUS_LABELS[bin.status ?? ''] ?? bin.status
-              }`
+            ? hasStock
+              ? `${bin.binCode} · ${inv!.totalQuantity} cái tồn · ${inv!.skuCodes.length} SKU · ${inv!.lpnCodes.length} LPN · ${
+                  BIN_STATUS_LABELS[bin.status ?? ''] ?? bin.status
+                }`
+              : `${bin.binCode} · trống · ${formatBinOccupancy(bin)} · ${
+                  BIN_STATUS_LABELS[bin.status ?? ''] ?? bin.status
+                }`
             : `Tầng ${lv.levelNumber} · ô ${c + 1}`,
-          status: binSeatStatus(bin),
+          status:
+            bin?.binId === selectedBinId
+              ? 'selected'
+              : binSeatStatusFromInventory(bin, inv),
         })
       }
       return row
     })
 
     return { cells, cols: maxCols }
-  }, [levels, binsByLevel, capacity.binsPerLevel])
+  }, [levels, binsByLevel, capacity.binsPerLevel, binInventoryIndex, selectedBinId])
 
   const handleRackSeatClick = (seat: CinemaSeat, row: number, col: number) => {
     if (seat.disabled) return
@@ -422,6 +466,17 @@ export const RackLayoutManagement = () => {
     })
   }
 
+  const openBinConfig = (bin: ApiBin, level: ApiRackLevel) => {
+    setBinModal({
+      open: true,
+      mode: 'edit',
+      rackLevelId: level.rackLevelId,
+      levelNumber: level.levelNumber,
+      binCode: bin.binCode,
+      bin,
+    })
+  }
+
   const handleBinSeatClick = (seat: CinemaSeat, row: number, col: number) => {
     if (!selectedRack || !levels[row] || !activeZone) return
     const level = levels[row]
@@ -429,14 +484,7 @@ export const RackLayoutManagement = () => {
     if (seat.id) {
       const bin = (binsByLevel[level.rackLevelId] ?? []).find((b) => b.binId === seat.id)
       if (!bin) return
-      setBinModal({
-        open: true,
-        mode: 'edit',
-        rackLevelId: level.rackLevelId,
-        levelNumber: level.levelNumber,
-        binCode: bin.binCode,
-        bin,
-      })
+      setSelectedBinId(bin.binId)
       return
     }
 
@@ -480,7 +528,7 @@ export const RackLayoutManagement = () => {
       if (payload.status) body.status = payload.status
       await binsApi.updateBin(binModal.bin.binId, body)
     }
-    await Promise.all([loadRackDetail(selectedRack.rackId), loadRacks()])
+    await Promise.all([loadRackDetail(selectedRack.rackId), loadRacks(), loadInventories()])
     setAlert({
       open: true,
       type: 'success',
@@ -499,8 +547,12 @@ export const RackLayoutManagement = () => {
         try {
           await binsApi.deleteBin(bin.binId)
           setBinModal(null)
-          await loadRackDetail(selectedRack.rackId)
-          await loadRacks()
+          await Promise.all([
+            loadRackDetail(selectedRack.rackId),
+            loadRacks(),
+            loadInventories(),
+          ])
+          setSelectedBinId(null)
           setAlert({ open: true, type: 'success', message: 'Đã xóa bin' })
         } catch (err) {
           setAlert({
@@ -521,7 +573,7 @@ export const RackLayoutManagement = () => {
       const { meta, failed } = await binsApi.deleteBinsBulk({
         binIds: bins.map((b) => b.binId),
       })
-      await Promise.all([loadRackDetail(selectedRack.rackId), loadRacks()])
+      await Promise.all([loadRackDetail(selectedRack.rackId), loadRacks(), loadInventories()])
       const partial =
         (failed?.length ?? meta.failed) > 0
           ? ` · ${failed?.length ?? meta.failed} bin bỏ qua (còn hàng/LPN)`
@@ -558,7 +610,7 @@ export const RackLayoutManagement = () => {
         reservationType: 'SHARED',
         status: 'EMPTY',
       })
-      await Promise.all([loadRackDetail(selectedRack.rackId), loadRacks()])
+      await Promise.all([loadRackDetail(selectedRack.rackId), loadRacks(), loadInventories()])
       setAlert({
         open: true,
         type: 'success',
@@ -677,10 +729,23 @@ export const RackLayoutManagement = () => {
         <div>
           <h1 className="text-2xl font-bold text-white">Sơ đồ Rack</h1>
           <p className="mt-1 text-sm text-slate-400">
-            {RACK_FOOTPRINT_M2} m²/rack · {RACK_FIXED_LEVEL_COUNT} tầng/rack · bin/tầng theo diện tích zone
+            Màu occupancy theo tồn kho thực (API inventories) · {RACK_FOOTPRINT_M2} m²/rack ·{' '}
+            {RACK_FIXED_LEVEL_COUNT} tầng/rack
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          {activeWarehouseId && (
+            <button
+              type="button"
+              onClick={() => loadInventories()}
+              disabled={inventoryLoading}
+              className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-white/[0.06] disabled:opacity-50"
+              title="Tải lại tồn kho từ API inventories"
+            >
+              <span className="material-symbols-outlined text-base">inventory_2</span>
+              {inventoryLoading ? 'Đang tải tồn…' : 'Làm mới tồn kho'}
+            </button>
+          )}
           {!isWhAdmin && (
             <select
               aria-label="Chọn kho"
@@ -783,9 +848,9 @@ export const RackLayoutManagement = () => {
             legend={
               <>
                 <SeatLegendItem status="rack-no-bin" label="Rack chưa có bin" />
-                <SeatLegendItem status="rack-low" label="Có bin · ít dùng" />
-                <SeatLegendItem status="rack-partial" label="Đang dùng vừa" />
-                <SeatLegendItem status="rack-heavy" label="Gần đầy" />
+                <SeatLegendItem status="rack-low" label="Có bin · chưa có hàng" />
+                <SeatLegendItem status="rack-partial" label="Một phần bin có hàng" />
+                <SeatLegendItem status="rack-heavy" label="Hầu hết bin có hàng" />
                 <SeatLegendItem status="blocked" label="Rack khóa" />
                 <SeatLegendItem status="selected" label="Đang chọn" />
                 <SeatLegendItem status="empty" label="Ô trống (+ thêm rack)" />
@@ -795,8 +860,8 @@ export const RackLayoutManagement = () => {
         )}
         <p className="mt-4 text-center text-xs text-slate-500">
           {racks.length}
-          {capacity.hasArea ? ` / ${capacity.maxRacks}` : ''} rack · Nhấn ô trống để thêm · Nhấn
-          rack để xem bin
+          {capacity.hasArea ? ` / ${capacity.maxRacks}` : ''} rack ·{' '}
+          {zoneInventories.length} dòng tồn kho trong zone · Nhấn rack để xem bin
         </p>
       </section>
 
@@ -810,6 +875,17 @@ export const RackLayoutManagement = () => {
               <p className="text-xs text-slate-400">
                 {RACK_FIXED_TYPE} · {selectedRack.status} · {RACK_FIXED_LEVEL_COUNT} tầng ·{' '}
                 {capacity.binsPerLevel} bin/tầng
+                {rackInventoryById.get(selectedRack.rackId) && (
+                  <>
+                    {' '}
+                    ·{' '}
+                    <span className="text-emerald-300">
+                      {rackInventoryById.get(selectedRack.rackId)!.binsWithStock}/
+                      {rackInventoryById.get(selectedRack.rackId)!.binCount || totalBinCountForRack}{' '}
+                      bin có hàng · {rackInventoryById.get(selectedRack.rackId)!.totalQuantity} cái
+                    </span>
+                  </>
+                )}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -905,17 +981,123 @@ export const RackLayoutManagement = () => {
               }
             />
           )}
+          {selectedBinId && selectedBinInventory && (
+            <div className="mt-6 rounded-xl border border-cyan-500/20 bg-cyan-950/20 p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-bold text-white">
+                  Bin <span className="font-mono text-cyan-400">{selectedBinInventory.binCode}</span>
+                </h3>
+                <div className="flex gap-2">
+                  {(() => {
+                    const level = levels.find((lv) =>
+                      (binsByLevel[lv.rackLevelId] ?? []).some((b) => b.binId === selectedBinId)
+                    )
+                    const bin = level
+                      ? (binsByLevel[level.rackLevelId] ?? []).find((b) => b.binId === selectedBinId)
+                      : undefined
+                    if (!level || !bin) return null
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => openBinConfig(bin, level)}
+                        className="rounded-lg border border-white/10 px-3 py-1 text-xs font-semibold text-slate-300 hover:bg-white/5"
+                      >
+                        Cấu hình bin
+                      </button>
+                    )
+                  })()}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBinId(null)}
+                    className="rounded-lg border border-white/10 px-3 py-1 text-xs text-slate-400 hover:bg-white/5"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
+              <p className="mb-3 text-xs text-slate-400">
+                {selectedBinInventory.totalQuantity} cái tồn ·{' '}
+                {selectedBinInventory.availableQuantity} khả dụng ·{' '}
+                {selectedBinInventory.skuCodes.length} SKU · {selectedBinInventory.lpnCodes.length} LPN
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[520px] text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-white/10 text-slate-500">
+                      <th className="py-2 pr-3 font-medium">SKU</th>
+                      <th className="py-2 pr-3 font-medium">LPN</th>
+                      <th className="py-2 pr-3 font-medium text-right">SL</th>
+                      <th className="py-2 pr-3 font-medium text-right">Khả dụng</th>
+                      <th className="py-2 font-medium">Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedBinInventory.rows.map((row) => (
+                      <tr key={row.inventoryId} className="border-b border-white/5 text-slate-300">
+                        <td className="py-2 pr-3">
+                          <span className="font-mono text-cyan-300">{row.sku?.skuCode ?? '—'}</span>
+                          {row.sku?.productName ? (
+                            <span className="ml-1 text-slate-500">{row.sku.productName}</span>
+                          ) : null}
+                        </td>
+                        <td className="py-2 pr-3 font-mono">{row.lpnCode ?? '—'}</td>
+                        <td className="py-2 pr-3 text-right tabular-nums">{row.quantity}</td>
+                        <td className="py-2 pr-3 text-right tabular-nums">
+                          {row.availableQuantity ?? row.quantity}
+                        </td>
+                        <td className="py-2">{row.status ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {selectedRackInventoryRows.length > 0 && (
+            <div className="mt-6 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+              <h3 className="mb-3 text-sm font-bold text-white">
+                Tồn kho rack <span className="font-mono text-cyan-400">{selectedRack.rackCode}</span>
+                <span className="ml-2 text-xs font-normal text-slate-500">
+                  ({selectedRackInventoryRows.length} dòng · API inventories)
+                </span>
+              </h3>
+              <div className="max-h-48 overflow-y-auto overflow-x-auto">
+                <table className="w-full min-w-[560px] text-left text-xs">
+                  <thead className="sticky top-0 bg-[#141c2b]">
+                    <tr className="border-b border-white/10 text-slate-500">
+                      <th className="py-2 pr-3 font-medium">Bin</th>
+                      <th className="py-2 pr-3 font-medium">SKU</th>
+                      <th className="py-2 pr-3 font-medium">LPN</th>
+                      <th className="py-2 pr-3 font-medium text-right">SL</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedRackInventoryRows.map((row) => (
+                      <tr
+                        key={row.inventoryId}
+                        className={`cursor-pointer border-b border-white/5 text-slate-300 hover:bg-white/[0.04] ${
+                          row.binId === selectedBinId ? 'bg-cyan-500/10' : ''
+                        }`}
+                        onClick={() => row.binId && setSelectedBinId(row.binId)}
+                      >
+                        <td className="py-1.5 pr-3 font-mono text-cyan-300">{row.binCode ?? '—'}</td>
+                        <td className="py-1.5 pr-3 font-mono">{row.sku?.skuCode ?? '—'}</td>
+                        <td className="py-1.5 pr-3 font-mono">{row.lpnCode ?? '—'}</td>
+                        <td className="py-1.5 pr-3 text-right tabular-nums">{row.quantity}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {activeZone && (
             <p className="mt-2 text-center text-xs text-slate-400">
-              Mặc định zone {ZONE_TYPE_LABELS[activeZone.zoneType ?? ''] ?? activeZone.zoneType}:{' '}
-              {getDefaultBinCapacity(activeZone.zoneType).maxVolumeUnits} volume (LPN cap ={' '}
-              {getDefaultBinCapacity(activeZone.zoneType).maxLpnCount})
+              Nhấn bin để xem tồn chi tiết · Nhãn ô hiển thị số cái từ inventories
             </p>
           )}
-          <p className="mt-1 text-center text-[10px] text-slate-500">
-            Nhãn ô: <strong className="text-slate-400">volume đang dùng / sức chứa</strong>.
-            Bin chỉ chặn bởi volume — LPN cap luôn ≥ volume. Hover để xem chi tiết LPN/Vol.
-          </p>
         </section>
       )}
 

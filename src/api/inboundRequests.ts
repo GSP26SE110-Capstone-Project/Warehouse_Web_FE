@@ -194,6 +194,8 @@ export function createInboundRequest(body: {
   expectedArrivalDate?: string
   status?: InboundStatus
   createdBy?: string
+  /** Tạo kèm dòng SKU trong một transaction — tránh nhiều phiếu rỗng khi lỗi item. */
+  items?: { skuId: string; expectedQuantity: number }[]
 }) {
   return apiRequest<ApiInboundRequest>('/inbound-requests', { method: 'POST', body })
 }
@@ -316,6 +318,7 @@ export function autoPutawayInbound(
   inboundRequestId: string,
   body: {
     zoneId: string
+    rackId?: string
     rackLevelId?: string
     movedBy?: string
   }
