@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
@@ -45,6 +45,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
   const [skus, setSkus] = useState<ApiSku[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const submitLockRef = useRef(false)
   const [error, setError] = useState('')
 
   const [contractId, setContractId] = useState('')
@@ -154,6 +155,8 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
       return
     }
 
+    if (submitLockRef.current) return
+    submitLockRef.current = true
     setSubmitting(true)
     try {
       const inbound = await inboundApi.createInboundRequest({
@@ -166,6 +169,10 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
           : undefined,
         status: 'PENDING',
         createdBy: user?.userId,
+        items: validLines.map((line) => ({
+          skuId: line.skuId,
+          expectedQuantity: line.expectedQuantity,
+        })),
       })
 
       if (deliveryMode === 'TENANT_SELF' && deliveryForm.vehiclePlate.trim()) {
@@ -188,13 +195,6 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
         })
       }
 
-      for (const line of validLines) {
-        await inboundApi.createInboundItem(inbound.inboundRequestId, {
-          skuId: line.skuId,
-          expectedQuantity: line.expectedQuantity,
-        })
-      }
-
       navigate(`${basePath}/${inbound.inboundRequestId}`)
     } catch (err) {
       setAlert({
@@ -203,6 +203,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
         message: err instanceof ApiError ? err.message : 'Tạo yêu cầu thất bại',
       })
     } finally {
+      submitLockRef.current = false
       setSubmitting(false)
     }
   }

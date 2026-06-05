@@ -287,10 +287,14 @@ export function PutawayBinPicker({
   const selectClass =
     'w-full rounded border border-white/10 bg-[#0f172a] px-2 py-1.5 text-sm disabled:opacity-50'
 
-  const runAutoPutaway = async (scope: 'level' | 'zone') => {
+  const runAutoPutaway = async (scope: 'level' | 'rack' | 'zone') => {
     if (!inboundRequestId || !zoneId) return
     if (scope === 'level' && !rackLevelId) {
       setAutoError('Chọn tầng (level) trước khi putaway tự động theo tầng.')
+      return
+    }
+    if (scope === 'rack' && !rackId) {
+      setAutoError('Chọn rack trước khi putaway tự động theo rack.')
       return
     }
     setAutoBusy(true)
@@ -298,6 +302,7 @@ export function PutawayBinPicker({
     try {
       const result = await inboundApi.autoPutawayInbound(inboundRequestId, {
         zoneId,
+        rackId: scope === 'rack' ? rackId : undefined,
         rackLevelId: scope === 'level' ? rackLevelId : undefined,
         movedBy,
       })
@@ -337,9 +342,9 @@ export function PutawayBinPicker({
             <p className="mb-1.5 font-medium text-slate-300">Cách chọn bin (mỗi lần 1 LPN)</p>
             <ol className="list-decimal space-y-1 pl-4">
               <li>
-                <strong className="text-emerald-400">Nhanh:</strong> chọn Zone (và tầng nếu cần) → bấm{' '}
-                <strong className="text-emerald-400">Putaway tự động</strong> — hệ thống xếp lần lượt
-                các LPN RECEIVING vào bin trống (EXTRA: ~2 LPN/bin).
+                <strong className="text-emerald-400">Nhanh:</strong> chọn Zone (và rack/tầng nếu cần) → bấm{' '}
+                <strong className="text-emerald-400">Putaway tự động</strong> — ưu tiên bin đang có hàng
+                (PARTIAL) trong rack, sau đó bin 0 cái còn chỗ.
               </li>
               <li>
                 <strong className="text-slate-300">Thủ công:</strong> chọn 1 LPN → 1 bin → Putaway (lặp
@@ -433,7 +438,7 @@ export function PutawayBinPicker({
                 : true
             return (
               <option key={lv.rackLevelId} value={lv.rackLevelId} disabled={!ok}>
-                {levelLabel(lv)} ({eligible} bin trống{st ? ` / ${st.total}` : ''})
+                {levelLabel(lv)} ({eligible} bin còn chỗ{st ? ` / ${st.total}` : ''})
                 {!ok ? ' · ngoài HĐ' : ''}
               </option>
             )
@@ -502,27 +507,38 @@ export function PutawayBinPicker({
           {autoError && (
             <InlineAlert compact hideTitle message={autoError} onDismiss={() => setAutoError('')} />
           )}
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-col gap-2">
             <button
               type="button"
-              disabled={disabled || autoBusy || !rackLevelId}
-              onClick={() => runAutoPutaway('level')}
-              className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-40"
+              disabled={disabled || autoBusy || !rackId || !selectedRackAllowed}
+              onClick={() => runAutoPutaway('rack')}
+              className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-40"
             >
-              {autoBusy ? 'Đang putaway...' : `Tự động tầng này (${pendingPutawayCount} LPN)`}
+              {autoBusy ? 'Đang putaway...' : `Tự động rack này (${pendingPutawayCount} LPN)`}
             </button>
-            <button
-              type="button"
-              disabled={disabled || autoBusy}
-              onClick={() => runAutoPutaway('zone')}
-              className="flex-1 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-40"
-            >
-              {autoBusy ? '...' : `Tự động cả zone (${pendingPutawayCount} LPN)`}
-            </button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                disabled={disabled || autoBusy || !rackLevelId}
+                onClick={() => runAutoPutaway('level')}
+                className="flex-1 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-40"
+              >
+                {autoBusy ? '...' : `Tự động tầng này (${pendingPutawayCount} LPN)`}
+              </button>
+              <button
+                type="button"
+                disabled={disabled || autoBusy}
+                onClick={() => runAutoPutaway('zone')}
+                className="flex-1 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-40"
+              >
+                {autoBusy ? '...' : `Tự động cả zone (${pendingPutawayCount} LPN)`}
+              </button>
+            </div>
           </div>
           <p className="text-[11px] text-slate-600">
-            Hệ thống gán tuần tự LPN → bin trống trong HĐ; ghép 2 EXTRA/bin nếu còn volume. Dùng{' '}
-            <strong className="text-slate-500">cả zone</strong> khi một tầng không đủ chỗ.
+            Ưu tiên gộp vào bin PARTIAL trong rack, rồi bin 0 cái. Dùng{' '}
+            <strong className="text-slate-500">rack này</strong> để fill đúng rack đang xem (vd. A1).
+            Dùng <strong className="text-slate-500">cả zone</strong> khi rack/tầng không đủ chỗ.
           </p>
         </div>
       )}
