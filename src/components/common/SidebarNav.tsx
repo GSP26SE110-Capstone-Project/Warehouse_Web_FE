@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import type { ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { navigationService } from '../../utils/NavigationService'
 import logo from '../../assets/logo.png'
@@ -109,7 +107,6 @@ interface SidebarProps {
 
 export const SidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const location = useLocation()
-  const [scanOpen, setScanOpen] = useState(false)
   const { logout, user } = useAuth()
   const visibleNav = navItemsForRole(user?.role)
 

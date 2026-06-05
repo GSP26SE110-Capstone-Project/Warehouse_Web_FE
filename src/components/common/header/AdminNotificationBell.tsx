@@ -6,10 +6,12 @@ import {
   fetchWhArrivedInboundAlerts,
   fetchWhContractPaymentAlerts,
   fetchWhPendingInboundAlerts,
+  fetchWhPendingAppendixAlerts,
   fetchWhPendingRentalAlerts,
   type GuestAccountAlerts,
   type WhArrivedInboundAlerts,
   type WhContractPaymentAlerts,
+  type WhPendingAppendixAlerts,
   type WhPendingInboundAlerts,
   type WhPendingRentalAlerts,
 } from '../../../api/adminNotifications'
@@ -43,6 +45,7 @@ export function AdminNotificationBell() {
   const [whContractPayments, setWhContractPayments] = useState<WhContractPaymentAlerts | null>(
     null
   )
+  const [whAppendixAlerts, setWhAppendixAlerts] = useState<WhPendingAppendixAlerts | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
 
   const isSa = user?.role === 'SYSTEM_ADMIN'
@@ -59,22 +62,25 @@ export function AdminNotificationBell() {
     }
     if (isWh) {
       try {
-        const [rentals, inbounds, arrived, contractPaid] = await Promise.all([
+        const [rentals, inbounds, arrived, contractPaid, appendices] = await Promise.all([
           fetchWhPendingRentalAlerts(),
           fetchWhPendingInboundAlerts(),
           fetchWhArrivedInboundAlerts(),
           fetchWhContractPaymentAlerts(),
+          fetchWhPendingAppendixAlerts(),
         ])
         setWhRentalAlerts(rentals)
         setWhInboundAlerts(inbounds)
         setWhArrivedAlerts(arrived)
         setWhContractPayments(contractPaid)
+        setWhAppendixAlerts(appendices)
       } catch (err) {
         if (!(err instanceof ApiError && err.status === 403)) {
           setWhRentalAlerts(null)
           setWhInboundAlerts(null)
           setWhArrivedAlerts(null)
           setWhContractPayments(null)
+          setWhAppendixAlerts(null)
         }
       }
     }
@@ -103,14 +109,16 @@ export function AdminNotificationBell() {
   const whInboundPending = whInboundAlerts?.pendingCount ?? 0
   const whInboundArrived = whArrivedAlerts?.arrivedCount ?? 0
   const whContractPaid = whContractPayments?.recentCount ?? 0
+  const whAppendixPending = whAppendixAlerts?.pendingCount ?? 0
   const badgeCount = isSa
     ? guestCount
-    : whRentalPending + whInboundPending + whInboundArrived + whContractPaid
+    : whRentalPending + whInboundPending + whInboundArrived + whContractPaid + whAppendixPending
   const whHasAny =
     whRentalPending > 0 ||
     whInboundPending > 0 ||
     whInboundArrived > 0 ||
-    whContractPaid > 0
+    whContractPaid > 0 ||
+    whAppendixPending > 0
 
   return (
     <div ref={rootRef} className="relative">
@@ -208,6 +216,20 @@ export function AdminNotificationBell() {
                       .
                     </p>
                   )}
+                  {whAppendixPending > 0 && (
+                    <p>
+                      <span className="font-semibold text-violet-300">{whAppendixPending}</span>{' '}
+                      phụ lục HĐ chờ duyệt
+                      {whAppendixAlerts?.warehouseName ? (
+                        <>
+                          {' '}
+                          tại{' '}
+                          <strong className="text-white">{whAppendixAlerts.warehouseName}</strong>
+                        </>
+                      ) : null}
+                      .
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -230,6 +252,32 @@ export function AdminNotificationBell() {
                           <p className="font-mono text-xs text-emerald-400">{item.contractCode}</p>
                           <p className="mt-0.5 text-[10px] text-slate-500">
                             {formatVnd(item.totalAmount)} · ACTIVE · {formatWhen(item.paidAt)}
+                          </p>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              {whAppendixAlerts && whAppendixAlerts.recent.length > 0 && (
+                <>
+                  <p className="border-t border-white/5 px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    Phụ lục HĐ
+                  </p>
+                  <ul className="max-h-40 overflow-y-auto dark-scrollbar border-b border-white/5 py-1">
+                    {whAppendixAlerts.recent.map((item) => (
+                      <li key={item.appendixId} className="px-3 py-2 hover:bg-white/5">
+                        <Link
+                          to="/admin/contract"
+                          onClick={() => setOpen(false)}
+                          className="block no-underline"
+                        >
+                          <p className="truncate text-sm font-medium text-white">{item.companyName}</p>
+                          <p className="font-mono text-xs text-violet-300">{item.appendixCode}</p>
+                          <p className="mt-0.5 text-[10px] text-slate-500">
+                            {item.contractCode} · {statusLabelVi(item.status)} ·{' '}
+                            {formatWhen(item.createdAt)}
                           </p>
                         </Link>
                       </li>

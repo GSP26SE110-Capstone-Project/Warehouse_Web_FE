@@ -1,6 +1,7 @@
 import { apiRequest, apiPaginated, buildQuery } from './client'
 import type { ApiInboundDelivery } from './inboundDeliveries'
 import type { DeliveryMode } from '../data/deliveryMode'
+import type { ApiCommitmentWarning } from './contracts'
 
 export type InboundStatus =
   | 'DRAFT'
@@ -24,8 +25,17 @@ export interface ApiInboundRequest {
   createdBy?: string | null
   approvedBy?: string | null
   receivedBy?: string | null
+  commitmentWarningJson?: {
+    recordedAt?: string
+    inboundRequestId?: string
+    warnings?: ApiCommitmentWarning[]
+  } | null
   createdAt?: string
   updatedAt?: string
+}
+
+export interface CompleteInboundResult extends ApiInboundRequest {
+  commitmentWarnings?: ApiCommitmentWarning[]
 }
 
 export interface ApiInboundRequestItem {
@@ -284,7 +294,7 @@ export function completeReceiving(
 }
 
 export function completeInbound(inboundRequestId: string, body?: { receivedBy?: string }) {
-  return apiRequest<ApiInboundRequest>(`/inbound-requests/${inboundRequestId}/complete`, {
+  return apiRequest<CompleteInboundResult>(`/inbound-requests/${inboundRequestId}/complete`, {
     method: 'POST',
     body: body ?? {},
   })

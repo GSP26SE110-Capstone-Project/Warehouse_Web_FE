@@ -10,8 +10,7 @@ import {
   CONTRACT_TYPE_LABELS,
   type ContractTypeValue,
 } from '../../data/contractTypes'
-import { formatVnd } from '../../data/pricing'
-import { parseContractAmount } from '../../utils/contractSigning'
+import { ContractPaymentSummary } from './ContractPaymentSummary'
 import { SignaturePad } from './SignaturePad'
 
 type Props = {
@@ -105,7 +104,6 @@ export function TenantContractSignModal({ contractId, onClose, onSigned }: Props
     }
   }
 
-  const amount = contract ? parseContractAmount(contract.estimatedTotalAmount) : null
   const ct = contract?.contractType as ContractTypeValue | undefined
 
   return (
@@ -117,7 +115,9 @@ export function TenantContractSignModal({ contractId, onClose, onSigned }: Props
           <div>
             <h2 className="text-lg font-bold text-white">Ký hợp đồng thuê kho</h2>
             <p className="mt-1 text-xs text-slate-400">
-              Bước cuối — Tenant Admin ký; sau đó thanh toán invoice đầu để HĐ ACTIVE
+              Bước cuối — Tenant Admin ký; sau đó thanh toán{' '}
+              <strong className="text-emerald-300/90">giá trị thực trả</strong> (invoice đầu) để HĐ
+              ACTIVE
             </p>
           </div>
           <button type="button" onClick={onClose} className="rounded p-2 hover:bg-white/10">
@@ -164,17 +164,7 @@ export function TenantContractSignModal({ contractId, onClose, onSigned }: Props
                     </dd>
                   </div>
                 </dl>
-                <div className="mt-4 rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-4 py-3">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300/90">
-                    Giá trị ước tính toàn kỳ
-                  </p>
-                  <p className="mt-1 text-xl font-bold text-cyan-300">
-                    {amount != null ? formatVnd(amount) : 'Chưa có — liên hệ kho'}
-                  </p>
-                  <p className="mt-1 text-[11px] text-slate-500">
-                    Số tiền tham chiếu theo báo giá kho; hóa đơn thực tế có thể theo mức sử dụng.
-                  </p>
-                </div>
+                <ContractPaymentSummary contract={contract} variant="sign" className="mt-4" />
               </div>
 
               {storageSummary.length > 0 && (
@@ -196,10 +186,17 @@ export function TenantContractSignModal({ contractId, onClose, onSigned }: Props
               )}
 
               <p className="text-xs text-slate-500">
-                Kho đã ký trước. Sau khi bạn ký, hệ thống tạo invoice đầu và HĐ ở trạng thái{' '}
+                Kho đã ký trước. Sau khi bạn ký, hệ thống tạo invoice đầu theo{' '}
+                <strong className="text-emerald-300">giá trị thực trả</strong> và HĐ ở trạng thái{' '}
                 <strong className="text-amber-300">Chờ thanh toán PayOS</strong>. Khi invoice đầu được
                 thanh toán, HĐ chuyển <strong className="text-emerald-400">ACTIVE</strong> — lúc đó
                 mới tạo được yêu cầu nhập kho.
+                {contract.billingCycle === 'MONTHLY' && (
+                  <>
+                    {' '}
+                    Các kỳ tiền thuê sau sẽ đến hạn cùng ngày trong tháng kế tiếp ngày HĐ ACTIVE.
+                  </>
+                )}
               </p>
 
               <SignaturePad onChange={setSignature} />
@@ -212,8 +209,8 @@ export function TenantContractSignModal({ contractId, onClose, onSigned }: Props
                   className="mt-1 rounded border-white/20"
                 />
                 <span>
-                  Tôi đại diện tenant đã đọc và đồng ý với điều khoản, giá ước tính và thời hạn
-                  hợp đồng trên.
+                  Tôi đại diện tenant đã đọc và đồng ý với điều khoản, giá trị thực trả, giá ước tính
+                  toàn kỳ và thời hạn hợp đồng trên.
                 </span>
               </label>
             </>

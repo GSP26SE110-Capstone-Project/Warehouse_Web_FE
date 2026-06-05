@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import {
   buildActivitySeries,
   seriesTotals,
-  type ActivityDayBucket,
 } from '../../utils/dashboardActivitySeries'
 
 type ItemWithDate = { createdAt?: string | null }

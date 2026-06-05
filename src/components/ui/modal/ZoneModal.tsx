@@ -49,6 +49,7 @@ function fmtM2(n: number | null | undefined) {
 }
 
 const emptyForm: ZoneFormPayload = {
+  warehouseId: '',
   zoneCode: '',
   zoneName: '',
   zoneType: 'SHARED',
@@ -62,9 +63,10 @@ const labelStyle =
 const inputStyle =
   'w-full bg-[#1a2333] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400'
 
-function toForm(data?: ApiZone): ZoneFormPayload {
-  if (!data) return { ...emptyForm }
+function toForm(data?: ApiZone, fallbackWarehouseId = ''): ZoneFormPayload {
+  if (!data) return { ...emptyForm, warehouseId: fallbackWarehouseId }
   return {
+    warehouseId: data.warehouseId ?? fallbackWarehouseId,
     zoneCode: data.zoneCode,
     zoneName: data.zoneName ?? '',
     zoneType: data.zoneType ?? 'SHARED',
@@ -92,7 +94,7 @@ export function ZoneModal({
   const [selectedWarehouseId, setSelectedWarehouseId] = useState(
     data?.warehouseId ?? initialWarehouseId
   )
-  const [form, setForm] = useState(() => toForm(data))
+  const [form, setForm] = useState(() => toForm(data, initialWarehouseId))
   const [areaInput, setAreaInput] = useState(
     data?.areaM2 != null ? String(data.areaM2) : ''
   )
@@ -111,7 +113,7 @@ export function ZoneModal({
     warehouseLabel
 
   useEffect(() => {
-    setForm(toForm(data))
+    setForm(toForm(data, initialWarehouseId))
     setAreaInput(data?.areaM2 != null ? String(data.areaM2) : '')
     setSelectedWarehouseId(data?.warehouseId ?? initialWarehouseId)
   }, [data, initialWarehouseId])

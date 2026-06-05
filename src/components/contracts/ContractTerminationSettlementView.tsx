@@ -1,7 +1,7 @@
 import type { ContractTerminationPreview } from '../../api/types'
 import { BILLING_CYCLE_GUEST_LABELS } from '../../data/contractTypes'
 import { formatVnd } from '../../data/pricing'
-import { terminationSettlementSummary } from '../../utils/contractTermination'
+import { terminationNoticeSummary, terminationSettlementSummary } from '../../utils/contractTermination'
 
 type Props = {
   preview: ContractTerminationPreview
@@ -18,9 +18,39 @@ export function ContractTerminationSettlementView({ preview, compact }: Props) {
     )
   }
 
+  const noticeText = terminationNoticeSummary(preview)
+
   return (
     <div className="space-y-3 rounded-xl border border-amber-500/25 bg-amber-500/5 p-4 text-sm">
       <p className="font-medium text-amber-200">Ước tính khi chấm dứt sớm</p>
+      {noticeText && (
+        <p
+          className={`rounded-lg border px-3 py-2 text-xs ${
+            preview.canRequestNow === false
+              ? 'border-red-500/30 bg-red-500/10 text-red-200'
+              : 'border-cyan-500/25 bg-cyan-500/10 text-cyan-100'
+          }`}
+        >
+          {noticeText}
+        </p>
+      )}
+      {preview.contractStartDate && (
+        <p className="text-xs text-slate-500">
+          Thời hạn thuê theo ngày khách chọn:{' '}
+          <span className="text-slate-300">
+            {new Date(`${preview.contractStartDate}T00:00:00Z`).toLocaleDateString('vi-VN', {
+              timeZone: 'UTC',
+            })}
+          </span>
+          {preview.activatedAt ? (
+            <>
+              {' '}
+              · ACTIVE:{' '}
+              {new Date(preview.activatedAt).toLocaleDateString('vi-VN')}
+            </>
+          ) : null}
+        </p>
+      )}
       <p className="text-xs text-slate-400">{terminationSettlementSummary(preview)}</p>
       <dl className="grid gap-2 sm:grid-cols-2">
         <div>

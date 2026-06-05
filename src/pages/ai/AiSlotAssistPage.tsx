@@ -119,7 +119,7 @@ export function AiSlotAssistPage({ inboundBasePath }: Props) {
 
   return (
     <div className="relative flex flex-1 flex-col overflow-y-auto bg-[#0b101a] p-6 text-slate-100 md:p-8">
-      {loading && <LoadingOverlay />}
+      <LoadingOverlay show={loading} />
 
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-white">Trợ lý putaway AI</h1>

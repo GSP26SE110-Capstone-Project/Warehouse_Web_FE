@@ -173,7 +173,8 @@ export function rentalRequestToRow(
     estimatedSkuCount: r.estimatedSkuCount,
     estimatedInboundPerWeek: r.estimatedInboundPerWeek,
     estimatedOutboundPerWeek: r.estimatedOutboundPerWeek,
-    requestedAreaM2: r.requestedAreaM2,
+    requestedAreaM2:
+      r.requestedAreaM2 != null ? Math.round(Number(r.requestedAreaM2)) : null,
     suggestedZoneType: r.suggestedZoneType,
     requiresFastPicking: r.requiresFastPicking,
     requiresPremiumStorage: r.requiresPremiumStorage,

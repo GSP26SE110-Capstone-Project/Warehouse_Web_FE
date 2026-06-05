@@ -233,8 +233,8 @@ const isLoading = !warehouse || !zone
                         <div className="mt-4 space-y-2">
                             {selectedRack.items.length > 0 ? (
                                 selectedRack.items.map(item => (
-                                    <div key={item.id} className="p-2 bg-white/5 rounded">
-                                        {item.name} (x{item.quantity})
+                                    <div key={`${item.sku}-${item.location}`} className="p-2 bg-white/5 rounded">
+                                        {item.name} (x{item.stock})
                                     </div>
                                 ))
                             ) : (

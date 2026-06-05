@@ -146,6 +146,7 @@ export type ContractStatus =
 
 export type InvoiceCategory =
   | 'INITIAL'
+  | 'APPENDIX_INITIAL'
   | 'RECURRING_RENT'
   | 'OPERATIONAL'
   | 'TERMINATION_SETTLEMENT'
@@ -166,6 +167,7 @@ export interface ApiContractInvoice {
   invoiceCategory?: InvoiceCategory | null
   issuedAt?: string | null
   dueDate?: string | null
+  updatedAt?: string | null
 }
 
 export type TerminationRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -184,6 +186,15 @@ export interface ContractTerminationPreview {
   terminationFee: number
   refundAmount: number
   processingRatePercent?: number
+  contractStartDate?: string | null
+  activatedAt?: string | null
+  billingDayOfMonth?: number | null
+  terminationNoticeDays?: number
+  appliesNoticeRule?: boolean
+  nextBillingDate?: string | null
+  latestRequestDate?: string | null
+  daysUntilNextBilling?: number | null
+  canRequestNow?: boolean
 }
 
 export interface ApiContractTerminationRequest {
@@ -221,6 +232,7 @@ export interface ApiContract {
   billingCycle?: string | null
   startDate: string
   endDate: string
+  activatedAt?: string | null
   estimatedTotalAmount?: number | string | null
   tenantSignature?: string | null
   warehouseSignature?: string | null

@@ -30,6 +30,7 @@ type Props = {
   sizeFactors: ApiSizeFactor[]
   collections: ApiCollection[]
   seasons: ApiSeason[]
+  initialValues?: Partial<SkuFormPayload>
   onClose: () => void
   onSubmit?: (payload: SkuFormPayload) => void | Promise<void>
 }
@@ -39,18 +40,18 @@ const labelStyle =
 const inputStyle =
   'w-full bg-[#1a2333] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400'
 
-function toForm(data?: ApiSku): SkuFormPayload {
+function toForm(data?: ApiSku, initialValues?: Partial<SkuFormPayload>): SkuFormPayload {
   return {
-    skuCode: data?.skuCode ?? '',
-    productName: data?.productName ?? '',
-    productKind: data?.productKind ?? '',
-    collectionId: data?.collectionId ?? '',
-    seasonId: data?.seasonId ?? '',
-    color: data?.color ?? '',
-    size: data?.size ?? '',
-    material: data?.material ?? '',
-    movementCategory: data?.movementCategory ?? 'NORMAL',
-    status: data?.status ?? 'ACTIVE',
+    skuCode: data?.skuCode ?? initialValues?.skuCode ?? '',
+    productName: data?.productName ?? initialValues?.productName ?? '',
+    productKind: data?.productKind ?? initialValues?.productKind ?? '',
+    collectionId: data?.collectionId ?? initialValues?.collectionId ?? '',
+    seasonId: data?.seasonId ?? initialValues?.seasonId ?? '',
+    color: data?.color ?? initialValues?.color ?? '',
+    size: data?.size ?? initialValues?.size ?? '',
+    material: data?.material ?? initialValues?.material ?? '',
+    movementCategory: data?.movementCategory ?? initialValues?.movementCategory ?? 'NORMAL',
+    status: data?.status ?? initialValues?.status ?? 'ACTIVE',
   }
 }
 
@@ -61,11 +62,12 @@ export function SkuModal({
   sizeFactors,
   collections,
   seasons,
+  initialValues,
   onClose,
   onSubmit,
 }: Props) {
   const isView = mode === 'view'
-  const [form, setForm] = useState(() => toForm(data))
+  const [form, setForm] = useState(() => toForm(data, initialValues))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -143,8 +145,8 @@ export function SkuModal({
   const defaultSize = sizeOptions.find((opt) => opt.value === 'M')?.value ?? sizeOptions[0]?.value ?? ''
 
   useEffect(() => {
-    setForm(toForm(data))
-  }, [data])
+    setForm(toForm(data, initialValues))
+  }, [data, initialValues])
 
   useEffect(() => {
     if (isView || !requiresSize) return
@@ -198,7 +200,7 @@ export function SkuModal({
     mode === 'create' ? 'Thêm SKU' : mode === 'edit' ? 'Sửa SKU' : 'Chi tiết SKU'
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-80 flex items-center justify-center p-4">
       <button type="button" className="absolute inset-0 bg-black/70" onClick={onClose} aria-label="Đóng" />
       <div className="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-white/5 bg-[#0b101a] shadow-2xl">
         <div className="flex items-center justify-between border-b border-white/5 px-6 py-4">
@@ -424,7 +426,7 @@ export function SkuModal({
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-2 text-sm font-bold text-black disabled:opacity-50"
+                className="rounded-lg bg-linear-to-r from-cyan-500 to-blue-600 px-5 py-2 text-sm font-bold text-black disabled:opacity-50"
               >
                 {saving ? 'Đang lưu…' : 'Lưu'}
               </button>

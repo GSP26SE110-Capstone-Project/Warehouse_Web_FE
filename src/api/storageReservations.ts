@@ -14,6 +14,7 @@ export interface ApiStorageReservation {
   startDate: string
   endDate: string
   status: string
+  reservedCapacity?: number | string | null
   warehouseCode?: string | null
   warehouseName?: string | null
   zoneCode?: string | null

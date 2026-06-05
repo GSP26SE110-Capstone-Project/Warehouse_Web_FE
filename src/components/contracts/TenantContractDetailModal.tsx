@@ -27,19 +27,27 @@ import {
   hasTenantSignature,
   hasWarehouseSignature,
   needsTenantSignature,
-  parseContractAmount,
   type ContractSigningContext,
 } from '../../utils/contractSigning'
 import { groupReservationsForTenantView } from '../../utils/tenantReservationGroups'
+import { ContractPaymentSummary } from './ContractPaymentSummary'
+import { ContractAppendixListPanel } from './ContractAppendixListPanel'
+import { ContractAppendixRequestModal } from './ContractAppendixRequestModal'
+import type { ApiContractAppendix } from '../../api/contractAppendices'
+import { canTenantRequestAppendix } from '../../utils/contractAppendix'
 
 type Props = {
   contractId: string
   reservations: ApiStorageReservation[]
   signingContext: ContractSigningContext
   canRequestTermination?: boolean
+  isTenantAdmin?: boolean
+  onPayAppendix?: (appendix: ApiContractAppendix) => void
+  payingAppendixId?: string | null
   onClose: () => void
   onSign?: () => void
   onTerminationChange?: () => void
+  onAppendixChange?: () => void
 }
 
 function formatDate(iso?: string | null) {
@@ -84,9 +92,13 @@ export function TenantContractDetailModal({
   reservations,
   signingContext,
   canRequestTermination = false,
+  isTenantAdmin = false,
+  onPayAppendix,
+  payingAppendixId,
   onClose,
   onSign,
   onTerminationChange,
+  onAppendixChange,
 }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -94,10 +106,12 @@ export function TenantContractDetailModal({
   const [pendingTermination, setPendingTermination] =
     useState<ApiContractTerminationRequest | null>(null)
   const [showTerminationModal, setShowTerminationModal] = useState(false)
+  const [showAppendixRequestModal, setShowAppendixRequestModal] = useState(false)
   const [warehouse, setWarehouse] = useState<Awaited<
     ReturnType<typeof warehousesApi.getWarehouse>
   > | null>(null)
   const [items, setItems] = useState<contractItemsApi.ApiContractItem[]>([])
+  const [activationDate, setActivationDate] = useState<string | null>(null)
 
   const loadDetail = useCallback(async () => {
     setLoading(true)
@@ -111,6 +125,22 @@ export function TenantContractDetailModal({
       setContract(c)
       setWarehouse(wh)
       setItems(itemRes.items)
+
+      if (c.status === 'ACTIVE' || c.status === 'PENDING_PAYMENT') {
+        const invoices = await contractsApi.listContractInvoices(contractId)
+        const initial =
+          invoices.find((i) => i.invoiceCategory === 'INITIAL') ?? invoices[0]
+        if (initial?.paymentStatus === 'PAID' && initial.updatedAt) {
+          setActivationDate(initial.updatedAt)
+        } else if (c.status === 'ACTIVE' && c.updatedAt) {
+          setActivationDate(c.updatedAt)
+        } else {
+          setActivationDate(null)
+        }
+      } else {
+        setActivationDate(null)
+      }
+
       if (c.status === 'ACTIVE') {
         const pending = await contractsApi.listContractTerminationRequests(contractId, {
           status: 'PENDING',
@@ -141,7 +171,6 @@ export function TenantContractDetailModal({
     return groupReservationsForTenantView(contractReservations, codeMap)
   }, [contract, contractReservations])
 
-  const amount = contract ? parseContractAmount(contract.estimatedTotalAmount) : null
   const ct = contract?.contractType as ContractTypeValue | undefined
   const canSign = contract ? needsTenantSignature(contract, signingContext) : false
 
@@ -245,15 +274,11 @@ export function TenantContractDetailModal({
                 </section>
               )}
 
-              <section className="rounded-xl border border-cyan-500/25 bg-cyan-500/5 p-4">
-                <h3 className="text-sm font-semibold text-cyan-200">Giá trị ước tính toàn kỳ</h3>
-                <p className="mt-2 text-2xl font-bold text-cyan-300">
-                  {amount != null ? formatVnd(amount) : 'Chưa có — liên hệ kho'}
-                </p>
-                <p className="mt-2 text-xs text-slate-500">
-                  Số tiền tham chiếu theo báo giá kho; hóa đơn thực tế có thể theo mức sử dụng trong kỳ.
-                </p>
-              </section>
+              <ContractPaymentSummary
+                contract={contract}
+                variant="detail"
+                activationDate={activationDate}
+              />
 
               <section>
                 <h3 className="text-sm font-semibold text-white">Vị trí đã cấp trên HĐ</h3>
@@ -340,6 +365,36 @@ export function TenantContractDetailModal({
               </section>
 
               {contract.status === 'ACTIVE' && (
+                <section className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-violet-200">Phụ lục hợp đồng</h3>
+                    {canTenantRequestAppendix(contract, isTenantAdmin) && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAppendixRequestModal(true)}
+                        className="rounded-lg bg-violet-500/20 px-3 py-1.5 text-xs font-semibold text-violet-200 hover:bg-violet-500/30"
+                      >
+                        Yêu cầu phụ lục
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Thuê thêm không gian trong phạm vi trần HĐ gốc — kho duyệt, bạn ký và thanh
+                    toán.
+                  </p>
+                  <div className="mt-3">
+                    <ContractAppendixListPanel
+                      contractId={contractId}
+                      isTenantAdmin={isTenantAdmin}
+                      onPayAppendix={onPayAppendix}
+                      payingAppendixId={payingAppendixId}
+                      onChanged={onAppendixChange}
+                    />
+                  </div>
+                </section>
+              )}
+
+              {contract.status === 'ACTIVE' && (
                 <section className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
                   <h3 className="text-sm font-semibold text-amber-200">Chấm dứt hợp đồng sớm</h3>
                   {pendingTermination ? (
@@ -405,6 +460,16 @@ export function TenantContractDetailModal({
           onSubmitted={() => {
             void loadDetail()
             onTerminationChange?.()
+          }}
+        />
+      )}
+
+      {showAppendixRequestModal && contract && (
+        <ContractAppendixRequestModal
+          contract={contract}
+          onClose={() => setShowAppendixRequestModal(false)}
+          onSubmitted={() => {
+            onAppendixChange?.()
           }}
         />
       )}

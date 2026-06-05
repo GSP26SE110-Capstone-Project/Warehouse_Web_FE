@@ -1,11 +1,12 @@
 import { InlineAlert } from '../FeedbackAlert'
 import { AlertModal } from './AlertModal'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ContractStorageAssignmentPanel,
+  type ContractStorageAssignmentPanelRef,
+} from '../../contracts/ContractStorageAssignmentPanel'
 import { ApiError } from '../../../api/client'
-import * as binsApi from '../../../api/bins'
 import * as contractsApi from '../../../api/contracts'
-import * as rackLevelsApi from '../../../api/rackLevels'
-import * as racksApi from '../../../api/racks'
 import * as warehousesApi from '../../../api/warehouses'
 import * as rentalRequestsApi from '../../../api/rentalRequests'
 import type { ApiContractPriceEstimate } from '../../../api/rentalRequests'
@@ -20,7 +21,7 @@ import {
   isDedicatedSpaceRental,
   requestedAreaFieldLabel,
   showsRequestedAreaField,
-  suggestBillableContractType,
+  resolveWhApprovalContractType,
   WH_ASSIGNABLE_CONTRACT_OPTIONS,
   type BillableContractTypeValue,
   type ContractTypeValue,
@@ -30,24 +31,26 @@ import type { RentalRequestRow } from '../../../mappers'
 import {
   getOnboardingStoragePlan,
   isZoneEligibleForContract,
-  requiredZoneTypeForContract,
-  storagePlanShortLabel,
 } from '../../../utils/onboardingStorage'
 import {
   computeMinZonesCapacityHint,
   type MinZonesCapacityHint,
-  computeZoneStorageCapacity,
   estimateZoneLpnCapacity,
-  formatZoneCapacitySummary,
   formatZoneRackSummary,
-  splitReservedCapacityAcrossZones,
-  splitReservedCapacityEvenly,
 } from '../../../utils/warehouseCapacity'
 import { estimateMonthCount } from '../../../utils/rentalPeriod'
 import {
   filterWarehousesForRentalClaim,
   type WarehouseWithRegion,
 } from '../../../utils/warehouseRegion'
+import {
+  filterEligibleSharedStorageCandidates,
+  findOperatorClaimCandidate,
+  operatorCanApproveSharedStorage,
+  rankSharedStorageCandidates,
+  readinessLabel,
+  type WarehouseClaimCandidate,
+} from '../../../utils/warehouseClaimCandidates'
 
 export type OnboardingOperator = {
   role: UserRole
@@ -133,7 +136,7 @@ export function RentalOnboardingWizard({
   )
 
   const tenantContractType = row.contractType as ContractTypeValue | undefined
-  const suggestedBillableType = suggestBillableContractType({
+  const initialContractType = resolveWhApprovalContractType({
     contractType: row.contractType,
     requestedAreaM2: row.requestedAreaM2,
     estimatedBoxCount: row.estimatedBoxCount,
@@ -141,10 +144,10 @@ export function RentalOnboardingWizard({
   })
 
   const [contractType, setContractType] = useState<BillableContractTypeValue>(
-    suggestedBillableType
+    initialContractType
   )
   const [pricingModel, setPricingModel] = useState<string>(
-    row.pricingModel ?? defaultPricingModel(suggestedBillableType)
+    row.pricingModel ?? defaultPricingModel(initialContractType)
   )
 
   useEffect(() => {
@@ -162,19 +165,10 @@ export function RentalOnboardingWizard({
   const [allocationPriceLoading, setAllocationPriceLoading] = useState(false)
 
   const [zones, setZones] = useState<zonesApi.ApiZone[]>([])
-  const [racks, setRacks] = useState<racksApi.ApiRack[]>([])
-  const [rackLevels, setRackLevels] = useState<rackLevelsApi.ApiRackLevel[]>([])
-  const [bins, setBins] = useState<binsApi.ApiBin[]>([])
   const [selectedZoneIds, setSelectedZoneIds] = useState<string[]>([])
-  const zoneId = selectedZoneIds[0] ?? ''
-  const [rackId, setRackId] = useState('')
-  const [rackLevelId, setRackLevelId] = useState('')
-  const [binId, setBinId] = useState('')
-  const [reservedCapacity, setReservedCapacity] = useState(
-    String(row.estimatedBoxCount ?? row.estimatedSkuCount ?? '')
-  )
+  const reservedCapacity = String(row.estimatedBoxCount ?? row.estimatedSkuCount ?? '')
   const [tenantRequiredAreaM2, setTenantRequiredAreaM2] = useState(
-    row.requestedAreaM2 != null ? String(row.requestedAreaM2) : ''
+    areaM2ToInputValue(row.requestedAreaM2)
   )
   const [allowUndersizedZone, setAllowUndersizedZone] = useState(false)
   const [warehousePlanning, setWarehousePlanning] = useState<
@@ -183,10 +177,12 @@ export function RentalOnboardingWizard({
   const [warehouseCapacitySnapshot, setWarehouseCapacitySnapshot] = useState<
     warehousesApi.ApiWarehouseCapacitySnapshot | null
   >(null)
+  const [claimCandidates, setClaimCandidates] = useState<WarehouseClaimCandidate[]>([])
+  const [claimCandidatesLoading, setClaimCandidatesLoading] = useState(false)
+  const storagePanelRef = useRef<ContractStorageAssignmentPanelRef>(null)
 
   const storagePlan = useMemo(() => getOnboardingStoragePlan(contractType), [contractType])
   const allowsMultiZone = storagePlan.needsZone && !storagePlan.needsBin
-  const requiredZoneType = requiredZoneTypeForContract(contractType)
   const eligibleZones = useMemo(
     () => zones.filter((z) => isZoneEligibleForContract(contractType, z)),
     [zones, contractType]
@@ -211,81 +207,20 @@ export function RentalOnboardingWizard({
     [zones, selectedZoneIds]
   )
 
-  const selectedZone = selectedZones[0] ?? null
-
   const reservedCapacityNum = useMemo(() => {
     const n = Number(reservedCapacity)
     return Number.isFinite(n) && n > 0 ? n : null
   }, [reservedCapacity])
 
-  const selectedZonesLpnCapacity = useMemo(
-    () => selectedZones.reduce((sum, z) => sum + estimateZoneLpnCapacity(z), 0),
-    [selectedZones]
-  )
-
-  const selectedZonesAreaM2 = useMemo(
-    () => selectedZones.reduce((sum, z) => sum + (Number(z.areaM2) || 0), 0),
-    [selectedZones]
-  )
   const preAllocationPreviewAreaM2 = useMemo(
     () => selectedZones.reduce((sum, z) => sum + (Number(z.areaM2) || 0), 0),
     [selectedZones]
   )
 
-  const zoneAreaFit = useMemo(() => {
-    if (!tenantRequiredAreaNum) return null
-
-    if (allowsMultiZone && selectedZones.length > 0) {
-      const zoneArea = selectedZonesAreaM2
-      if (zoneArea <= 0) return { zoneArea: 0, sufficient: true, deficit: 0, minZones: null }
-      const sufficient = zoneArea >= tenantRequiredAreaNum
-      const deficit = Math.max(0, tenantRequiredAreaNum - zoneArea)
-      return { zoneArea, sufficient, deficit, minZones: null, multi: true as const }
-    }
-
-    if (!selectedZone) return null
-    const zoneArea = Number(selectedZone.areaM2) || 0
-    if (zoneArea <= 0) return { zoneArea: 0, sufficient: true, deficit: 0, minZones: null }
-    const sufficient = zoneArea >= tenantRequiredAreaNum
-    const deficit = Math.max(0, tenantRequiredAreaNum - zoneArea)
-    const minZones = Math.ceil(tenantRequiredAreaNum / zoneArea)
-    return { zoneArea, sufficient, deficit, minZones, multi: false as const }
-  }, [
-    allowsMultiZone,
-    selectedZone,
-    selectedZones.length,
-    selectedZonesAreaM2,
-    tenantRequiredAreaNum,
-  ])
-
-  const capacityFit = useMemo(() => {
-    if (!reservedCapacityNum || selectedZones.length === 0) return null
-    const sufficient = selectedZonesLpnCapacity >= reservedCapacityNum
-    const deficit = Math.max(0, reservedCapacityNum - selectedZonesLpnCapacity)
-    return { required: reservedCapacityNum, available: selectedZonesLpnCapacity, sufficient, deficit }
-  }, [reservedCapacityNum, selectedZones.length, selectedZonesLpnCapacity])
-
   const minZonesHint = useMemo(() => {
     if (!reservedCapacityNum || !allowsMultiZone || zones.length === 0) return null
     return computeMinZonesCapacityHint(reservedCapacityNum, zones)
   }, [reservedCapacityNum, allowsMultiZone, zones])
-
-  const zoneCapacitySplit = useMemo(() => {
-    if (!reservedCapacityNum || selectedZones.length === 0) return null
-    const proportional = splitReservedCapacityAcrossZones(reservedCapacityNum, selectedZones)
-    const even = splitReservedCapacityEvenly(reservedCapacityNum, selectedZones)
-    const zonesEqualCapacity =
-      selectedZones.length > 1 &&
-      selectedZones.every(
-        (z) => estimateZoneLpnCapacity(z) === estimateZoneLpnCapacity(selectedZones[0])
-      )
-    return {
-      proportional,
-      even,
-      useEven: zonesEqualCapacity,
-      active: zonesEqualCapacity ? even : proportional,
-    }
-  }, [reservedCapacityNum, selectedZones])
 
   const preAllocationPreview = useMemo(() => {
     if (!priceEstimate || !selectedZones.length) return null
@@ -333,10 +268,86 @@ export function RentalOnboardingWizard({
     }
   }, [warehousePlanning, tenantRequiredAreaNum])
 
+  const rankedClaimCandidates = useMemo(
+    () =>
+      rankSharedStorageCandidates(claimCandidates, {
+        suggestedZoneType: row.suggestedZoneType,
+        operatorWarehouseId: operatorWhId,
+      }),
+    [claimCandidates, row.suggestedZoneType, operatorWhId]
+  )
+
+  const eligibleClaimCandidates = useMemo(
+    () => filterEligibleSharedStorageCandidates(rankedClaimCandidates),
+    [rankedClaimCandidates]
+  )
+
+  const operatorClaimCandidate = useMemo(
+    () =>
+      findOperatorClaimCandidate(
+        rankedClaimCandidates,
+        isWhOperator ? operatorWhId : warehouseId || null
+      ),
+    [rankedClaimCandidates, isWhOperator, operatorWhId, warehouseId]
+  )
+
+  const canApproveSharedStorage = useMemo(
+    () =>
+      contractType !== 'SHARED_STORAGE' ||
+      operatorCanApproveSharedStorage(operatorClaimCandidate),
+    [contractType, operatorClaimCandidate]
+  )
+
   const claimableWarehouses = useMemo(() => {
     if (isWhOperator) return []
-    return filterWarehousesForRentalClaim(warehouses, row.city, row.district, row.warehouseId)
-  }, [isWhOperator, warehouses, row.city, row.district, row.warehouseId])
+    const regional = filterWarehousesForRentalClaim(
+      warehouses,
+      row.city,
+      row.district,
+      row.warehouseId
+    )
+    if (contractType !== 'SHARED_STORAGE' || eligibleClaimCandidates.length === 0) {
+      return regional
+    }
+    const eligibleIds = new Set(eligibleClaimCandidates.map((c) => c.warehouseId))
+    return regional.filter((w) => eligibleIds.has(w.warehouseId))
+  }, [
+    isWhOperator,
+    warehouses,
+    row.city,
+    row.district,
+    row.warehouseId,
+    contractType,
+    eligibleClaimCandidates,
+  ])
+
+  useEffect(() => {
+    if (contractType !== 'SHARED_STORAGE') {
+      setClaimCandidates([])
+      return
+    }
+    let cancelled = false
+    setClaimCandidatesLoading(true)
+    warehousesApi
+      .listWarehouseClaimCandidates({
+        city: row.city,
+        district: row.district,
+        contractType: 'SHARED_STORAGE',
+        suggestedZoneType: row.suggestedZoneType,
+      })
+      .then((res) => {
+        if (!cancelled) setClaimCandidates(res.items)
+      })
+      .catch(() => {
+        if (!cancelled) setClaimCandidates([])
+      })
+      .finally(() => {
+        if (!cancelled) setClaimCandidatesLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [contractType, row.city, row.district, row.suggestedZoneType])
 
   useEffect(() => {
     if (isWhOperator && operatorWhId) setWarehouseId(operatorWhId)
@@ -399,58 +410,6 @@ export function RentalOnboardingWizard({
       cancelled = true
     }
   }, [approved, step, whId, contractType])
-
-  useEffect(() => {
-    if (!storagePlan.needsRack || !zoneId) {
-      setRacks([])
-      setRackId('')
-      return
-    }
-    let cancelled = false
-    ;(async () => {
-      const { items } = await racksApi.listRacks({ zoneId, limit: 100 })
-      if (!cancelled) setRacks(items)
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [zoneId, storagePlan.needsRack])
-
-  useEffect(() => {
-    if (!storagePlan.needsBin || !rackId) {
-      setRackLevels([])
-      setRackLevelId('')
-      return
-    }
-    let cancelled = false
-    ;(async () => {
-      const { items } = await rackLevelsApi.listRackLevels({ rackId, limit: 100 })
-      if (!cancelled) setRackLevels(items)
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [rackId, storagePlan.needsBin])
-
-  useEffect(() => {
-    if (!storagePlan.needsBin || !rackLevelId) {
-      setBins([])
-      setBinId('')
-      return
-    }
-    let cancelled = false
-    ;(async () => {
-      const { items } = await binsApi.listBins({
-        rackLevelId,
-        limit: 100,
-        reservationType: 'RESERVED',
-      })
-      if (!cancelled) setBins(items.filter((b) => b.status === 'EMPTY' || b.status === 'RESERVED'))
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [rackLevelId, storagePlan.needsBin])
 
   const applyLinkedContract = useCallback((pick: ApiContract) => {
     setContractId(pick.contractId)
@@ -639,8 +598,9 @@ export function RentalOnboardingWizard({
         items.some((r) => r.zoneId === zId)
       )
       if (!allZonesCovered) return false
-    } else if (storagePlan.storageLevel === 'BIN' && binId) {
-      if (!items.some((r) => r.binId === binId)) return false
+    } else if (storagePlan.storageLevel === 'BIN') {
+      const targetBinId = storagePanelRef.current?.buildReservations()[0]?.binId
+      if (targetBinId && !items.some((r) => r.binId === targetBinId)) return false
     }
 
     await contractsApi.updateContract(contractId, { status: 'PENDING_APPROVAL' })
@@ -661,6 +621,12 @@ export function RentalOnboardingWizard({
       if (isWhOperator) {
         if (!operatorWhId) {
           setError('Tài khoản chưa gắn kho — liên hệ System Admin')
+          return
+        }
+        if (contractType === 'SHARED_STORAGE' && !canApproveSharedStorage) {
+          setError(
+            'Kho không phù hợp SHARED_STORAGE — đang thuê nguyên kho hoặc hết diện tích tạo zone chung'
+          )
           return
         }
       } else if (claimableWarehouses.length === 0) {
@@ -793,68 +759,14 @@ export function RentalOnboardingWizard({
         setError('Chưa có hợp đồng — hoàn tất bước 2 (tạo HĐ & ký kho) trước')
         return
       }
-      if (
-        contractType === 'DEDICATED_WAREHOUSE' &&
-        tenantRequiredAreaNum != null &&
-        warehousePlanning?.usableAreaM2 != null &&
-        warehousePlanning.usableAreaM2 < tenantRequiredAreaNum &&
-        !allowUndersizedZone
-      ) {
-        setError(
-          `Kho chỉ có ${warehousePlanning.usableAreaM2} m² sử dụng, tenant cần ${tenantRequiredAreaNum} m². Điều chỉnh HĐ hoặc xác nhận cấp tạm.`
-        )
-        return
-      }
-      if (
-        storagePlan.needsZone &&
-        tenantRequiredAreaNum != null &&
-        zoneAreaFit &&
-        !zoneAreaFit.sufficient &&
-        !allowUndersizedZone
-      ) {
-        const zoneLabel = allowsMultiZone
-          ? `${selectedZones.length} zone đã chọn (tổng ${zoneAreaFit.zoneArea} m²)`
-          : `Zone ${selectedZone?.zoneCode}`
-        setError(
-          `${zoneLabel} chưa đủ diện tích — tenant cần ${tenantRequiredAreaNum} m². Chọn thêm zone, zone lớn hơn, hoặc tick xác nhận cấp tạm.`
-        )
-        return
-      }
-      if (
-        capacityFit &&
-        !capacityFit.sufficient &&
-        !allowUndersizedZone
-      ) {
-        setError(
-          `Dung lượng giữ ${capacityFit.required} thùng/LPN nhưng ${selectedZones.length} zone chỉ ước tính ~${capacityFit.available} thùng. Chọn thêm zone hoặc tick xác nhận cấp tạm.`
-        )
-        return
-      }
-      if (storagePlan.storageLevel === 'ZONE') {
-        if (selectedZoneIds.length === 0) {
-          setError(
-            requiredZoneType
-              ? `Chọn ít nhất một zone ${requiredZoneType} — loại hình thuê khu riêng không dùng zone SHARED/FAST_MOVING/PREMIUM.`
-              : 'Chọn ít nhất một zone'
-          )
-          return
-        }
-        const ineligible = selectedZones.filter(
-          (z) => !isZoneEligibleForContract(contractType, z)
-        )
-        if (ineligible.length > 0) {
-          setError(
-            `Thuê khu riêng chỉ được chọn zone PRIVATE hoặc zone dedicated. Bỏ chọn: ${ineligible.map((z) => z.zoneCode).join(', ')}.`
-          )
-          return
-        }
-      }
-      if (storagePlan.storageLevel === 'BIN' && !binId) {
-        setError('Chọn bin')
+      const panelErr = storagePanelRef.current?.validate() ?? null
+      if (panelErr) {
+        setError(panelErr)
         return
       }
 
       const wh = whId || resolveWarehouseId(row)
+      const built = storagePanelRef.current?.buildReservations() ?? []
 
       const createReservation = async (body: Parameters<typeof storageReservationsApi.createStorageReservation>[0]) => {
         try {
@@ -867,52 +779,20 @@ export function RentalOnboardingWizard({
         }
       }
 
-      if (storagePlan.storageLevel === 'WAREHOUSE') {
+      for (const raw of built) {
         await createReservation({
           contractId,
-          reservationType: storagePlan.reservationType,
-          storageLevel: storagePlan.storageLevel,
-          warehouseId: wh,
-          startDate: contractStart,
-          endDate: contractEnd,
+          reservationType: raw.reservationType,
+          storageLevel: raw.storageLevel,
+          warehouseId: raw.warehouseId,
+          zoneId: raw.zoneId,
+          rackId: raw.rackId,
+          rackLevelId: raw.rackLevelId,
+          binId: raw.binId,
+          reservedCapacity: raw.reservedCapacity,
+          startDate: raw.startDate ?? contractStart,
+          endDate: raw.endDate ?? contractEnd,
           status: 'ACTIVE',
-          ...(reservedCapacityNum ? { reservedCapacity: reservedCapacityNum } : {}),
-        })
-      } else if (storagePlan.storageLevel === 'ZONE') {
-        const capacitySplit =
-          reservedCapacityNum != null
-            ? zoneCapacitySplit?.active ??
-              splitReservedCapacityAcrossZones(reservedCapacityNum, selectedZones)
-            : new Map<string, number>()
-
-        for (const zId of selectedZoneIds) {
-          const share = capacitySplit.get(zId)
-          await createReservation({
-            contractId,
-            reservationType: storagePlan.reservationType,
-            storageLevel: storagePlan.storageLevel,
-            warehouseId: wh,
-            zoneId: zId,
-            startDate: contractStart,
-            endDate: contractEnd,
-            status: 'ACTIVE',
-            ...(share != null && share > 0 ? { reservedCapacity: share } : {}),
-          })
-        }
-      } else {
-        await createReservation({
-          contractId,
-          reservationType: storagePlan.reservationType,
-          storageLevel: storagePlan.storageLevel,
-          warehouseId: wh,
-          ...(zoneId ? { zoneId } : {}),
-          ...(rackId ? { rackId } : {}),
-          ...(rackLevelId ? { rackLevelId } : {}),
-          ...(binId ? { binId } : {}),
-          startDate: contractStart,
-          endDate: contractEnd,
-          status: 'ACTIVE',
-          ...(reservedCapacityNum ? { reservedCapacity: reservedCapacityNum } : {}),
         })
       }
       let contractAmount: number | undefined
@@ -1098,12 +978,24 @@ export function RentalOnboardingWizard({
                       </p>
                     )}
                   </div>
+                  {contractType === 'SHARED_STORAGE' && (
+                    <SharedStorageReadinessPanel
+                      loading={claimCandidatesLoading}
+                      candidates={eligibleClaimCandidates}
+                      operatorCandidate={operatorClaimCandidate}
+                      operatorWarehouseId={isWhOperator ? operatorWhId : warehouseId || null}
+                      district={row.district}
+                      city={row.city}
+                      suggestedZoneType={row.suggestedZoneType}
+                    />
+                  )}
                   {approvalCapacity && !isDedicatedSpaceRental(contractType) && (
                     <WarehouseApprovalCapacityCard
                       whName={whName}
                       capacity={approvalCapacity}
                       contractType={contractType}
                       snapshot={warehouseCapacitySnapshot}
+                      sharedStorageCandidate={operatorClaimCandidate}
                     />
                   )}
                   {contractType === 'DEDICATED_ZONE' && zones.length > 0 && (
@@ -1112,13 +1004,12 @@ export function RentalOnboardingWizard({
                         Pre-allocation preview (nháp trước hợp đồng)
                       </p>
                       <p className="mt-1 text-xs text-slate-400">
-                        Chọn zone PRIVATE hoặc zone đánh dấu khu riêng (dedicated) ngay ở bước duyệt để ước tính giá sát thực tế. Zone
-                        SHARED / FAST_MOVING / PREMIUM không dedicated không áp dụng cho thuê khu riêng.
+                        Chọn zone PRIVATE hoặc PREMIUM ngay ở bước duyệt để ước tính giá sát thực tế. Zone SHARED
+                        không áp dụng cho thuê khu riêng.
                       </p>
                       {eligibleZones.length === 0 && (
                         <p className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-100">
-                          Kho chưa có zone PRIVATE hoặc zone dedicated — tạo zone loại &quot;Khu riêng (PRIVATE)&quot; hoặc bật
-                          &quot;Khu riêng (dedicated)&quot; trong quản lý kho trước khi duyệt.
+                          Kho chưa có zone PRIVATE hoặc PREMIUM — tạo zone khu riêng trước khi duyệt.
                         </p>
                       )}
                       <div className="dark-scrollbar-inset mt-2 grid max-h-44 grid-cols-1 gap-2 overflow-y-auto rounded border border-white/10 p-2 pr-1">
@@ -1270,190 +1161,22 @@ export function RentalOnboardingWizard({
                     allowUndersized={allowUndersizedZone}
                     onAllowUndersizedChange={setAllowUndersizedZone}
                   />
-                  <p className="text-sm text-slate-300">
-                    <span className="mr-2 inline-block rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-semibold text-cyan-200">
-                      {storagePlanShortLabel(contractType)}
-                    </span>
-                    {storagePlan.hint}
-                  </p>
                   <AllocationPricePreview
                     loading={allocationPriceLoading}
                     estimate={allocationPriceEstimate}
                     needsZone={storagePlan.needsZone}
                     hasZonesSelected={selectedZoneIds.length > 0}
                   />
-                  {contractType === 'SHARED_STORAGE' && (
-                    <p className="rounded-lg border border-cyan-500/25 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-100">
-                      Chỉ gán <strong>zone chung</strong> — bin/rack cụ thể khi nhập hàng.
-                    </p>
-                  )}
-
-                  {storagePlan.needsZone && (
-                    <div>
-                      <label className={labelStyle}>
-                        {allowsMultiZone ? 'Zone cấp cho tenant (chọn một hoặc nhiều)' : 'Zone'}
-                      </label>
-                      <p className="mb-2 text-[11px] text-slate-500">
-                        {allowsMultiZone
-                          ? 'Cùng diện tích có thể khác sức chứa LPN vì loại zone (PRIVATE / SHARED…) quy định kích cỡ bin mặc định. Chọn đủ zone nếu một zone không đủ.'
-                          : 'Chọn zone trước khi chọn rack/bin.'}
-                      </p>
-                      {allowsMultiZone ? (
-                        <ZoneMultiSelectList
-                          zones={zones}
-                          contractType={contractType}
-                          selectedIds={selectedZoneIds}
-                          tenantRequiredAreaM2={tenantRequiredAreaNum}
-                          reservedCapacity={reservedCapacityNum}
-                          onChange={(ids) => {
-                            setSelectedZoneIds(ids)
-                            setAllowUndersizedZone(false)
-                          }}
-                        />
-                      ) : (
-                        <select
-                          className={selectStyle}
-                          value={zoneId}
-                          onChange={(e) => {
-                            setSelectedZoneIds(e.target.value ? [e.target.value] : [])
-                            setAllowUndersizedZone(false)
-                          }}
-                          aria-label="Chọn zone cấp cho tenant"
-                        >
-                          <option value="">— Chọn zone —</option>
-                          {zones.map((z) => {
-                            const eligible = isZoneEligibleForContract(contractType, z)
-                            return (
-                              <option key={z.zoneId} value={z.zoneId} disabled={!eligible}>
-                                {formatZoneOptionLabel(z)}
-                                {!eligible && requiredZoneType ? ` — cần ${requiredZoneType}` : ''}
-                              </option>
-                            )
-                          })}
-                        </select>
-                      )}
-                      {minZonesHint && minZonesHint.minZones > 1 && allowsMultiZone && (
-                        <MinZonesCapacityAlert
-                          hint={minZonesHint}
-                          selectedZoneCount={selectedZones.length}
-                        />
-                      )}
-
-                      {selectedZones.length > 0 && allowsMultiZone && (
-                        <MultiZoneSelectionSummary
-                          zones={selectedZones}
-                          reservedCapacity={reservedCapacityNum}
-                          totalLpnCapacity={selectedZonesLpnCapacity}
-                          totalAreaM2={selectedZonesAreaM2}
-                          capacitySplit={zoneCapacitySplit?.active ?? null}
-                          splitMode={
-                            zoneCapacitySplit?.useEven ? ('even' as const) : ('proportional' as const)
-                          }
-                        />
-                      )}
-
-                      {!isDedicatedSpaceRental(contractType) && (
-                        <ContractTypeStorageHint
-                          contractType={contractType}
-                          reservedCapacity={reservedCapacityNum}
-                        />
-                      )}
-                      {zoneAreaFit && tenantRequiredAreaNum != null && selectedZones.length > 0 && (
-                        <ZoneAreaFitAlert
-                          fit={zoneAreaFit}
-                          required={tenantRequiredAreaNum}
-                          zoneCode={
-                            allowsMultiZone
-                              ? `${selectedZones.length} zone`
-                              : (selectedZone?.zoneCode ?? '')
-                          }
-                          allowUndersized={allowUndersizedZone}
-                          onAllowUndersizedChange={setAllowUndersizedZone}
-                        />
-                      )}
-                      {capacityFit && !capacityFit.sufficient && (
-                        <p className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-                          Cần giữ ~{capacityFit.required} thùng/LPN — {selectedZones.length} zone đã chọn
-                          ước tính ~{capacityFit.available} thùng (thiếu {capacityFit.deficit}). Chọn thêm
-                          zone hoặc tick xác nhận cấp tạm.
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {storagePlan.needsRack && zoneId && (
-                    <div>
-                      <label className={labelStyle}>Rack</label>
-                      <select
-                        className={selectStyle}
-                        value={rackId}
-                        aria-label="Chọn rack"
-                        onChange={(e) => setRackId(e.target.value)}
-                      >
-                        <option value="">— Chọn rack —</option>
-                        {racks.map((r) => (
-                          <option key={r.rackId} value={r.rackId}>
-                            {r.rackCode}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {storagePlan.needsBin && rackId && (
-                    <>
-                      <div>
-                        <label className={labelStyle}>Tầng rack</label>
-                        <select
-                          className={selectStyle}
-                          value={rackLevelId}
-                          aria-label="Chọn tầng rack"
-                          onChange={(e) => setRackLevelId(e.target.value)}
-                        >
-                          <option value="">— Chọn tầng —</option>
-                          {rackLevels.map((l) => (
-                            <option key={l.rackLevelId} value={l.rackLevelId}>
-                              Tầng {l.levelNumber}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className={labelStyle}>Bin (RESERVED / EMPTY)</label>
-                        <select
-                          className={selectStyle}
-                          value={binId}
-                          aria-label="Chọn bin"
-                          onChange={(e) => setBinId(e.target.value)}
-                        >
-                          <option value="">— Chọn bin —</option>
-                          {bins.map((b) => (
-                            <option key={b.binId} value={b.binId}>
-                              {b.binCode} — {b.status} ({b.reservationType})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </>
-                  )}
-
-                  <div>
-                    <label className={labelStyle}>Dung lượng giữ (thùng / LPN)</label>
-                    <input
-                      className={inputStyle}
-                      type="number"
-                      min={0}
-                      value={reservedCapacity}
-                      onChange={(e) => setReservedCapacity(e.target.value)}
-                      placeholder="VD: 80"
+                  {whId && (
+                    <ContractStorageAssignmentPanel
+                      ref={storagePanelRef}
+                      contractType={contractType}
+                      warehouseId={whId}
+                      startDate={contractStart}
+                      endDate={contractEnd}
+                      reservedCapacityDefault={reservedCapacity}
                     />
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      Tổng số thùng/LPN cần giữ cho tenant. Với{' '}
-                      <strong className="text-slate-400">SHARED_STORAGE</strong> /{' '}
-                      <strong className="text-slate-400">DEDICATED_ZONE</strong>: khi chọn nhiều zone, hệ thống
-                      chia theo bảng phân bổ bên dưới (zone bằng nhau → chia đều).
-                    </p>
-                  </div>
+                  )}
                 </>
               )}
             </div>
@@ -1482,7 +1205,7 @@ export function RentalOnboardingWizard({
                 </button>
                 <button
                   type="button"
-                  disabled={busy || claimedByOther}
+                  disabled={busy || claimedByOther || !canApproveSharedStorage}
                   onClick={handleApprove}
                   className="rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-2 text-sm font-bold text-black disabled:opacity-50"
                 >
@@ -1565,6 +1288,19 @@ function fmtM2(n: number | null | undefined) {
   return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(n)
 }
 
+function formatAreaM2Int(value: number | string | null | undefined): string {
+  if (value == null || value === '') return '—'
+  const n = Math.round(Number(value))
+  if (!Number.isFinite(n)) return '—'
+  return n.toLocaleString('vi-VN')
+}
+
+function areaM2ToInputValue(value: number | string | null | undefined): string {
+  if (value == null || value === '') return ''
+  const n = Math.round(Number(value))
+  return Number.isFinite(n) ? String(n) : ''
+}
+
 function fmtMoney(n: number) {
   return `${n.toLocaleString('vi-VN')} VND`
 }
@@ -1629,7 +1365,7 @@ function TenantAreaRequirementCard({
           id="tenant-required-area"
           type="number"
           min={0}
-          step="0.01"
+          step={readOnly ? '1' : '0.01'}
           readOnly={readOnly}
           disabled={readOnly}
           className={inputStyle}
@@ -1688,115 +1424,6 @@ function formatZoneOptionLabel(z: zonesApi.ApiZone) {
   const dedicatedTag =
     z.isDedicated && (z.zoneType ?? '').toUpperCase() !== 'PRIVATE' ? ' · dedicated' : ''
   return `${z.zoneCode}${z.zoneName ? ` — ${z.zoneName}` : ''} (${z.zoneType}${dedicatedTag}${za > 0 ? ` · ${za} m²` : ''} · ${formatZoneRackSummary(z)}${lpn > 0 ? ` · ~${lpn} thùng` : ''})`
-}
-
-function ZoneMultiSelectList({
-  zones,
-  contractType,
-  selectedIds,
-  tenantRequiredAreaM2,
-  reservedCapacity,
-  onChange,
-}: {
-  zones: zonesApi.ApiZone[]
-  contractType: string
-  selectedIds: string[]
-  tenantRequiredAreaM2: number | null
-  reservedCapacity: number | null
-  onChange: (ids: string[]) => void
-}) {
-  const requiredZoneType = requiredZoneTypeForContract(contractType)
-  const eligibleCount = zones.filter((z) =>
-    isZoneEligibleForContract(contractType, z)
-  ).length
-
-  const toggle = (zoneId: string, eligible: boolean) => {
-    if (!eligible) return
-    if (selectedIds.includes(zoneId)) {
-      onChange(selectedIds.filter((id) => id !== zoneId))
-    } else {
-      onChange([...selectedIds, zoneId])
-    }
-  }
-
-  if (zones.length === 0) {
-    return (
-      <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-        Chưa có zone ACTIVE — tạo zone trong quản lý kho trước.
-      </p>
-    )
-  }
-
-  return (
-    <>
-      {requiredZoneType && eligibleCount === 0 && (
-        <p className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-          Kho chưa có zone {requiredZoneType} — tạo zone loại &quot;Khu riêng (PRIVATE)&quot; trước khi cấp
-          cho tenant thuê khu riêng.
-        </p>
-      )}
-      <div className="dark-scrollbar-inset max-h-64 space-y-2 overflow-y-auto rounded-lg border border-white/10 p-2 pr-1">
-        {zones.map((z) => {
-          const checked = selectedIds.includes(z.zoneId)
-          const eligible = isZoneEligibleForContract(contractType, z)
-        const area = Number(z.areaM2) || 0
-        const lpnCap = estimateZoneLpnCapacity(z)
-        const cap = computeZoneStorageCapacity(z.areaM2)
-        const areaOk =
-          tenantRequiredAreaM2 == null || area <= 0 || area >= tenantRequiredAreaM2
-        const lpnOk = reservedCapacity == null || lpnCap >= reservedCapacity
-
-        return (
-          <label
-            key={z.zoneId}
-            className={`flex gap-3 rounded-lg border p-3 transition-colors ${
-              !eligible
-                ? 'cursor-not-allowed border-white/5 bg-white/[0.01] opacity-55'
-                : checked
-                  ? 'cursor-pointer border-cyan-400/50 bg-cyan-400/10'
-                  : 'cursor-pointer border-white/5 bg-white/[0.02] hover:border-white/15'
-            }`}
-          >
-            <input
-              type="checkbox"
-              checked={checked}
-              disabled={!eligible}
-              onChange={() => toggle(z.zoneId, eligible)}
-              className="mt-1 rounded border-white/20 disabled:cursor-not-allowed"
-            />
-            <div className="min-w-0 flex-1 text-xs">
-              <p className="font-semibold text-white">
-                {z.zoneCode}
-                {z.zoneName ? ` — ${z.zoneName}` : ''}
-                <span className="ml-2 font-normal text-slate-400">({z.zoneType})</span>
-              </p>
-              <p className="mt-1 text-slate-400">{formatZoneRackSummary(z)}</p>
-              {cap.hasArea && (
-                <p className="mt-0.5 text-slate-500">{formatZoneCapacitySummary(cap, z.zoneType)}</p>
-              )}
-              {lpnCap > 0 && (
-                <p className="mt-1 text-cyan-300/90">≈ {lpnCap.toLocaleString('vi-VN')} LPN (tối đa theo loại zone)</p>
-              )}
-              {tenantRequiredAreaM2 != null && area > 0 && !areaOk && (
-                <p className="mt-1 text-amber-300">Diện tích &lt; nhu cầu {fmtM2(tenantRequiredAreaM2)} — chọn thêm zone</p>
-              )}
-              {reservedCapacity != null && lpnCap > 0 && !lpnOk && eligible && (
-                <p className="mt-1 text-amber-300">
-                  Một zone chưa đủ {reservedCapacity} thùng — chọn thêm zone
-                </p>
-              )}
-              {!eligible && requiredZoneType && (
-                <p className="mt-1 text-slate-500">
-                  Không chọn — loại hình thuê khu riêng chỉ dùng zone PRIVATE hoặc dedicated
-                </p>
-              )}
-            </div>
-          </label>
-        )
-      })}
-      </div>
-    </>
-  )
 }
 
 function MinZonesCapacityAlert({
@@ -1895,72 +1522,125 @@ function ContractTypeStorageHint({
   return null
 }
 
-function MultiZoneSelectionSummary({
-  zones,
-  reservedCapacity,
-  totalLpnCapacity,
-  totalAreaM2,
-  capacitySplit,
-  splitMode,
+function readinessBadgeClass(readiness: WarehouseClaimCandidate['readiness']) {
+  switch (readiness) {
+    case 'READY':
+      return 'border-emerald-400/40 bg-emerald-400/15 text-emerald-200'
+    case 'CAN_PROVISION':
+      return 'border-amber-400/40 bg-amber-400/15 text-amber-200'
+    default:
+      return 'border-red-400/40 bg-red-400/15 text-red-200'
+  }
+}
+
+function SharedStorageReadinessPanel({
+  loading,
+  candidates,
+  operatorCandidate,
+  operatorWarehouseId,
+  district,
+  city,
+  suggestedZoneType,
 }: {
-  zones: zonesApi.ApiZone[]
-  reservedCapacity: number | null
-  totalLpnCapacity: number
-  totalAreaM2: number
-  capacitySplit: Map<string, number> | null
-  splitMode: 'even' | 'proportional'
+  loading: boolean
+  candidates: WarehouseClaimCandidate[]
+  operatorCandidate: WarehouseClaimCandidate | null
+  operatorWarehouseId: string | null
+  district: string
+  city: string
+  suggestedZoneType?: string | null
 }) {
   return (
-    <div className="mt-3 rounded-lg border border-cyan-500/30 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-100">
-      <p className="font-medium text-white">
-        Đã chọn {zones.length} zone: {zones.map((z) => z.zoneCode).join(', ')}
+    <div className="rounded-lg border border-cyan-500/25 bg-cyan-500/5 p-3">
+      <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">
+        Gợi ý kho SHARED_STORAGE — {district}, {city}
       </p>
-      <p className="mt-1">
-        Tổng ~{totalLpnCapacity.toLocaleString('vi-VN')} thùng/LPN
-        {totalAreaM2 > 0 ? ` · ${fmtM2(totalAreaM2)}` : ''}
-        {reservedCapacity != null && (
+      <p className="mt-1 text-xs text-slate-400">
+        Zone SHARED sẽ được chọn hoặc tạo ở <strong className="text-slate-300">bước 3</strong>.
+        Ở bước này chỉ xác nhận kho đủ điều kiện nhận yêu cầu.
+        {suggestedZoneType && (
           <>
             {' '}
-            — yêu cầu giữ {reservedCapacity.toLocaleString('vi-VN')} thùng
-            {totalLpnCapacity >= reservedCapacity ? (
-              <span className="text-emerald-300"> (đủ)</span>
-            ) : (
-              <span className="text-amber-300">
-                {' '}
-                (thiếu ~{reservedCapacity - totalLpnCapacity})
-              </span>
-            )}
+            Khách gợi ý zone <strong className="text-cyan-200">{suggestedZoneType}</strong>.
           </>
         )}
       </p>
-      {reservedCapacity != null && capacitySplit && zones.length > 0 && (
-        <div className="mt-2 border-t border-cyan-500/20 pt-2">
-          <p className="font-medium text-cyan-200">
-            Phân bổ lên HĐ ({splitMode === 'even' ? 'chia đều' : 'theo sức chứa zone'}):
+
+      {operatorCandidate && (
+        <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
+          <p className="text-xs text-slate-300">
+            Kho của bạn: <strong className="text-white">{operatorCandidate.warehouseName}</strong>
           </p>
-          <ul className="mt-1 space-y-0.5">
-            {zones.map((z) => {
-              const share = capacitySplit.get(z.zoneId) ?? 0
-              const pct =
-                reservedCapacity > 0 ? Math.round((share / reservedCapacity) * 100) : 0
-              return (
-                <li key={z.zoneId} className="flex justify-between gap-2 text-slate-300">
-                  <span>
-                    <strong className="text-white">{z.zoneCode}</strong>
-                    {z.zoneType ? ` (${z.zoneType})` : ''}
-                  </span>
-                  <span className="shrink-0 font-mono text-cyan-300">
-                    {share.toLocaleString('vi-VN')} thùng{pct > 0 ? ` · ${pct}%` : ''}
-                  </span>
-                </li>
-              )
-            })}
-          </ul>
-          <p className="mt-1.5 text-[10px] text-slate-500">
-            Khi kích hoạt HĐ, mỗi zone nhận một storage reservation với reservedCapacity tương ứng. Phần
-            capacity zone còn trống (SHARED) có thể nhận tenant khác.
+          <span
+            className={`mt-1.5 inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${readinessBadgeClass(operatorCandidate.readiness)}`}
+          >
+            {readinessLabel(operatorCandidate.readiness)}
+          </span>
+          <p className="mt-1.5 text-[11px] text-slate-400">
+            {operatorCandidate.sharedZoneCount > 0 ? (
+              <>
+                {operatorCandidate.sharedZoneCount} zone pool · ~
+                {fmtM2(operatorCandidate.sharedZoneAreaM2)} m²
+              </>
+            ) : operatorCandidate.remainingZoneAreaM2 != null &&
+              operatorCandidate.remainingZoneAreaM2 > 0 ? (
+              <>Chưa có zone pool · còn ~{fmtM2(operatorCandidate.remainingZoneAreaM2)} m² để tạo zone</>
+            ) : (
+              <>Không còn diện tích hoặc kho đang thuê nguyên</>
+            )}
           </p>
+          {operatorCandidate.readiness === 'BLOCKED' && (
+            <p className="mt-1 text-[11px] text-red-200/90">
+              Không thể duyệt SHARED_STORAGE cho kho này.
+            </p>
+          )}
         </div>
+      )}
+
+      {loading ? (
+        <p className="mt-3 text-xs text-slate-500">Đang kiểm tra kho trong khu vực...</p>
+      ) : candidates.length === 0 ? (
+        <p className="mt-3 text-xs text-amber-200/90">
+          Không có kho phù hợp SHARED_STORAGE tại {district}, {city}.
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {candidates.map((c) => {
+            const isOperator = c.warehouseId === operatorWarehouseId
+            return (
+              <li
+                key={c.warehouseId}
+                className={`flex flex-col gap-1 rounded border px-3 py-2 text-xs sm:flex-row sm:items-center sm:justify-between ${
+                  isOperator
+                    ? 'border-cyan-400/35 bg-cyan-400/10 text-cyan-100'
+                    : 'border-white/10 bg-white/[0.02] text-slate-300'
+                }`}
+              >
+                <div>
+                  <span className="font-medium text-white">
+                    {c.warehouseName}
+                    {isOperator && (
+                      <span className="ml-2 text-[10px] font-normal text-cyan-300">(kho bạn)</span>
+                    )}
+                  </span>
+                  <p className="mt-0.5 text-[11px] text-slate-400">
+                    {c.sharedZoneCount > 0
+                      ? `${c.sharedZoneCount} zone pool · ~${fmtM2(c.sharedZoneAreaM2)} m²`
+                      : `Chưa có zone · còn ~${fmtM2(c.remainingZoneAreaM2)} m²`}
+                    {c.matchingSuggestedZoneType && (
+                      <span className="ml-1 text-cyan-300">· khớp loại zone khách</span>
+                    )}
+                  </p>
+                </div>
+                <span
+                  className={`inline-flex w-fit shrink-0 items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${readinessBadgeClass(c.readiness)}`}
+                >
+                  {readinessLabel(c.readiness)}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
       )}
     </div>
   )
@@ -1971,6 +1651,7 @@ function WarehouseApprovalCapacityCard({
   capacity,
   contractType,
   snapshot,
+  sharedStorageCandidate,
 }: {
   whName: string
   capacity: {
@@ -1984,6 +1665,7 @@ function WarehouseApprovalCapacityCard({
   }
   contractType: ContractTypeValue
   snapshot: warehousesApi.ApiWarehouseCapacitySnapshot | null
+  sharedStorageCandidate?: WarehouseClaimCandidate | null
 }) {
   const canApprove = contractType === 'DEDICATED_WAREHOUSE' ? true : capacity.areaFeasible
   return (
@@ -2001,6 +1683,19 @@ function WarehouseApprovalCapacityCard({
         Đang dùng {fmtM2(capacity.used)} / {fmtM2(capacity.usable)} m² ({capacity.utilizationPct}%)
         {capacity.remaining != null ? ` · còn ~${fmtM2(capacity.remaining)} m²` : ''}
       </p>
+      {contractType === 'SHARED_STORAGE' && sharedStorageCandidate && (
+        <p className="mt-1 text-[11px] text-cyan-200/90">
+          Zone pool SHARED:{' '}
+          <strong className="text-cyan-100">{sharedStorageCandidate.sharedZoneCount}</strong> zone
+          {sharedStorageCandidate.sharedZoneAreaM2 > 0
+            ? ` (~${fmtM2(sharedStorageCandidate.sharedZoneAreaM2)} m²)`
+            : ''}
+          {sharedStorageCandidate.remainingZoneAreaM2 != null &&
+          sharedStorageCandidate.remainingZoneAreaM2 > 0 ? (
+            <> · còn ~{fmtM2(sharedStorageCandidate.remainingZoneAreaM2)} m² để tạo zone mới</>
+          ) : null}
+        </p>
+      )}
       {capacity.areaRequired != null && (
         <p className="mt-1">
           Tenant cần ~{fmtM2(capacity.areaRequired)} m² ·{' '}
@@ -2025,7 +1720,7 @@ function WarehouseApprovalCapacityCard({
           )}
           {(snapshot.diagnostics?.binsBelowStandardVolume ?? 0) > 0 && (
             <p className="mb-1 text-amber-200/90">
-              {snapshot.diagnostics.binsBelowStandardVolume} bin đang dùng volume &lt; 16 (chỉ ~1 EXTRA/bin).
+              {snapshot.diagnostics?.binsBelowStandardVolume} bin đang dùng volume &lt; 16 (chỉ ~1 EXTRA/bin).
               Cập nhật bin lên 16 volume để đủ 2 EXTRA/bin.
             </p>
           )}
@@ -2086,74 +1781,6 @@ function WarehouseApprovalCapacityCard({
   )
 }
 
-function ZoneAreaFitAlert({
-  fit,
-  required,
-  zoneCode,
-  allowUndersized,
-  onAllowUndersizedChange,
-}: {
-  fit: { zoneArea: number; sufficient: boolean; deficit: number; minZones: number | null; multi?: boolean }
-  required: number
-  zoneCode: string
-  allowUndersized: boolean
-  onAllowUndersizedChange: (v: boolean) => void
-}) {
-  if (fit.sufficient) {
-    return (
-      <p className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
-        {fit.multi ? (
-          <>
-            <strong>{zoneCode}</strong> tổng {fmtM2(fit.zoneArea)} — đủ so với tenant cần{' '}
-            {fmtM2(required)} m².
-          </>
-        ) : (
-          <>
-            Zone <strong>{zoneCode}</strong> có {fmtM2(fit.zoneArea)} m² — đủ so với tenant cần{' '}
-            {fmtM2(required)} m².
-          </>
-        )}
-      </p>
-    )
-  }
-
-  return (
-    <div className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-      <p className="font-medium text-amber-200">
-        {fit.multi ? (
-          <>
-            <strong>{zoneCode}</strong> tổng {fmtM2(fit.zoneArea)} — tenant cần {fmtM2(required)} m²
-            (thiếu {fmtM2(fit.deficit)} m²).
-          </>
-        ) : (
-          <>
-            Zone <strong>{zoneCode}</strong> chỉ {fmtM2(fit.zoneArea)} m² — tenant cần {fmtM2(required)}{' '}
-            m² (thiếu {fmtM2(fit.deficit)} m²).
-          </>
-        )}
-      </p>
-      {fit.minZones != null && fit.minZones > 1 && (
-        <p className="mt-1 text-amber-200/80">
-          Gợi ý: cần khoảng <strong>{fit.minZones} zone</strong> cùng cỡ (~{fmtM2(fit.zoneArea)} m²/zone)
-          hoặc một zone ≥ {fmtM2(required)} m².
-        </p>
-      )}
-      <label className="mt-2 flex cursor-pointer items-start gap-2 text-amber-100/90">
-        <input
-          type="checkbox"
-          checked={allowUndersized}
-          onChange={(e) => onAllowUndersizedChange(e.target.checked)}
-          className="mt-0.5 rounded border-white/20"
-        />
-        <span>
-          Vẫn cấp zone này (tạm thời / sẽ bổ sung zone sau) — không khuyến nghị nếu HĐ thuê nguyên
-          zone.
-        </span>
-      </label>
-    </div>
-  )
-}
-
 function AllocationPricePreview({
   loading,
   estimate,
@@ -2197,6 +1824,10 @@ function AllocationPricePreview({
 }
 
 function formatContractPriceFormula(estimate: ApiContractPriceEstimate): string | null {
+  const boxLines = estimate.breakdown.filter((b) => b.label?.startsWith('Thùng '))
+  if (boxLines.length > 0) {
+    return boxLines.map((b) => b.detail.replace(/ VND/g, ' ₫')).join(' + ')
+  }
   const zoneLines = estimate.breakdown.filter((b) => b.label && b.label !== 'Thuê zone đã chọn')
   if (zoneLines.length > 0) {
     return zoneLines.map((b) => b.detail.replace(/ VND/g, ' ₫')).join(' + ')
@@ -2295,7 +1926,9 @@ function SummaryBlock({
           {row.estimatedOutboundPerWeek != null && (
             <p>Xuất/tuần: {row.estimatedOutboundPerWeek}</p>
           )}
-          {row.requestedAreaM2 != null && <p>Diện tích: {row.requestedAreaM2} m²</p>}
+          {row.requestedAreaM2 != null && (
+            <p>Diện tích: {formatAreaM2Int(row.requestedAreaM2)} m²</p>
+          )}
           {row.requiresFastPicking && <p className="text-cyan-400">Fast picking</p>}
           {row.requiresPremiumStorage && <p className="text-cyan-400">Premium storage</p>}
           {row.notes && (

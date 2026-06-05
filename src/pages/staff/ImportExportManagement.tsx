@@ -2,9 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
 import { Pagination } from '../../components/ui/Pagination'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
-import { useNavigate } from 'react-router-dom'
 import type { ImportExportRequest } from '../../types/ImportExport'
-import { RequestShipmentModal } from '../../components/ui/modal/RequestTransportationModel'
 import { AssignDriverModal } from '../../components/ui/modal/AssignDriverModal'
 import { ImportExportModal } from '../../components/ui/modal/ImportExportModal'
 
@@ -150,7 +148,6 @@ export const ImportExportManagement = () => {
     const [search, setSearch] = useState('')
     const [filter, setFilter] = useState<ImportExportRequest['status'] | 'all'>('all')
     const [currentPage, setCurrentPage] = useState(1)
-    const navigate = useNavigate()
 
     /* ===== MODALS ===== */
     const [modal, setModal] = useState<{ open: boolean; data?: ImportExportRequest }>({

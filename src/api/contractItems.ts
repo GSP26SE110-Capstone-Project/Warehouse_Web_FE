@@ -3,6 +3,7 @@ import { apiPaginated, buildQuery } from './client'
 export interface ApiContractItem {
   contractItemId: string
   contractId: string
+  appendixId?: string | null
   itemType: string
   storageLevel?: string | null
   billingUnit: string

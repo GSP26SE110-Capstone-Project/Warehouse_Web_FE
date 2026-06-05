@@ -21,6 +21,75 @@ export function listContracts(params?: {
   return apiPaginated<ApiContract>(`/contracts${buildQuery(params ?? {})}`)
 }
 
+export interface ApiCommitmentWarning {
+  code: string
+  productKind?: string | null
+  size?: string | null
+  effectiveCommittedPieces?: number
+  usedPieces?: number
+  overagePieces?: number
+  message: string
+}
+
+export interface ApiContractInboundCommitmentLine {
+  key: string
+  productKind: string | null
+  size?: string | null
+  sizeGroup?: string | null
+  committedPieces: number
+  writtenOffPieces?: number
+  effectiveCommittedPieces: number
+  usedPieces: number
+  remainingPieces: number
+  overagePieces: number
+  isTailRemaining?: boolean
+  canCloseLine?: boolean
+  tailCloseThreshold?: number
+  uncommitted?: boolean
+}
+
+export interface ApiContractInboundCommitment {
+  applies: boolean
+  contractId: string
+  rentalRequestId?: string | null
+  productLines: ApiContractInboundCommitmentLine[]
+  totals: {
+    committedPieces: number
+    effectiveCommittedPieces?: number
+    writtenOffPieces?: number
+    usedPieces: number
+    remainingPieces: number | null
+    overagePieces: number
+  }
+  warnings?: ApiCommitmentWarning[]
+}
+
+export interface CloseCommitmentLineResult {
+  contractId: string
+  productKind: string
+  size?: string | null
+  closedPieces: number
+  note?: string | null
+  line?: ApiContractInboundCommitmentLine
+  totals?: ApiContractInboundCommitment['totals']
+}
+
+export function getContractInboundCommitment(contractId: string) {
+  return apiRequest<ApiContractInboundCommitment>(
+    `/contracts/${contractId}/inbound-commitment`
+  )
+}
+
+export function closeInboundCommitmentLine(
+  contractId: string,
+  body: { productKind: string; size?: string | null; note?: string }
+) {
+  return apiRequest<CloseCommitmentLineResult>(
+    `/contracts/${contractId}/inbound-commitment/close-line`,
+    { method: 'POST', body }
+  )
+}
+
 export function updateContract(
   contractId: string,
   body: {

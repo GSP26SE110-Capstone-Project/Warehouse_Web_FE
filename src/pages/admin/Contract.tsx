@@ -11,12 +11,20 @@ import { Pagination } from '../../components/ui/Pagination'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { ApiError } from '../../api/client'
 import * as contractsApi from '../../api/contracts'
+import * as contractAppendicesApi from '../../api/contractAppendices'
 import * as warehousesApi from '../../api/warehouses'
 import * as tenantsApi from '../../api/tenants'
 import { contractToRow } from '../../mappers'
 import { CONTRACT_TYPE_LABELS, type ContractTypeValue } from '../../data/contractTypes'
+import { ContractAppendixWhModal } from '../../components/contracts/ContractAppendixWhModal'
+import { countWhReviewAppendices } from '../../utils/contractAppendix'
+import { useAuth } from '../../auth/AuthContext'
 
 export const ContractManagement: React.FC = () => {
+  const { user } = useAuth()
+  const scopedWarehouseId =
+    user?.role === 'WH_ADMIN' ? (user.warehouseId ?? undefined) : undefined
+
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -34,24 +42,51 @@ export const ContractManagement: React.FC = () => {
     title?: string
   }>({ open: false, type: 'success', message: '' })
 
+  const [whReviewCountByContract, setWhReviewCountByContract] = useState<Map<string, number>>(
+    new Map()
+  )
+  const [totalWhReviewAppendices, setTotalWhReviewAppendices] = useState(0)
+  const [appendixWhContractId, setAppendixWhContractId] = useState<string | null>(null)
+
   const loadContracts = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
       const [{ items }, { items: warehouses }, { items: tenants }] = await Promise.all([
-        contractsApi.listContracts({ limit: 100 }),
+        contractsApi.listContracts({
+          limit: 100,
+          ...(scopedWarehouseId ? { warehouseId: scopedWarehouseId } : {}),
+        }),
         warehousesApi.listWarehouses({ limit: 100 }),
         tenantsApi.listTenants({ limit: 100 }),
       ])
       const whMap = new Map(warehouses.map((w) => [w.warehouseId, w.warehouseName]))
       const tenantMap = new Map(tenants.map((t) => [t.tenantId, t.companyName]))
       setContracts(items.map((c) => contractToRow(c, whMap, tenantMap)))
+
+      const activeIds = items.filter((c) => c.status === 'ACTIVE').map((c) => c.contractId)
+      const reviewMap = new Map<string, number>()
+      let totalReview = 0
+      if (activeIds.length > 0) {
+        const appendixResults = await Promise.allSettled(
+          activeIds.map((id) => contractAppendicesApi.listContractAppendices(id, { limit: 50 }))
+        )
+        activeIds.forEach((id, i) => {
+          const result = appendixResults[i]
+          if (result.status !== 'fulfilled') return
+          const n = countWhReviewAppendices(result.value.items)
+          if (n > 0) reviewMap.set(id, n)
+          totalReview += n
+        })
+      }
+      setWhReviewCountByContract(reviewMap)
+      setTotalWhReviewAppendices(totalReview)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không tải được hợp đồng')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [scopedWarehouseId])
 
   useEffect(() => {
     loadContracts()
@@ -124,6 +159,22 @@ export const ContractManagement: React.FC = () => {
             {error && (
               <InlineAlert message={error} onDismiss={() => setError('')} />
             )}
+
+            {!loading && totalWhReviewAppendices > 0 && (
+              <div className="rounded-xl border border-violet-500/40 bg-violet-500/10 px-5 py-4">
+                <p className="flex items-start gap-2 text-sm text-violet-100">
+                  <span className="material-symbols-outlined shrink-0 text-lg text-violet-400">
+                    notification_important
+                  </span>
+                  <span>
+                    Có <strong className="text-white">{totalWhReviewAppendices}</strong> phụ lục
+                    chờ kho duyệt — bấm nút <strong className="text-white">Duyệt phụ lục</strong>{' '}
+                    trên bảng (không cần mở icon mắt).
+                  </span>
+                </p>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
               <StatsCard title="Tổng hợp đồng" value={contracts.length} icon="description" accentColor="emerald" />
               <StatsCard
@@ -139,10 +190,10 @@ export const ContractManagement: React.FC = () => {
                 accentColor="purple"
               />
               <StatsCard
-                title="Chờ xử lý"
-                value={contracts.filter((c) => c.status === 'Pending').length}
-                icon="hourglass_top"
-                accentColor="orange"
+                title="Phụ lục chờ duyệt"
+                value={totalWhReviewAppendices}
+                icon="note_add"
+                accentColor="purple"
               />
             </div>
 
@@ -181,12 +232,15 @@ export const ContractManagement: React.FC = () => {
                       <th className="px-6 py-4">Loại</th>
                       <th className="px-6 py-4">Thời hạn</th>
                       <th className="px-6 py-4">Trạng thái</th>
+                      <th className="px-6 py-4">Phụ lục</th>
                       <th className="px-6 py-4">Giá trị</th>
                       <th className="px-6 py-4 text-right">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {paginatedContracts.map((c) => (
+                    {paginatedContracts.map((c) => {
+                      const whReviewCount = whReviewCountByContract.get(c.contractId) ?? 0
+                      return (
                       <tr key={c.contractId} className="hover:bg-white/5">
                         <td className="px-6 py-4 font-mono text-cyan-400">{c.id}</td>
                         <td className="px-6 py-4">{c.customerName}</td>
@@ -200,17 +254,41 @@ export const ContractManagement: React.FC = () => {
                             {c.apiStatus ?? c.status}
                           </span>
                         </td>
+                        <td className="px-6 py-4">
+                          {whReviewCount > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setAppendixWhContractId(c.contractId)}
+                              className="inline-flex items-center gap-1 rounded-full bg-violet-500/20 px-2.5 py-1 text-xs font-semibold text-violet-200 ring-1 ring-violet-400/30 hover:bg-violet-500/30"
+                            >
+                              <span className="material-symbols-outlined text-sm">pending_actions</span>
+                              {whReviewCount} chờ duyệt
+                            </button>
+                          ) : (
+                            <span className="text-xs text-slate-600">—</span>
+                          )}
+                        </td>
                         <td className="px-6 py-4 text-emerald-400">
                           {c.price.toLocaleString('vi-VN')}₫
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end items-center gap-2">
+                            {whReviewCount > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setAppendixWhContractId(c.contractId)}
+                                className="rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-violet-400"
+                              >
+                                Duyệt phụ lục
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() =>
                                 setModal({ open: true, mode: 'view', contractId: c.contractId })
                               }
                               className="rounded p-1 hover:bg-white/10"
+                              title="Xem chi tiết HĐ"
                             >
                               <span className="material-symbols-outlined">visibility</span>
                             </button>
@@ -226,7 +304,7 @@ export const ContractManagement: React.FC = () => {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>
@@ -246,6 +324,14 @@ export const ContractManagement: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {appendixWhContractId && (
+        <ContractAppendixWhModal
+          contractId={appendixWhContractId}
+          onClose={() => setAppendixWhContractId(null)}
+          onUpdated={() => void loadContracts()}
+        />
+      )}
 
       {modal.open && modal.contractId && (
         <ContractModal

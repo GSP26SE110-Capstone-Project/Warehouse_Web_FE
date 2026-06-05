@@ -9,6 +9,41 @@ export function listWarehouses(params?: {
   return apiPaginated<ApiWarehouse>(`/warehouses${buildQuery(params ?? {})}`)
 }
 
+export type SharedStorageReadiness = 'READY' | 'CAN_PROVISION' | 'BLOCKED'
+
+export interface ApiWarehouseClaimCandidate {
+  warehouseId: string
+  warehouseName: string
+  city?: string | null
+  district?: string | null
+  sharedZoneCount: number
+  sharedZoneAreaM2: number
+  remainingZoneAreaM2: number | null
+  hasDedicatedWarehouseLease: boolean
+  matchingSuggestedZoneType: boolean
+  readiness: SharedStorageReadiness
+  eligible: boolean
+}
+
+export interface ApiWarehouseClaimCandidatesResult {
+  city: string
+  district: string
+  contractType: string
+  count: number
+  items: ApiWarehouseClaimCandidate[]
+}
+
+export function listWarehouseClaimCandidates(params: {
+  city: string
+  district: string
+  contractType?: string
+  suggestedZoneType?: string | null
+}) {
+  return apiRequest<ApiWarehouseClaimCandidatesResult>(
+    `/warehouses/claim-candidates${buildQuery(params)}`
+  )
+}
+
 export function getWarehouse(warehouseId: string) {
   return apiRequest<ApiWarehouse>(`/warehouses/${warehouseId}`)
 }

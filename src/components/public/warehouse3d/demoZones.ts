@@ -2,7 +2,7 @@ import { getDefaultBinCapacity, getMaxLpnBoxTypeForZone } from '../../../data/bi
 import { formatLpnSize } from '../../../data/lpnTerminology'
 import { ZONE_TYPE_LABELS } from '../../../data/zoneTypes'
 
-export type DemoZoneType = 'SHARED' | 'FAST_MOVING' | 'PREMIUM' | 'PRIVATE'
+export type DemoZoneType = 'SHARED' | 'PREMIUM' | 'PRIVATE'
 
 export type DemoZone3D = {
   id: string
@@ -28,13 +28,13 @@ export const DEMO_ZONES: DemoZone3D[] = [
   },
   {
     id: 'B',
-    zoneType: 'FAST_MOVING',
-    title: ZONE_TYPE_LABELS.FAST_MOVING,
+    zoneType: 'SHARED',
+    title: 'SHARED B',
     x: 4.75,
     z: -3.5,
     w: 9,
     d: 6.2,
-    color: '#fbbf24',
+    color: '#38bdf8',
   },
   {
     id: 'C',

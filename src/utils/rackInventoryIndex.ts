@@ -85,11 +85,19 @@ export function indexInventoriesByBin(inventories: ApiInventory[]): Map<string, 
   return map
 }
 
+/** Bin mã `B-C01-01-L1-04` thuộc rack `R-C01-01` (seed/bulk dùng tiền tố B-). */
+export function binBelongsToRack(binCode: string | undefined, rackCode: string): boolean {
+  if (!binCode || !rackCode) return false
+  if (binCode === rackCode || binCode.startsWith(`${rackCode}-`)) return true
+  if (rackCode.startsWith('R-') && binCode.startsWith(`B-${rackCode.slice(2)}-`)) return true
+  return false
+}
+
 export function matchRackCodeFromBinCode(binCode: string | undefined, racks: ApiRack[]): string | null {
   if (!binCode) return null
   const sorted = [...racks].sort((a, b) => b.rackCode.length - a.rackCode.length)
   for (const rack of sorted) {
-    if (binCode === rack.rackCode || binCode.startsWith(`${rack.rackCode}-`)) {
+    if (binBelongsToRack(binCode, rack.rackCode)) {
       return rack.rackCode
     }
   }

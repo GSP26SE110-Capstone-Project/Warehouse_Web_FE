@@ -86,9 +86,9 @@ export const Landing: React.FC = () => {
   const [lookupCode, setLookupCode] = useState('')
   const [lookupEmail, setLookupEmail] = useState('')
   const [autoLookup, setAutoLookup] = useState(false)
-  const handleSubmitted = (requestCode: string, contactEmail: string) => {
+  const handleSubmitted = (requestCode: string, contactEmail?: string) => {
     setLookupCode(requestCode)
-    setLookupEmail(contactEmail)
+    setLookupEmail(contactEmail ?? '')
     setAutoLookup(true)
     window.requestAnimationFrame(() => {
       document.getElementById('lookup')?.scrollIntoView({ behavior: 'smooth', block: 'start' })

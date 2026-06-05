@@ -31,7 +31,7 @@ export function getOnboardingStoragePlan(contractType: string): OnboardingStorag
         needsZone: true,
         needsRack: false,
         needsBin: false,
-        hint: 'Chọn zone PRIVATE hoặc zone đánh dấu khu riêng (dedicated) trong kho đã claim.',
+        hint: 'Chọn zone PRIVATE hoặc PREMIUM — khu riêng cho tenant.',
       }
     case 'RESERVED_STORAGE':
       return {
@@ -73,29 +73,64 @@ export type ZoneEligibilityInput =
       isDedicated?: boolean | null
     }
 
-/** Loại zone bắt buộc khi chọn zone theo hình thức thuê (null = không giới hạn). */
+function normalizeZoneType(zone: ZoneEligibilityInput): string {
+  const zoneType =
+    zone != null && typeof zone === 'object' ? zone.zoneType : zone
+  return String(zoneType ?? 'SHARED').toUpperCase()
+}
+
+/** Loại zone được phép chọn theo hình thức thuê (null = không giới hạn). */
+export function allowedZoneTypesForContract(contractType: string): string[] | null {
+  switch (contractType) {
+    case 'SHARED_STORAGE':
+      return ['SHARED']
+    case 'DEDICATED_ZONE':
+      return ['PRIVATE', 'PREMIUM']
+    default:
+      return null
+  }
+}
+
+/** @deprecated Dùng allowedZoneTypesForContract — giữ cho copy UI đơn giản */
 export function requiredZoneTypeForContract(contractType: string): string | null {
-  if (contractType === 'DEDICATED_ZONE') return 'PRIVATE'
-  return null
+  const allowed = allowedZoneTypesForContract(contractType)
+  if (!allowed) return null
+  if (allowed.length === 1) return allowed[0]
+  return allowed.join(' / ')
+}
+
+export function zoneEligibilityHint(contractType: string): string | null {
+  switch (contractType) {
+    case 'SHARED_STORAGE':
+      return 'Chỉ zone SHARED — PREMIUM/PRIVATE dành cho thuê khu riêng (DEDICATED_ZONE).'
+    case 'DEDICATED_ZONE':
+      return 'Chỉ zone PRIVATE hoặc PREMIUM — không dùng zone SHARED.'
+    default:
+      return null
+  }
 }
 
 export function isZoneEligibleForContract(
   contractType: string,
   zone: ZoneEligibilityInput
 ): boolean {
-  const required = requiredZoneTypeForContract(contractType)
-  if (!required) return true
-
-  const zoneType =
-    zone != null && typeof zone === 'object' ? zone.zoneType : zone
+  const allowed = allowedZoneTypesForContract(contractType)
+  const zoneType = normalizeZoneType(zone)
   const isDedicated =
     zone != null && typeof zone === 'object' ? Boolean(zone.isDedicated) : false
 
-  if (required === 'PRIVATE') {
-    return (zoneType ?? 'SHARED').toUpperCase() === 'PRIVATE' || isDedicated
+  if (!allowed) {
+    if (contractType === 'RESERVED_STORAGE') {
+      return zoneType !== 'PRIVATE'
+    }
+    return true
   }
 
-  return (zoneType ?? 'SHARED').toUpperCase() === required
+  if (contractType === 'DEDICATED_ZONE') {
+    return allowed.includes(zoneType) || isDedicated
+  }
+
+  return allowed.includes(zoneType)
 }
 
 /** Nhãn ngắn cho WH admin (không dùng mã reservation/level). */

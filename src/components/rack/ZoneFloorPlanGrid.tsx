@@ -222,7 +222,7 @@ export function ZoneFloorPlanGrid({
         >
           <span className="text-center text-[10px] text-slate-500 sm:text-xs">
             {plan[plan.length - 1]?.[0]?.type === 'aisle'
-              ? plan[plan.length - 1][0].label
+              ? (plan[plan.length - 1][0] as { type: 'aisle'; label: string }).label
               : `Viền lối đi · ~${Math.round(ZONE_AISLE_RATIO * 100)}% diện tích zone`}
           </span>
         </div>

@@ -11,7 +11,8 @@ export function isWebGLAvailable(): boolean {
 
     if (!context) return false
 
-    const loseExt = context.getExtension('WEBGL_lose_context')
+    const gl = context as WebGLRenderingContext | WebGL2RenderingContext
+    const loseExt = gl.getExtension('WEBGL_lose_context')
     loseExt?.loseContext()
     return true
   } catch {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
@@ -23,6 +23,11 @@ import {
 } from '../../components/inbound/InboundPickupForm'
 import { DELIVERY_MODE_OPTIONS, type DeliveryMode } from '../../data/deliveryMode'
 import * as tenantsApi from '../../api/tenants'
+import { SkuModal, type SkuFormPayload } from '../../components/ui/modal/SkuModal'
+import { fetchProductKindCatalogTree, fetchSizeFactors } from '../../api/productCatalog'
+import type { ApiProductKindTreeNode, ApiSizeFactor } from '../../api/productCatalog'
+import * as collectionsApi from '../../api/collections'
+import * as seasonsApi from '../../api/seasons'
 import { DateTimePickerField } from '../../components/ui/DateTimePickerField'
 import {
   contractStartDatetimeLocal,
@@ -31,6 +36,22 @@ import {
 } from '../../utils/contractDates'
 
 type LineDraft = { skuId: string; expectedQuantity: number }
+
+function normalizeSize(size?: string | null) {
+  return String(size ?? '').trim().toUpperCase()
+}
+
+function commitmentKey(productKind?: string | null, size?: string | null) {
+  return `${String(productKind ?? '').trim()}|${normalizeSize(size)}`
+}
+
+function formatCommitmentLine(line: {
+  productKind?: string | null
+  size?: string | null
+}) {
+  const size = normalizeSize(line.size)
+  return `${line.productKind ?? 'Chưa rõ loại hàng'}${size ? ` · size ${size}` : ''}`
+}
 
 export function InboundCreatePage({ basePath }: { basePath: string }) {
   const navigate = useNavigate()
@@ -43,6 +64,21 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
   >([])
   const [warehouseCodes, setWarehouseCodes] = useState<Map<string, string>>(new Map())
   const [skus, setSkus] = useState<ApiSku[]>([])
+  const [commitment, setCommitment] = useState<contractsApi.ApiContractInboundCommitment | null>(null)
+  const [commitmentLoading, setCommitmentLoading] = useState(false)
+  const [showOnlyAllowedSkus, setShowOnlyAllowedSkus] = useState(false)
+  const [catalogTree, setCatalogTree] = useState<ApiProductKindTreeNode[]>([])
+  const [sizeFactors, setSizeFactors] = useState<ApiSizeFactor[]>([])
+  const [collections, setCollections] = useState<
+    Awaited<ReturnType<typeof collectionsApi.listCollections>>['items']
+  >([])
+  const [seasons, setSeasons] = useState<
+    Awaited<ReturnType<typeof seasonsApi.listSeasons>>['items']
+  >([])
+  const [skuModal, setSkuModal] = useState<{
+    open: boolean
+    productLineKey?: string
+  }>({ open: false })
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const submitLockRef = useRef(false)
@@ -71,13 +107,21 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
     }
     setLoading(true)
     try {
-      const [cRes, sRes, whRes] = await Promise.all([
+      const [cRes, sRes, whRes, catalog, sizes, colRes, seasonRes] = await Promise.all([
         contractsApi.listContracts({ tenantId, status: 'ACTIVE', limit: 100 }),
         skusApi.listSkus({ tenantId, status: 'ACTIVE', limit: 200 }),
         warehousesApi.listWarehouses({ limit: 200 }),
+        fetchProductKindCatalogTree(),
+        fetchSizeFactors(),
+        collectionsApi.listCollections({ tenantId, limit: 100 }),
+        seasonsApi.listSeasons({ limit: 100 }),
       ])
       setContracts(cRes.items)
       setSkus(sRes.items)
+      setCatalogTree(catalog.tree ?? [])
+      setSizeFactors(sizes)
+      setCollections(colRes.items)
+      setSeasons(seasonRes.items)
       setWarehouseCodes(
         new Map(whRes.items.map((w) => [w.warehouseId, w.warehouseCode]))
       )
@@ -92,6 +136,32 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    if (!contractId) {
+      setCommitment(null)
+      return
+    }
+    let cancelled = false
+    setCommitmentLoading(true)
+    contractsApi
+      .getContractInboundCommitment(contractId)
+      .then((data) => {
+        if (!cancelled) setCommitment(data)
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setCommitment(null)
+          setError(err instanceof ApiError ? err.message : 'Không tải được hạn mức nhập kho')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setCommitmentLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [contractId])
 
   useEffect(() => {
     if (deliveryMode !== 'WAREHOUSE_TRANSPORT' || !tenantId) return
@@ -115,6 +185,89 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
 
   const selectedContract = contracts.find((c) => c.contractId === contractId)
   const contractStartMin = contractStartDatetimeLocal(selectedContract?.startDate)
+  const commitmentByKey = useMemo(() => {
+    const map = new Map<string, contractsApi.ApiContractInboundCommitmentLine>()
+    for (const line of commitment?.productLines ?? []) {
+      if (!line.uncommitted && line.productKind) map.set(line.key, line)
+    }
+    return map
+  }, [commitment])
+  const commitmentApplies = Boolean(commitment?.applies && commitmentByKey.size > 0)
+  const productKindLabelMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const group of catalogTree) {
+      for (const kind of group.productKinds ?? []) {
+        map.set(kind.productKind, kind.displayName)
+      }
+    }
+    return map
+  }, [catalogTree])
+  const selectedSkuById = useMemo(
+    () => new Map(skus.map((sku) => [sku.skuId, sku])),
+    [skus]
+  )
+  const isSkuAllowed = useCallback(
+    (sku: ApiSku) => {
+      if (!commitmentApplies) return true
+      return commitmentByKey.has(commitmentKey(sku.productKind, sku.size))
+    },
+    [commitmentApplies, commitmentByKey]
+  )
+  const visibleSkus = useMemo(
+    () => (showOnlyAllowedSkus ? skus.filter(isSkuAllowed) : skus),
+    [isSkuAllowed, showOnlyAllowedSkus, skus]
+  )
+  const selectedSkuCountsByKey = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const line of lines) {
+      if (!line.skuId || line.expectedQuantity <= 0) continue
+      const sku = selectedSkuById.get(line.skuId)
+      if (!sku) continue
+      const key = commitmentKey(sku.productKind, sku.size)
+      map.set(key, (map.get(key) ?? 0) + line.expectedQuantity)
+    }
+    return map
+  }, [lines, selectedSkuById])
+  const remainingForSku = useCallback(
+    (skuId: string, currentLineQty = 0) => {
+      if (!commitmentApplies) return null
+      const sku = selectedSkuById.get(skuId)
+      if (!sku) return null
+      const key = commitmentKey(sku.productKind, sku.size)
+      const committedLine = commitmentByKey.get(key)
+      if (!committedLine) return 0
+      const totalInForm = selectedSkuCountsByKey.get(key) ?? 0
+      return committedLine.remainingPieces - totalInForm + currentLineQty
+    },
+    [commitmentApplies, commitmentByKey, selectedSkuById, selectedSkuCountsByKey]
+  )
+  const skuModalLine = skuModal.productLineKey
+    ? commitmentByKey.get(skuModal.productLineKey)
+    : undefined
+  const skuModalInitialValues = useMemo<Partial<SkuFormPayload> | undefined>(() => {
+    if (!skuModalLine) return undefined
+    const label = productKindLabelMap.get(skuModalLine.productKind ?? '') ?? skuModalLine.productKind ?? ''
+    const size = normalizeSize(skuModalLine.size)
+    return {
+      skuCode: `${String(skuModalLine.productKind ?? 'SKU').replace(/[^a-z0-9]+/gi, '-').toUpperCase()}${size ? `-${size}` : ''}-${Date.now().toString(36).toUpperCase()}`,
+      productName: `${label}${size ? ` size ${size}` : ''}`,
+      productKind: skuModalLine.productKind ?? '',
+      size,
+      movementCategory: 'NORMAL',
+      status: 'ACTIVE',
+    }
+  }, [productKindLabelMap, skuModalLine])
+
+  useEffect(() => {
+    if (!commitmentApplies) return
+    setLines((prev) =>
+      prev.map((line) => {
+        if (!line.skuId) return line
+        const sku = selectedSkuById.get(line.skuId)
+        return sku && isSkuAllowed(sku) ? line : { ...line, skuId: '' }
+      })
+    )
+  }, [commitmentApplies, isSkuAllowed, selectedSkuById])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -126,6 +279,29 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
     if (validLines.length === 0) {
       setAlert({ open: true, type: 'warning', message: 'Thêm ít nhất một dòng SKU' })
       return
+    }
+
+    if (commitmentApplies) {
+      for (const line of validLines) {
+        const sku = selectedSkuById.get(line.skuId)
+        if (!sku || !isSkuAllowed(sku)) {
+          setAlert({
+            open: true,
+            type: 'warning',
+            message: 'Chỉ được nhập SKU thuộc hàng hóa đã đăng ký trong rental request.',
+          })
+          return
+        }
+        const maxQty = remainingForSku(line.skuId, line.expectedQuantity)
+        if (maxQty != null && line.expectedQuantity > maxQty) {
+          setAlert({
+            open: true,
+            type: 'warning',
+            message: `${sku.skuCode} vượt hạn mức còn lại (${Math.max(0, maxQty)} cái).`,
+          })
+          return
+        }
+      }
     }
 
     if (deliveryMode === 'WAREHOUSE_TRANSPORT') {
@@ -175,7 +351,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
         })),
       })
 
-      if (deliveryMode === 'TENANT_SELF' && deliveryForm.vehiclePlate.trim()) {
+      if (deliveryMode === 'TENANT_SELF' && deliveryForm.vehiclePlate?.trim()) {
         await deliveryApi.upsertInboundDelivery(inbound.inboundRequestId, {
           vehiclePlate: deliveryForm.vehiclePlate.trim(),
           driverName: deliveryForm.driverName?.trim() || undefined,
@@ -206,6 +382,26 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
       submitLockRef.current = false
       setSubmitting(false)
     }
+  }
+
+  const handleCreateSku = async (form: SkuFormPayload) => {
+    if (!tenantId) return
+    const created = await skusApi.createSku({
+      tenantId,
+      skuCode: form.skuCode,
+      productName: form.productName,
+      productKind: form.productKind,
+      collectionId: form.collectionId || undefined,
+      seasonId: form.seasonId || undefined,
+      color: form.color || undefined,
+      size: form.size || undefined,
+      material: form.material || undefined,
+      movementCategory: form.movementCategory,
+      status: form.status,
+    })
+    setSkus((prev) => [created, ...prev.filter((sku) => sku.skuId !== created.skuId)])
+    setSkuModal({ open: false })
+    setAlert({ open: true, type: 'success', message: 'Đã tạo SKU, bạn có thể chọn ngay trong phiếu nhập.' })
   }
 
   if (!isTenantAdmin) {
@@ -333,6 +529,86 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
               </div>
             )}
 
+            {contractId && (
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-slate-200">Hàng hóa theo rental request</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {commitmentLoading
+                        ? 'Đang tải hạn mức...'
+                        : commitmentApplies
+                          ? 'SKU nhập kho phải khớp loại hàng và size đã đăng ký; số lượng tính theo hạn mức còn lại lũy kế.'
+                          : 'Hợp đồng này chưa có product lines từ rental request, form giữ cách chọn SKU hiện tại.'}
+                    </p>
+                  </div>
+                  {commitmentApplies && (
+                    <label className="flex items-center gap-2 text-xs text-slate-400">
+                      <input
+                        type="checkbox"
+                        checked={showOnlyAllowedSkus}
+                        onChange={(e) => setShowOnlyAllowedSkus(e.target.checked)}
+                        className="h-4 w-4 rounded border-white/10 bg-[#0f172a]"
+                      />
+                      Chỉ hiện SKU hợp lệ
+                    </label>
+                  )}
+                </div>
+
+                {commitmentApplies && (
+                  <div className="mt-3 grid gap-2">
+                    {commitment?.productLines
+                      .filter((line) => !line.uncommitted)
+                      .map((line) => {
+                        const label =
+                          productKindLabelMap.get(line.productKind ?? '') ??
+                          formatCommitmentLine(line)
+                        const hasMatchingSku = skus.some(
+                          (sku) => commitmentKey(sku.productKind, sku.size) === line.key
+                        )
+                        return (
+                          <div
+                            key={line.key}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/5 bg-white/3 px-3 py-2"
+                          >
+                            <div>
+                              <p className="text-xs font-medium text-slate-200">
+                                {label}
+                                {line.size ? (
+                                  <span className="ml-1 text-slate-500">
+                                    · size {normalizeSize(line.size)}
+                                  </span>
+                                ) : null}
+                              </p>
+                              <p className="mt-0.5 text-[11px] text-slate-500">
+                                Cam kết {line.effectiveCommittedPieces ?? line.committedPieces}
+                                {line.writtenOffPieces ? ` (${line.committedPieces} gốc, đã đóng ${line.writtenOffPieces})` : ''}
+                                {' · '}đang dùng {line.usedPieces} · còn {line.remainingPieces}
+                              </p>
+                              {line.isTailRemaining && (
+                                <p className="mt-1 text-[11px] text-amber-300/90">
+                                  Lần nhập cuối — còn {line.remainingPieces} cái (≤ {line.tailCloseThreshold ?? 5}).
+                                  Có thể tạo phiếu nhập đúng số còn lại hoặc tenant admin đóng cam kết dòng.
+                                </p>
+                              )}
+                            </div>
+                            {!hasMatchingSku && (
+                              <button
+                                type="button"
+                                onClick={() => setSkuModal({ open: true, productLineKey: line.key })}
+                                className="rounded-lg border border-cyan-400/30 px-3 py-1.5 text-xs text-cyan-300 hover:bg-cyan-500/10"
+                              >
+                                Tạo SKU từ dòng này
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div>
               <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                 <div>
@@ -368,6 +644,13 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                   {lines.map((line, idx) => {
                     const skuSelectId = `inbound-line-sku-${idx}`
                     const qtyInputId = `inbound-line-qty-${idx}`
+                    const selectedSku = line.skuId ? selectedSkuById.get(line.skuId) : undefined
+                    const selectedMaxQty = line.skuId
+                      ? remainingForSku(line.skuId, line.expectedQuantity)
+                      : null
+                    const selectedCommitmentLine = selectedSku
+                      ? commitmentByKey.get(commitmentKey(selectedSku.productKind, selectedSku.size))
+                      : null
                     return (
                       <div
                         key={idx}
@@ -398,12 +681,27 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                             className="w-full rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2 text-sm"
                           >
                             <option value="">— Chọn mã hàng —</option>
-                            {skus.map((s) => (
-                              <option key={s.skuId} value={s.skuId}>
+                            {visibleSkus.map((s) => {
+                              const allowed = isSkuAllowed(s)
+                              const lineInfo = commitmentByKey.get(commitmentKey(s.productKind, s.size))
+                              return (
+                              <option key={s.skuId} value={s.skuId} disabled={!allowed}>
                                 {s.skuCode} — {s.productName}
+                                {commitmentApplies && allowed && lineInfo
+                                  ? ` (còn ${lineInfo.remainingPieces})`
+                                  : ''}
+                                {commitmentApplies && !allowed
+                                  ? ' (không thuộc rental request)'
+                                  : ''}
                               </option>
-                            ))}
+                              )
+                            })}
                           </select>
+                          {commitmentApplies && selectedSku && !isSkuAllowed(selectedSku) && (
+                            <span className="text-[11px] text-amber-300">
+                              SKU này không thuộc hàng hóa đã đăng ký trong rental request.
+                            </span>
+                          )}
                         </label>
 
                         <label htmlFor={qtyInputId} className="flex flex-col gap-1.5">
@@ -415,6 +713,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                               id={qtyInputId}
                               type="number"
                               min={1}
+                              max={selectedMaxQty ?? undefined}
                               step={1}
                               required
                               inputMode="numeric"
@@ -439,7 +738,9 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                             </span>
                           </div>
                           <span id={`${qtyInputId}-hint`} className="text-[11px] leading-snug text-slate-600">
-                            Tổng số cái/thùng/kiện bạn dự kiến giao cho mã này.
+                            {commitmentApplies && selectedCommitmentLine
+                              ? `Còn được nhập tối đa ${Math.max(0, selectedMaxQty ?? 0)} cái cho ${formatCommitmentLine(selectedCommitmentLine)}.`
+                              : 'Tổng số cái/thùng/kiện bạn dự kiến giao cho mã này.'}
                           </span>
                         </label>
 
@@ -479,6 +780,19 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
           message={alert.message}
           type={alert.type ?? 'success'}
           onClose={() => setAlert({ open: false, message: '' })}
+        />
+      )}
+
+      {skuModal.open && (
+        <SkuModal
+          mode="create"
+          catalogTree={catalogTree}
+          sizeFactors={sizeFactors}
+          collections={collections}
+          seasons={seasons}
+          initialValues={skuModalInitialValues}
+          onClose={() => setSkuModal({ open: false })}
+          onSubmit={handleCreateSku}
         />
       )}
     </div>

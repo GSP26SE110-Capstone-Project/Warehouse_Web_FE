@@ -28,15 +28,6 @@ export const ZONE_PRICING: PricingTier[] = [
     icon: 'grid_view',
   },
   {
-    name: 'FAST_MOVING',
-    label: 'Fast Moving Zone',
-    price: 220_000,
-    unit: 'm²/tháng',
-    description: 'Gần outbound, tối ưu cho hàng luân chuyển nhanh',
-    icon: 'speed',
-    highlight: true,
-  },
-  {
     name: 'PREMIUM',
     label: 'Premium Zone',
     price: 300_000,

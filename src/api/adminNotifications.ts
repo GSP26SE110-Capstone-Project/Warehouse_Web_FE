@@ -103,3 +103,24 @@ export interface WhContractPaymentAlerts {
 export function fetchWhContractPaymentAlerts() {
   return apiRequest<WhContractPaymentAlerts>('/admin/notifications/wh-contract-payments')
 }
+
+export interface WhPendingAppendixAlertItem {
+  appendixId: string
+  appendixCode: string
+  status: string
+  title: string | null
+  contractId: string
+  contractCode: string
+  companyName: string
+  createdAt: string
+}
+
+export interface WhPendingAppendixAlerts {
+  pendingCount: number
+  warehouseName: string | null
+  recent: WhPendingAppendixAlertItem[]
+}
+
+export function fetchWhPendingAppendixAlerts() {
+  return apiRequest<WhPendingAppendixAlerts>('/admin/notifications/wh-pending-appendices')
+}

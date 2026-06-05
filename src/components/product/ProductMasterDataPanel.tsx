@@ -50,7 +50,7 @@ export function ProductMasterDataPanel({
     setEditingId(null)
   }
 
-  const run = async (fn: () => Promise<void>, msg?: string) => {
+  const run = async (fn: () => Promise<unknown>, msg?: string) => {
     setBusy(true)
     try {
       await fn()

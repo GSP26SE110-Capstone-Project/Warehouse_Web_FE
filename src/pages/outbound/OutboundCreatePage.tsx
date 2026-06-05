@@ -141,9 +141,10 @@ export function OutboundCreatePage({ basePath }: { basePath: string }) {
           </div>
 
           <DateTimePickerField
-            label="Ngày xuất dự kiến"
+            id="requested-ship-date"
             value={requestedShipDate}
             onChange={setRequestedShipDate}
+            placeholder="Ngày xuất dự kiến"
           />
 
           <div>

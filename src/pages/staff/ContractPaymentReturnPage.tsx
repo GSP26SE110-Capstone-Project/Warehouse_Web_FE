@@ -8,6 +8,8 @@ export function ContractPaymentReturnPage() {
   const [params] = useSearchParams()
   const contractId = params.get('contractId') ?? ''
   const invoiceId = params.get('invoiceId') ?? ''
+  const appendixId = params.get('appendixId') ?? ''
+  const isAppendixPayment = Boolean(appendixId)
   const [status, setStatus] = useState<'loading' | 'paid' | 'pending' | 'error'>('loading')
   const [message, setMessage] = useState('')
 
@@ -29,7 +31,11 @@ export function ContractPaymentReturnPage() {
           if (cancelled) return
           if (sync.synced && (sync.alreadyPaid || sync.invoice?.paymentStatus === 'PAID')) {
             setStatus('paid')
-            setMessage('Thanh toán PayOS đã được xác nhận. Hợp đồng đã kích hoạt.')
+            setMessage(
+              isAppendixPayment
+                ? 'Thanh toán PayOS đã được xác nhận. Phụ lục đã kích hoạt.'
+                : 'Thanh toán PayOS đã được xác nhận. Hợp đồng đã kích hoạt.'
+            )
             return
           }
         } catch {
@@ -41,7 +47,11 @@ export function ContractPaymentReturnPage() {
         if (cancelled) return
         if (inv?.paymentStatus === 'PAID') {
           setStatus('paid')
-          setMessage('Thanh toán PayOS đã được xác nhận. Hợp đồng đã kích hoạt.')
+          setMessage(
+            isAppendixPayment
+              ? 'Thanh toán PayOS đã được xác nhận. Phụ lục đã kích hoạt.'
+              : 'Thanh toán PayOS đã được xác nhận. Hợp đồng đã kích hoạt.'
+          )
           return
         }
         attempts += 1
@@ -65,7 +75,7 @@ export function ContractPaymentReturnPage() {
     return () => {
       cancelled = true
     }
-  }, [contractId, invoiceId])
+  }, [contractId, invoiceId, isAppendixPayment])
 
   return (
     <div className="mx-auto max-w-lg px-6 py-16 text-slate-100">

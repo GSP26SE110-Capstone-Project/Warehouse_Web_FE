@@ -8,6 +8,7 @@ import { SkuModal, type SkuFormPayload } from '../../components/ui/modal/SkuModa
 import { ProductMasterDataPanel } from '../../components/product/ProductMasterDataPanel'
 import { useAuth } from '../../auth/AuthContext'
 import { ApiError } from '../../api/client'
+import * as categoriesApi from '../../api/categories'
 import * as skusApi from '../../api/skus'
 import type { ApiSku } from '../../api/skus'
 import { fetchProductKindCatalogTree, fetchSizeFactors } from '../../api/productCatalog'
@@ -24,6 +25,9 @@ export const TenantProductManagement = () => {
   const [skus, setSkus] = useState<ApiSku[]>([])
   const [catalogTree, setCatalogTree] = useState<ApiProductKindTreeNode[]>([])
   const [sizeFactors, setSizeFactors] = useState<ApiSizeFactor[]>([])
+  const [categories, setCategories] = useState<
+    Awaited<ReturnType<typeof categoriesApi.listCategories>>['items']
+  >([])
   const [collections, setCollections] = useState<
     Awaited<ReturnType<typeof collectionsApi.listCollections>>['items']
   >([])
@@ -69,11 +73,6 @@ export const TenantProductManagement = () => {
     () => new Map(collections.map((c) => [c.collectionId, c.collectionName])),
     [collections]
   )
-  const seasonMap = useMemo(
-    () => new Map(seasons.map((s) => [s.seasonId, s.seasonName])),
-    [seasons]
-  )
-
   const loadData = useCallback(async () => {
     if (!tenantId) {
       setLoading(false)
@@ -82,16 +81,18 @@ export const TenantProductManagement = () => {
     setLoading(true)
     setError('')
     try {
-      const [skuRes, catalog, sizes, colRes, seasonRes] = await Promise.all([
+      const [skuRes, catalog, sizes, catRes, colRes, seasonRes] = await Promise.all([
         skusApi.listSkus({ tenantId, limit: 200 }),
         fetchProductKindCatalogTree(),
         fetchSizeFactors(),
+        categoriesApi.listCategories({ limit: 100 }),
         collectionsApi.listCollections({ tenantId, limit: 100 }),
         seasonsApi.listSeasons({ limit: 100 }),
       ])
       setSkus(skuRes.items)
       setCatalogTree(catalog.tree ?? [])
       setSizeFactors(sizes)
+      setCategories(catRes.items)
       setCollections(colRes.items)
       setSeasons(seasonRes.items)
     } catch (err) {

@@ -135,7 +135,7 @@ export function ContractTerminationModal({
           {!loading && !pending && preview && (
             <button
               type="button"
-              disabled={submitting}
+              disabled={submitting || preview.canRequestNow === false}
               onClick={() => void handleSubmit()}
               className="rounded-lg bg-amber-600 px-5 py-2 text-sm font-semibold text-white hover:bg-amber-500 disabled:opacity-50"
             >

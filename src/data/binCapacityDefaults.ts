@@ -11,11 +11,6 @@ export type BinCapacityPreset = {
  * Bin chỉ bị chặn bởi volume → tenant nhập nhiều box nhỏ vẫn tận dụng đầy bin.
  */
 const PRESETS: Record<string, BinCapacityPreset> = {
-  FAST_MOVING: {
-    maxLpnCount: 6,
-    maxVolumeUnits: 6,
-    note: 'Pick nhanh — tối đa 6 SMALL / 3 MEDIUM / 1 LARGE+1 MEDIUM',
-  },
   SHARED: {
     maxLpnCount: 16,
     maxVolumeUnits: 16,

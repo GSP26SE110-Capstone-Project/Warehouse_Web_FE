@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from 'react'
 import { StatsCard } from '../../components/ui/StatCard'
 import { Pagination } from '../../components/ui/Pagination'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
-import { useNavigate } from 'react-router-dom'
 import type { RequestTransportation } from '../../types/Transportation'
 import { RequestShipmentModal } from '../../components/ui/modal/RequestTransportationModel'
 
@@ -161,21 +160,13 @@ const initialRequests: RequestTransportation[] = [
 /* ================= COMPONENT ================= */
 
 export const StaffRequestManagement = () => {
-    const [requests, setRequests] = useState(initialRequests)
+    const [requests] = useState(initialRequests)
     const [search, setSearch] = useState('')
     const [filter, setFilter] = useState<RequestTransportation['status'] | 'all'>('all')
     const [currentPage, setCurrentPage] = useState(1)
-    const navigate = useNavigate()
 
     /* ===== MODALS ===== */
     const [modal, setModal] = useState<{ open: boolean; data?: RequestTransportation }>({
-        open: false
-    })
-
-    const [assignDriverModal, setAssignDriverModal] = useState<{
-        open: boolean
-        requestId?: number
-    }>({
         open: false
     })
 
@@ -217,12 +208,6 @@ export const StaffRequestManagement = () => {
     }, [search, filter])
 
     /* ================= ACTION ================= */
-
-    const updateStatus = (id: number, status: RequestTransportation['status']) => {
-        setRequests(prev =>
-            prev.map(r => (r.id === id ? { ...r, status } : r))
-        )
-    }
 
     /* ================= STATS ================= */
 

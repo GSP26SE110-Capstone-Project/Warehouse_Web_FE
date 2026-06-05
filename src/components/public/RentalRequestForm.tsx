@@ -233,10 +233,14 @@ function GuestStorageOption({
 }
 
 export function RentalRequestForm({
+  tenantId: authenticatedTenantId,
   onSubmitted,
 }: {
-  onSubmitted?: (requestCode: string, contactEmail: string) => void
+  /** Khi đăng nhập tenant — bỏ bước tạo hồ sơ công ty, dùng tenantId sẵn có */
+  tenantId?: string
+  onSubmitted?: (requestCode: string, contactEmail?: string) => void
 }) {
+  const isTenantMode = Boolean(authenticatedTenantId)
   const [contractType, setContractType] = useState<ContractTypeValue>('NEEDS_CONSULTATION')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -461,7 +465,7 @@ export function RentalRequestForm({
     e.preventDefault()
     setError('')
     setErrorVariant('error')
-    if (!contactEmail.trim()) {
+    if (!isTenantMode && !contactEmail.trim()) {
       setError('Vui lòng nhập email liên hệ để tra cứu yêu cầu sau này')
       return
     }
@@ -498,18 +502,27 @@ export function RentalRequestForm({
     setLoading(true)
 
     try {
-      const tenant = await createTenant({
-        companyName: companyName.trim(),
-        contactName: contactName.trim() || undefined,
-        contactEmail: contactEmail.trim().toLowerCase(),
-        contactPhone: contactPhone.trim() || undefined,
-        taxCode: taxCode.trim() || undefined,
-      })
+      let resolvedTenantId = authenticatedTenantId ?? ''
+      let resolvedCompanyName = companyName.trim()
+      let reusedExistingProfile = false
+
+      if (!isTenantMode) {
+        const tenant = await createTenant({
+          companyName: companyName.trim(),
+          contactName: contactName.trim() || undefined,
+          contactEmail: contactEmail.trim().toLowerCase(),
+          contactPhone: contactPhone.trim() || undefined,
+          taxCode: taxCode.trim() || undefined,
+        })
+        resolvedTenantId = tenant.tenantId
+        resolvedCompanyName = tenant.companyName
+        reusedExistingProfile = Boolean(tenant.reusedExistingProfile)
+      }
 
       const mergedNotes = notes.trim() || undefined
 
       const rental = await createRentalRequest({
-        tenantId: tenant.tenantId,
+        tenantId: resolvedTenantId,
         city: city.trim(),
         district: district.trim(),
         contractType,
@@ -533,10 +546,13 @@ export function RentalRequestForm({
 
       setSuccess({
         requestCode: rental.requestCode,
-        companyName: tenant.companyName,
-        reusedExistingProfile: Boolean(tenant.reusedExistingProfile),
+        companyName: resolvedCompanyName,
+        reusedExistingProfile,
       })
-      onSubmitted?.(rental.requestCode, contactEmail.trim().toLowerCase())
+      onSubmitted?.(
+        rental.requestCode,
+        isTenantMode ? undefined : contactEmail.trim().toLowerCase()
+      )
     } catch (err) {
       const meta = guestSubmitErrorMeta(err)
       setError(meta.message)
@@ -546,13 +562,39 @@ export function RentalRequestForm({
     }
   }
 
+  const resetForm = () => {
+    setSuccess(null)
+    setContractType('NEEDS_CONSULTATION')
+    setCompanyName('')
+    setContactName('')
+    setContactEmail('')
+    setContactPhone('')
+    setTaxCode('')
+    setBillingCycle('MONTHLY')
+    setRequestedAreaM2('')
+    setPreferredZoneType('')
+    setExpectedStartDate('')
+    setRentalMonthCount('')
+    setNotes('')
+    setProductLines([createEmptyProductLine()])
+    setUserOverrodeContractType(false)
+    setLastScaleSignature('')
+    setError('')
+    setErrorVariant('error')
+  }
+
   if (success) {
     return (
       <div className="glass-panel rounded-2xl p-8 sm:p-10 border-[#06edf9]/30 text-center">
         <span className="material-symbols-outlined text-5xl text-[#06edf9] mb-4">check_circle</span>
         <h3 className="text-2xl font-bold text-white mb-2">Đã gửi yêu cầu thuê kho</h3>
         <p className="text-[#9bb9bb] mb-6 max-w-md mx-auto">
-          {success.reusedExistingProfile ? (
+          {isTenantMode ? (
+            <>
+              Yêu cầu của bạn đã được ghi nhận. Mã yêu cầu:{' '}
+              <strong className="text-[#06edf9] font-mono">{success.requestCode}</strong>
+            </>
+          ) : success.reusedExistingProfile ? (
             <>
               Email <strong className="text-white">{contactEmail.trim()}</strong> đã có hồ sơ công ty{' '}
               <strong className="text-white">{success.companyName}</strong>. Hệ thống đã tạo{' '}
@@ -567,20 +609,31 @@ export function RentalRequestForm({
           )}
         </p>
         <p className="text-sm text-[#9bb9bb] max-w-lg mx-auto">
-          Lưu mã yêu cầu và email liên hệ để tra cứu trạng thái bất cứ lúc nào — không cần đăng nhập.
-          Warehouse admin sẽ xem xét theo khu vực bạn chọn; System Admin cấp tài khoản sau khi được duyệt.
+          {isTenantMode
+            ? 'Warehouse admin sẽ xem xét theo khu vực bạn chọn. Theo dõi trạng thái trong danh sách bên dưới.'
+            : 'Lưu mã yêu cầu và email liên hệ để tra cứu trạng thái bất cứ lúc nào — không cần đăng nhập. Warehouse admin sẽ xem xét theo khu vực bạn chọn; System Admin cấp tài khoản sau khi được duyệt.'}
         </p>
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+          {isTenantMode ? (
+            <button
+              type="button"
+              onClick={() => document.getElementById('tenant-rental-list')?.scrollIntoView({ behavior: 'smooth' })}
+              className="auth-btn rounded-lg font-semibold py-3 px-8 border-0 cursor-pointer"
+            >
+              Xem danh sách yêu cầu
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => document.getElementById('lookup')?.scrollIntoView({ behavior: 'smooth' })}
+              className="auth-btn rounded-lg font-semibold py-3 px-8 border-0 cursor-pointer"
+            >
+              Tra cứu trạng thái
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => document.getElementById('lookup')?.scrollIntoView({ behavior: 'smooth' })}
-            className="auth-btn rounded-lg font-semibold py-3 px-8 border-0 cursor-pointer"
-          >
-            Tra cứu trạng thái
-          </button>
-          <button
-            type="button"
-            onClick={() => setSuccess(null)}
+            onClick={resetForm}
             className="rounded-lg font-semibold py-3 px-8 border border-white/10 text-white hover:border-[#06edf9]/40 transition-colors cursor-pointer bg-transparent"
           >
             Gửi yêu cầu khác
@@ -594,60 +647,62 @@ export function RentalRequestForm({
     <>
       <LoadingOverlay show={loading} text="Đang gửi yêu cầu..." />
       <form onSubmit={handleSubmit} className="glass-panel rounded-2xl p-6 sm:p-8 space-y-8">
-        <div>
-          <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#06edf9]">business</span>
-            Thông tin doanh nghiệp
-          </h3>
-          <p className="text-sm text-[#9bb9bb] mb-4">
-            Đăng ký hồ sơ công ty. Tài khoản đăng nhập sẽ do System Admin cấp sau khi yêu cầu được duyệt.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2 sm:col-span-2">
-              <FieldLabel htmlFor="companyName">Tên công ty *</FieldLabel>
-              <TextInput
-                id="companyName"
-                required
-                value={companyName}
-                onChange={setCompanyName}
-                placeholder="Công ty TNHH ABC"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="contactName">Người liên hệ</FieldLabel>
-              <TextInput id="contactName" value={contactName} onChange={setContactName} placeholder="Nguyễn Văn A" />
-            </div>
-            <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="contactPhone">Số điện thoại</FieldLabel>
-              <TextInput
-                id="contactPhone"
-                type="tel"
-                value={contactPhone}
-                onChange={setContactPhone}
-                placeholder="0901234567"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="contactEmail" hint="Dùng để tra cứu mã yêu cầu sau này">
-                Email liên hệ *
-              </FieldLabel>
-              <TextInput
-                id="contactEmail"
-                type="email"
-                required
-                value={contactEmail}
-                onChange={setContactEmail}
-                placeholder="contact@company.com"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="taxCode">Mã số thuế</FieldLabel>
-              <TextInput id="taxCode" value={taxCode} onChange={setTaxCode} placeholder="0123456789" />
+        {!isTenantMode && (
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#06edf9]">business</span>
+              Thông tin doanh nghiệp
+            </h3>
+            <p className="text-sm text-[#9bb9bb] mb-4">
+              Đăng ký hồ sơ công ty. Tài khoản đăng nhập sẽ do System Admin cấp sau khi yêu cầu được duyệt.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2 sm:col-span-2">
+                <FieldLabel htmlFor="companyName">Tên công ty *</FieldLabel>
+                <TextInput
+                  id="companyName"
+                  required
+                  value={companyName}
+                  onChange={setCompanyName}
+                  placeholder="Công ty TNHH ABC"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <FieldLabel htmlFor="contactName">Người liên hệ</FieldLabel>
+                <TextInput id="contactName" value={contactName} onChange={setContactName} placeholder="Nguyễn Văn A" />
+              </div>
+              <div className="flex flex-col gap-2">
+                <FieldLabel htmlFor="contactPhone">Số điện thoại</FieldLabel>
+                <TextInput
+                  id="contactPhone"
+                  type="tel"
+                  value={contactPhone}
+                  onChange={setContactPhone}
+                  placeholder="0901234567"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <FieldLabel htmlFor="contactEmail" hint="Dùng để tra cứu mã yêu cầu sau này">
+                  Email liên hệ *
+                </FieldLabel>
+                <TextInput
+                  id="contactEmail"
+                  type="email"
+                  required
+                  value={contactEmail}
+                  onChange={setContactEmail}
+                  placeholder="contact@company.com"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <FieldLabel htmlFor="taxCode">Mã số thuế</FieldLabel>
+                <TextInput id="taxCode" value={taxCode} onChange={setTaxCode} placeholder="0123456789" />
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        <div className="border-t border-white/5 pt-8">
+        <div className={isTenantMode ? '' : 'border-t border-white/5 pt-8'}>
           <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
             <span className="material-symbols-outlined text-[#06edf9]">inventory_2</span>
             Nhu cầu thuê kho

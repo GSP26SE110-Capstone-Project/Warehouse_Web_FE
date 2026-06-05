@@ -70,7 +70,8 @@ export const GUEST_CONTRACT_TYPE_OPTIONS = CONTRACT_TYPE_OPTIONS.filter(
   (c) => c.value !== 'RESERVED_STORAGE'
 )
 
-export const WH_ASSIGNABLE_CONTRACT_OPTIONS = CONTRACT_TYPE_OPTIONS.filter(
+/** WH duyệt — cùng danh sách guest (không RESERVED_STORAGE, không NEEDS_CONSULTATION). */
+export const WH_ASSIGNABLE_CONTRACT_OPTIONS = GUEST_CONTRACT_TYPE_OPTIONS.filter(
   (c): c is ContractTypeInfo & { value: BillableContractTypeValue } =>
     c.value !== 'NEEDS_CONSULTATION'
 )
@@ -160,6 +161,22 @@ export function suggestBillableContractType(row: {
   }
 
   return rec.contractType as BillableContractTypeValue
+}
+
+const WH_ASSIGNABLE_CONTRACT_TYPE_VALUES = new Set(
+  WH_ASSIGNABLE_CONTRACT_OPTIONS.map((c) => c.value)
+)
+
+/** Gợi ý loại thuê WH chọn khi duyệt — loại giá trị không còn trong dropdown (vd. RESERVED_STORAGE). */
+export function resolveWhApprovalContractType(row: {
+  contractType?: string | null
+  requestedAreaM2?: number | null
+  estimatedBoxCount?: number | null
+  totalCommittedVolumeUnits?: number | null
+}): BillableContractTypeValue {
+  const suggested = suggestBillableContractType(row)
+  if (WH_ASSIGNABLE_CONTRACT_TYPE_VALUES.has(suggested)) return suggested
+  return 'SHARED_STORAGE'
 }
 
 export type GuestRegionWarehouseCopy = {

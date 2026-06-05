@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError } from '../../api/client'
 import * as inboundApi from '../../api/inboundRequests'
@@ -9,6 +9,7 @@ import type {
 } from '../../api/inboundRequests'
 import * as skusApi from '../../api/skus'
 import type { ApiSku } from '../../api/skus'
+import * as contractsApi from '../../api/contracts'
 import { INBOUND_STATUS_LABELS } from '../../data/inboundStatus'
 import { TENANT_INBOUND_STEPS, tenantInboundStepProgress } from '../../data/tenantInboundWorkflow'
 import type { DeliveryMode } from '../../data/deliveryMode'
@@ -27,6 +28,14 @@ type Props = {
   inventoryLink: string
 }
 
+function normalizeSize(size?: string | null) {
+  return String(size ?? '').trim().toUpperCase()
+}
+
+function commitmentKey(productKind?: string | null, size?: string | null) {
+  return `${String(productKind ?? '').trim()}|${normalizeSize(size)}`
+}
+
 export function TenantInboundWorkflow({
   inbound,
   tenantId,
@@ -41,6 +50,7 @@ export function TenantInboundWorkflow({
   const [itemError, setItemError] = useState('')
   const [newSkuId, setNewSkuId] = useState('')
   const [newQty, setNewQty] = useState(1)
+  const [commitment, setCommitment] = useState<contractsApi.ApiContractInboundCommitment | null>(null)
 
   const isWarehouseTransport = deliveryMode === 'WAREHOUSE_TRANSPORT'
   const canEditItems = ['DRAFT', 'PENDING'].includes(inbound.status)
@@ -51,25 +61,74 @@ export function TenantInboundWorkflow({
     Boolean(inbound.delivery?.vehiclePlate?.trim())
 
   const stepProgress = tenantInboundStepProgress(inbound.status)
+  const commitmentByKey = useMemo(() => {
+    const map = new Map<string, contractsApi.ApiContractInboundCommitmentLine>()
+    for (const line of commitment?.productLines ?? []) {
+      if (!line.uncommitted && line.productKind) map.set(line.key, line)
+    }
+    return map
+  }, [commitment])
+  const commitmentApplies = Boolean(commitment?.applies && commitmentByKey.size > 0)
+  const isSkuAllowed = useCallback(
+    (sku: ApiSku) => !commitmentApplies || commitmentByKey.has(commitmentKey(sku.productKind, sku.size)),
+    [commitmentApplies, commitmentByKey]
+  )
+  const newSku = useMemo(
+    () => skus.find((sku) => sku.skuId === newSkuId),
+    [newSkuId, skus]
+  )
+  const newSkuRemaining = useMemo(() => {
+    if (!commitmentApplies || !newSku) return null
+    const committedLine = commitmentByKey.get(commitmentKey(newSku.productKind, newSku.size))
+    return committedLine?.remainingPieces ?? 0
+  }, [commitmentApplies, commitmentByKey, newSku])
 
-  const loadSkus = useCallback(async () => {
+  useEffect(() => {
     if (!tenantId || !canEditItems) return
-    try {
-      const res = await skusApi.listSkus({ tenantId, status: 'ACTIVE', limit: 200 })
-      setSkus(res.items)
-    } catch {
-      setSkus([])
+    let cancelled = false
+    skusApi
+      .listSkus({ tenantId, status: 'ACTIVE', limit: 200 })
+      .then((res) => {
+        if (!cancelled) setSkus(res.items)
+      })
+      .catch(() => {
+        if (!cancelled) setSkus([])
+      })
+    return () => {
+      cancelled = true
     }
   }, [tenantId, canEditItems])
 
   useEffect(() => {
-    void loadSkus()
-  }, [loadSkus])
+    if (!canEditItems) return
+    let cancelled = false
+    contractsApi
+      .getContractInboundCommitment(inbound.contractId)
+      .then((data) => {
+        if (!cancelled) setCommitment(data)
+      })
+      .catch(() => {
+        if (!cancelled) setCommitment(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [canEditItems, inbound.contractId])
 
   const handleAddLine = async () => {
     if (!newSkuId || newQty < 1) {
       setItemError('Chọn SKU và số lượng hợp lệ')
       return
+    }
+    if (commitmentApplies) {
+      if (!newSku || !isSkuAllowed(newSku)) {
+        setItemError('SKU này không thuộc hàng hóa đã đăng ký trong rental request')
+        return
+      }
+      if (newSkuRemaining != null && newQty > newSkuRemaining) {
+        setItemError(`Số lượng vượt hạn mức còn lại (${Math.max(0, newSkuRemaining)} cái)`)
+        return
+      }
     }
     setItemError('')
     try {
@@ -203,7 +262,7 @@ export function TenantInboundWorkflow({
       )}
 
       {canEditItems && (
-        <section className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+        <section className="rounded-xl border border-white/10 bg-white/2 p-4">
           <h3 className="text-sm font-semibold text-white">Chỉnh sửa dòng hàng (SKU)</h3>
           {itemError && <p className="mt-2 text-xs text-red-300">{itemError}</p>}
           <div className="mt-3 flex flex-wrap gap-2">
@@ -215,14 +274,16 @@ export function TenantInboundWorkflow({
             >
               <option value="">— Chọn SKU —</option>
               {skus.map((s) => (
-                <option key={s.skuId} value={s.skuId}>
+                <option key={s.skuId} value={s.skuId} disabled={!isSkuAllowed(s)}>
                   {s.skuCode} — {s.productName}
+                  {commitmentApplies && !isSkuAllowed(s) ? ' (không thuộc rental request)' : ''}
                 </option>
               ))}
             </select>
             <input
               type="number"
               min={1}
+              max={newSkuRemaining ?? undefined}
               aria-label="Số lượng dự kiến"
               value={newQty}
               onChange={(e) => setNewQty(Math.max(1, Number(e.target.value) || 1))}

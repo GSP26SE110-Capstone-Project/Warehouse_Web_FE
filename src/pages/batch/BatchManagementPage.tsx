@@ -152,7 +152,7 @@ export function BatchManagementPage({ mode, inboundBasePath }: Props) {
   return (
     <div className="flex max-w-screen overflow-hidden bg-[#0b101a] text-slate-100">
       <div className="relative flex flex-1 flex-col overflow-y-auto p-6 md:p-8">
-        {busy && <LoadingOverlay />}
+        <LoadingOverlay show={busy} />
 
         <header className="mb-6">
           <h1 className="text-2xl font-bold text-white">Quản lý Batch</h1>

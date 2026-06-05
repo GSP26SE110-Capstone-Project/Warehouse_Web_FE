@@ -97,12 +97,6 @@ const reports: Report[] = [
   },
 ]
 
-function getStatusDot(status: Report['status']) {
-  if (status === 'Pending') return 'bg-orange-400 animate-pulse'
-  if (status === 'Rejected') return 'bg-gray-400'
-  return 'bg-emerald-400'
-}
-
 export const Reports: React.FC = () => {
   const [search, setSearch] = useState('')
   const [selectedReport, setSelectedReport] = useState<Report | null>(null)

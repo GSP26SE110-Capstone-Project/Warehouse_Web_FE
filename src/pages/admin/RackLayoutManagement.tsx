@@ -51,6 +51,7 @@ import { ZONE_TYPE_LABELS } from '../../data/zoneTypes'
 import { BIN_STATUS_LABELS } from '../../data/rackStructure'
 import {
   aggregateInventoriesByRackFromBinCodes,
+  binBelongsToRack,
   binSeatStatusFromInventory,
   fetchAllWarehouseInventories,
   filterActiveInventories,
@@ -181,9 +182,8 @@ export const RackLayoutManagement = () => {
 
   const selectedRackInventoryRows = useMemo(() => {
     if (!selectedRack) return []
-    const prefix = `${selectedRack.rackCode}-`
     return zoneInventories
-      .filter((row) => row.binCode?.startsWith(prefix))
+      .filter((row) => binBelongsToRack(row.binCode, selectedRack.rackCode))
       .sort((a, b) => (a.binCode ?? '').localeCompare(b.binCode ?? '', 'vi'))
   }, [zoneInventories, selectedRack])
 

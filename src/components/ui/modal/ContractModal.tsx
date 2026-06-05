@@ -6,6 +6,7 @@ import * as tenantsApi from '../../../api/tenants'
 import * as warehousesApi from '../../../api/warehouses'
 import type { ContractStatus } from '../../../api/types'
 import { ContractTerminationReviewPanel } from '../../contracts/ContractTerminationReviewPanel'
+import { ContractAppendixReviewPanel } from '../../contracts/ContractAppendixReviewPanel'
 import {
   BILLING_CYCLE_GUEST_LABELS,
   PRICING_MODEL_LABELS,
@@ -312,17 +313,23 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
               </div>
 
               {contractId && (
-                <ContractTerminationReviewPanel
-                  contractId={contractId}
-                  contractStatus={apiStatus}
-                  onUpdated={() => {
-                    if (!contractId) return
-                    contractsApi.getContract(contractId).then((c) => {
-                      setApiStatus(c.status)
-                      setStatus(c.status)
-                    })
-                  }}
-                />
+                <>
+                  <ContractAppendixReviewPanel
+                    contractId={contractId}
+                    contractStatus={apiStatus}
+                  />
+                  <ContractTerminationReviewPanel
+                    contractId={contractId}
+                    contractStatus={apiStatus}
+                    onUpdated={() => {
+                      if (!contractId) return
+                      contractsApi.getContract(contractId).then((c) => {
+                        setApiStatus(c.status)
+                        setStatus(c.status)
+                      })
+                    }}
+                  />
+                </>
               )}
             </>
           )}

@@ -116,14 +116,6 @@ const movements: StockMovement[] = [
 export const StockMovementManagement: React.FC = () => {
   const [search, setSearch] = useState('')
 
-  const filteredMovements = useMemo(() => {
-    return movements.filter(m =>
-      m.productName.toLowerCase().includes(search.toLowerCase()) ||
-      m.sku.toLowerCase().includes(search.toLowerCase()) ||
-      m.id.toLowerCase().includes(search.toLowerCase())
-    )
-  }, [search])
-
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'pending' | 'cancelled'>('all')
 
   const [data, setData] = useState<StockMovement[]>(movements)

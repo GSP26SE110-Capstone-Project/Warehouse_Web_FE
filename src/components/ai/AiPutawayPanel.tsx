@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { InlineAlert } from '../ui/FeedbackAlert'
 import { ApiError } from '../../api/client'
 import * as aiApi from '../../api/aiSlotRecommendations'
-import type { AiSlotPreview, LlmProvider } from '../../api/aiSlotRecommendations'
+import type { AiSlotPreview, LlmHealthStatus, LlmProvider } from '../../api/aiSlotRecommendations'
 
 type Props = {
   lpnId: string
@@ -44,8 +44,8 @@ export function AiPutawayPanel({
   useEffect(() => {
     let cancelled = false
     Promise.all([
-      aiApi.getGeminiHealth().catch(() => ({ reachable: false })),
-      aiApi.getOllamaHealth().catch(() => ({ reachable: false })),
+      aiApi.getGeminiHealth().catch((): LlmHealthStatus => ({ reachable: false })),
+      aiApi.getOllamaHealth().catch((): LlmHealthStatus => ({ reachable: false })),
     ]).then(([g, o]) => {
       if (cancelled) return
       setGeminiOk(Boolean(g.reachable && g.modelAvailable !== false))
@@ -103,6 +103,8 @@ export function AiPutawayPanel({
       const result = await aiApi.explainSlotRecommendation({
         llmProvider: provider,
         slot: {
+          lpnId: preview.lpnId,
+          warehouseId: preview.warehouseId,
           lpnCode: preview.lpnCode,
           binCode: preview.binCode,
           zoneCode: preview.zoneCode,

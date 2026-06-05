@@ -508,7 +508,7 @@ export const ZoneManagement = () => {
           editingZoneAreaM2={
             modal.mode === 'edit' && modal.data?.areaM2 != null ? Number(modal.data.areaM2) : 0
           }
-          onClose={() => setModal({ open: false })}
+          onClose={() => setModal({ open: false, mode: 'view' })}
           onSubmit={handleSubmit}
         />
       )}
@@ -529,7 +529,7 @@ export const ZoneManagement = () => {
           message={alert.message}
           type={alert.type}
           onConfirm={alert.onConfirm}
-          onClose={() => setAlert({ open: false, message: '' })}
+          onClose={() => setAlert({ open: false, message: '', type: 'success' })}
         />
       )}
     </div>

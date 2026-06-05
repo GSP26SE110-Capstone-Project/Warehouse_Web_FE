@@ -52,6 +52,8 @@ import {
   buildProductKindMap,
   computePiecesPerLpnForSku,
 } from '../../utils/volumeUnits'
+import * as contractsApi from '../../api/contracts'
+import type { ApiContractInboundCommitment } from '../../api/contracts'
 
 type Mode = 'tenant' | 'warehouse' | 'transporter'
 
@@ -67,6 +69,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   const tenantId = user?.tenantId ?? ''
   const isTransporter = mode === 'transporter'
   const isWarehouse = mode === 'warehouse'
+  const isTenantAdmin = user?.role === 'TENANT_ADMIN'
 
   const [inbound, setInbound] = useState<ApiInboundRequestWithItems | null>(null)
   const [batches, setBatches] = useState<ApiBatch[]>([])
@@ -105,6 +108,8 @@ export function InboundDetailPage({ mode, basePath }: Props) {
     () => new Map()
   )
   const [sizeFactors, setSizeFactors] = useState<ApiSizeFactor[]>([])
+  const [commitment, setCommitment] = useState<ApiContractInboundCommitment | null>(null)
+  const [commitmentLoading, setCommitmentLoading] = useState(false)
 
   const [alert, setAlert] = useState<{
     open: boolean
@@ -218,6 +223,29 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    if (!inbound?.contractId) {
+      setCommitment(null)
+      return
+    }
+    let cancelled = false
+    setCommitmentLoading(true)
+    contractsApi
+      .getContractInboundCommitment(inbound.contractId)
+      .then((data) => {
+        if (!cancelled) setCommitment(data)
+      })
+      .catch(() => {
+        if (!cancelled) setCommitment(null)
+      })
+      .finally(() => {
+        if (!cancelled) setCommitmentLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [inbound?.contractId])
 
   useEffect(() => {
     if (
@@ -368,7 +396,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   }
 
   const persistDelivery = async () => {
-    const plate = deliveryForm.vehiclePlate.trim()
+    const plate = deliveryForm.vehiclePlate?.trim() ?? ''
     const assignId = assignedDriverUserId.trim() || undefined
     if (!isTransporter && !plate && !assignId) {
       throw new ApiError('Nhập biển số xe hoặc chọn tài xế', 400)
@@ -434,6 +462,65 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   }
 
   const items = inbound?.items ?? []
+  const commitmentApplies = Boolean(
+    commitment?.applies && (commitment?.productLines?.length ?? 0) > 0
+  )
+
+  const skuCommitmentKey = (sku?: ApiInboundRequestItem['sku']) => {
+    const kind = String(sku?.productKind ?? '').trim()
+    const size = String(sku?.size ?? '').trim().toUpperCase()
+    return `${kind}|${size}`
+  }
+
+  const storedCommitmentWarnings =
+    inbound?.commitmentWarningJson?.warnings ??
+    (inbound as { commitmentWarnings?: contractsApi.ApiCommitmentWarning[] } | null)
+      ?.commitmentWarnings ??
+    []
+
+  const receivingOveragePreview = useMemo(() => {
+    if (!commitmentApplies || inbound?.status !== 'RECEIVING') return []
+    const previews: string[] = []
+    for (const line of commitment?.productLines ?? []) {
+      if (line.uncommitted) continue
+      let inflightToRemove = 0
+      let receivedToAdd = 0
+      for (const item of items) {
+        if (skuCommitmentKey(item.sku) !== line.key) continue
+        const saved = item.receivedQuantity ?? 0
+        const draft = receivedDraft[item.inboundRequestItemId] ?? saved
+        inflightToRemove += Math.max(0, item.expectedQuantity - saved)
+        receivedToAdd += draft
+      }
+      const projectedUsed = line.usedPieces - inflightToRemove + receivedToAdd
+      const overage = Math.max(0, projectedUsed - line.effectiveCommittedPieces)
+      if (overage > 0) {
+        previews.push(
+          `Sau khi nhập kho, ${line.productKind}${line.size ? ` size ${line.size}` : ''} có thể vượt cam kết ${overage} cái (hiệu lực ${line.effectiveCommittedPieces}).`
+        )
+      }
+    }
+    return previews
+  }, [commitment, commitmentApplies, inbound?.status, items, receivedDraft])
+
+  const closableCommitmentLines = useMemo(
+    () =>
+      (commitment?.productLines ?? []).filter(
+        (line) => !line.uncommitted && line.canCloseLine
+      ),
+    [commitment]
+  )
+
+  const handleCloseCommitmentLine = (
+    line: contractsApi.ApiContractInboundCommitmentLine
+  ) =>
+    runAction(async () => {
+      if (!inbound?.contractId || !line.productKind) return
+      await contractsApi.closeInboundCommitmentLine(inbound.contractId, {
+        productKind: line.productKind,
+        size: line.size,
+      })
+    }, `Đã đóng ${line.remainingPieces} cái còn lại trên cam kết`)
 
   const getSkuPackInfo = useCallback(
     (skuId: string, bt: BoxType = boxType) => {
@@ -981,10 +1068,19 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                     <button
                       type="button"
                       onClick={() =>
-                        runAction(
-                          () => inboundApi.completeInbound(inboundRequestId),
-                          'Inbound hoàn tất'
-                        )
+                        runAction(async () => {
+                          const result = await inboundApi.completeInbound(inboundRequestId)
+                          setAlert({
+                            open: true,
+                            type: 'success',
+                            title: result.commitmentWarnings?.length
+                              ? 'Inbound hoàn tất (cảnh báo cam kết)'
+                              : undefined,
+                            message: result.commitmentWarnings?.length
+                              ? `Inbound hoàn tất. ${result.commitmentWarnings.map((w) => w.message).join(' ')}`
+                              : 'Inbound hoàn tất',
+                          })
+                        })
                       }
                       className="rounded bg-emerald-600 px-3 py-1.5 text-sm"
                     >
@@ -992,6 +1088,74 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                     </button>
                   )}
                 </div>
+              )}
+
+              {commitmentApplies && (
+                <section className="mb-6 rounded-xl border border-white/10 bg-black/20 p-4 text-sm">
+                  <p className="font-medium text-slate-200">Cam kết rental request</p>
+                  {commitmentLoading ? (
+                    <p className="mt-2 text-xs text-slate-500">Đang tải hạn mức...</p>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      {(commitment?.productLines ?? [])
+                        .filter((line) => !line.uncommitted)
+                        .map((line) => (
+                          <div
+                            key={line.key}
+                            className="rounded-lg border border-white/5 bg-white/3 px-3 py-2 text-xs text-slate-400"
+                          >
+                            <span className="font-medium text-slate-200">
+                              {line.productKind}
+                              {line.size ? ` · size ${line.size}` : ''}
+                            </span>
+                            {' — '}hiệu lực {line.effectiveCommittedPieces} · đang dùng{' '}
+                            {line.usedPieces} · còn {line.remainingPieces}
+                            {line.overagePieces > 0 && (
+                              <span className="ml-1 text-amber-300">
+                                (vượt {line.overagePieces})
+                              </span>
+                            )}
+                            {line.isTailRemaining && (
+                              <p className="mt-1 text-amber-300/90">
+                                Còn rất ít ({line.remainingPieces} cái) — có thể tạo phiếu nhập
+                                nốt hoặc tenant admin đóng cam kết.
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                  {storedCommitmentWarnings.length > 0 && (
+                    <InlineAlert
+                      compact
+                      className="mt-3"
+                      message={storedCommitmentWarnings.map((w) => w.message).join(' ')}
+                    />
+                  )}
+                  {receivingOveragePreview.length > 0 && (
+                    <InlineAlert
+                      compact
+                      className="mt-3"
+                      message={receivingOveragePreview.join(' ')}
+                    />
+                  )}
+                  {isTenant && isTenantAdmin && closableCommitmentLines.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {closableCommitmentLines.map((line) => (
+                        <button
+                          key={line.key}
+                          type="button"
+                          disabled={busy}
+                          onClick={() => handleCloseCommitmentLine(line)}
+                          className="rounded-lg border border-amber-500/40 px-3 py-1.5 text-xs text-amber-200 hover:bg-amber-500/10"
+                        >
+                          Đóng cam kết {line.productKind}
+                          {line.size ? ` ${line.size}` : ''} (còn {line.remainingPieces})
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </section>
               )}
 
               {/* Items */}
