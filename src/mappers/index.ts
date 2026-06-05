@@ -118,6 +118,7 @@ export type RentalRequestRow = {
   pricingModel?: string | null
   billingCycle?: string | null
   estimatedBoxCount?: number | null
+  totalCommittedVolumeUnits?: number | null
   estimatedSkuCount?: number | null
   estimatedInboundPerWeek?: number | null
   estimatedOutboundPerWeek?: number | null
@@ -167,6 +168,8 @@ export function rentalRequestToRow(
     pricingModel: r.pricingModel,
     billingCycle: r.billingCycle,
     estimatedBoxCount: r.estimatedBoxCount,
+    totalCommittedVolumeUnits:
+      r.totalCommittedVolumeUnits != null ? Number(r.totalCommittedVolumeUnits) : null,
     estimatedSkuCount: r.estimatedSkuCount,
     estimatedInboundPerWeek: r.estimatedInboundPerWeek,
     estimatedOutboundPerWeek: r.estimatedOutboundPerWeek,

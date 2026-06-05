@@ -2,7 +2,6 @@ import { useMemo } from 'react'
 import type { ApiProductKindTreeNode, ApiSizeFactor } from '../../api/productCatalog'
 import { DarkDropdownSelect, type DarkDropdownOptionGroup } from '../ui/DarkDropdownSelect'
 import {
-  buildFlatSizeOptions,
   computeProductLinesSummary,
   type ProductLinesSummary,
 } from '../../utils/volumeUnits'
@@ -98,15 +97,20 @@ export function RentalProductLinesEditor({
     return map
   }, [catalogTree])
 
-  const sizeOptions = useMemo(
+  const sizeOptionGroups = useMemo<DarkDropdownOptionGroup[]>(
     () =>
-      buildFlatSizeOptions(sizeFactors).map((opt) => ({
-        value: opt.value,
-        label: opt.value,
-        hint: opt.label.split('(')[1]?.replace(')', '') ?? opt.sizeGroup,
+      sizeFactors.map((row) => ({
+        label: `${Number(row.factor)} U`,
+        options: (row.sizes ?? []).map((size) => ({
+          value: size,
+          label: size,
+          hint: `${Number(row.factor)} U`,
+        })),
       })),
     [sizeFactors]
   )
+
+  const defaultSize = sizeFactors[0]?.sizes?.[0] ?? 'M'
 
   const readyDrafts = useMemo(
     () =>
@@ -130,12 +134,12 @@ export function RentalProductLinesEditor({
   }
 
   const addLine = () => {
-    onChange([...lines, createEmptyProductLine(sizeOptions[0]?.value ?? 'M')])
+    onChange([...lines, createEmptyProductLine(defaultSize)])
   }
 
   const removeLine = (id: string) => {
     if (lines.length <= 1) {
-      onChange([createEmptyProductLine(sizeOptions[0]?.value ?? 'M')])
+      onChange([createEmptyProductLine(defaultSize)])
       return
     }
     onChange(lines.filter((line) => line.id !== id))
@@ -200,8 +204,9 @@ export function RentalProductLinesEditor({
                     id={`size-${line.id}`}
                     value={showSize ? line.size : ''}
                     onChange={(size) => updateLine(line.id, { size })}
-                    options={showSize ? sizeOptions : [{ value: '', label: 'One-size' }]}
-                    placeholder="Size"
+                    groups={showSize ? sizeOptionGroups : undefined}
+                    options={showSize ? undefined : [{ value: '', label: 'One-size' }]}
+                    placeholder="Chọn size…"
                     disabled={!showSize}
                     theme={theme}
                   />

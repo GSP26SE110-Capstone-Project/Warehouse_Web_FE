@@ -136,6 +136,8 @@ export function RentalOnboardingWizard({
   const suggestedBillableType = suggestBillableContractType({
     contractType: row.contractType,
     requestedAreaM2: row.requestedAreaM2,
+    estimatedBoxCount: row.estimatedBoxCount,
+    totalCommittedVolumeUnits: row.totalCommittedVolumeUnits,
   })
 
   const [contractType, setContractType] = useState<BillableContractTypeValue>(

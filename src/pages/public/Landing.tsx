@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import logo from '../../assets/logo.png'
-import { ContractTypeGuide } from '../../components/public/ContractTypeGuide'
 import { RentalRequestForm } from '../../components/public/RentalRequestForm'
 import { RentalRequestLookup } from '../../components/public/RentalRequestLookup'
 import { ScrollToTopButton } from '../../components/common/ScrollToTopButton'
 import { WarehouseStructureExplorer } from '../../components/public/WarehouseStructureExplorer'
-import type { ContractTypeValue } from '../../data/contractTypes'
 import {
   formatVnd,
   HANDLING_FEES,
@@ -88,8 +86,6 @@ export const Landing: React.FC = () => {
   const [lookupCode, setLookupCode] = useState('')
   const [lookupEmail, setLookupEmail] = useState('')
   const [autoLookup, setAutoLookup] = useState(false)
-  const [contractType, setContractType] = useState<ContractTypeValue>('NEEDS_CONSULTATION')
-
   const handleSubmitted = (requestCode: string, contactEmail: string) => {
     setLookupCode(requestCode)
     setLookupEmail(contactEmail)
@@ -199,13 +195,8 @@ export const Landing: React.FC = () => {
               trạng thái bất cứ lúc nào — trước khi System Admin cấp tài khoản.
             </p>
           </div>
-          <ContractTypeGuide selected={contractType} onSelect={setContractType} />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-            <RentalRequestForm
-              contractType={contractType}
-              onContractTypeChange={setContractType}
-              onSubmitted={handleSubmitted}
-            />
+            <RentalRequestForm onSubmitted={handleSubmitted} />
             <div id="lookup" className="scroll-mt-24">
               <RentalRequestLookup
                 initialCode={lookupCode}
