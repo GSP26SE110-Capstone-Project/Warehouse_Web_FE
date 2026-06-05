@@ -1,3 +1,5 @@
+import { recommendGuestContractType } from '../utils/contractTypeRecommendation'
+
 /** Guest-friendly copy aligned with Warehouse_BE_V2/docs/contract_type.md */
 export type ContractTypeValue =
   | 'SHARED_STORAGE'
@@ -137,19 +139,27 @@ export function requestedAreaFieldHint(contractType: ContractTypeValue): string 
   return 'Ước tính diện tích zone riêng bạn muốn thuê (tính phí theo m²/tháng).'
 }
 
-export function suggestBillableContractType(
-  row: { contractType?: string | null; requestedAreaM2?: number | null }
-): BillableContractTypeValue {
-  if (
-    row.contractType &&
-    row.contractType !== 'NEEDS_CONSULTATION'
-  ) {
+export function suggestBillableContractType(row: {
+  contractType?: string | null
+  requestedAreaM2?: number | null
+  estimatedBoxCount?: number | null
+  totalCommittedVolumeUnits?: number | null
+}): BillableContractTypeValue {
+  if (row.contractType && row.contractType !== 'NEEDS_CONSULTATION') {
     return row.contractType as BillableContractTypeValue
   }
-  if (row.requestedAreaM2 != null && row.requestedAreaM2 > 0) {
-    return 'DEDICATED_ZONE'
+
+  const rec = recommendGuestContractType({
+    estimatedBoxCount: row.estimatedBoxCount,
+    totalCommittedVolumeUnits: row.totalCommittedVolumeUnits,
+    requestedAreaM2: row.requestedAreaM2,
+  })
+
+  if (rec.contractType === 'NEEDS_CONSULTATION') {
+    return 'SHARED_STORAGE'
   }
-  return 'SHARED_STORAGE'
+
+  return rec.contractType as BillableContractTypeValue
 }
 
 export type GuestRegionWarehouseCopy = {

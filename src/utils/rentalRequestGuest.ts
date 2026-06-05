@@ -1,11 +1,10 @@
-/** Gợi ý zone từ tuỳ chọn guest — thay cho dropdown + lượt nhập/xuất/tuần. */
+export type DedicatedZonePreference = 'PRIVATE' | 'PREMIUM' | ''
+
+/** Gợi ý loại zone khi guest thuê khu riêng (DEDICATED_ZONE). */
 export function deriveSuggestedZoneType(
-  requiresFastPicking: boolean,
-  requiresPremiumStorage: boolean
+  preferredZoneType: DedicatedZonePreference
 ): string | undefined {
-  if (requiresPremiumStorage) return 'PREMIUM'
-  if (requiresFastPicking) return 'FAST_MOVING'
-  return undefined
+  return preferredZoneType || undefined
 }
 
 export function countEstimatedSkusFromProductLines(

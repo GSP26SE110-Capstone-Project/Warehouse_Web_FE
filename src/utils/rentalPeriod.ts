@@ -1,3 +1,5 @@
+import { parseIsoDate, toIsoDate } from './datePicker'
+
 const MIN_RENTAL_DAYS = 30
 
 /** Ngày hôm nay (local) dạng YYYY-MM-DD — dùng làm min cho ngày bắt đầu thuê. */
@@ -50,4 +52,13 @@ export function minRentalEndDate(startDate: string): string | undefined {
 
 export function meetsMinimumRentalMonths(startDate: string, endDate: string): boolean {
   return estimateRentalDays(startDate, endDate) >= MIN_RENTAL_DAYS
+}
+
+/** Cộng số tháng lịch vào ngày bắt đầu (giữ nguyên ngày trong tháng). VD: 2026-06-05 + 2 → 2026-08-05 */
+export function addCalendarMonthsToDateOnly(startDate: string, monthCount: number): string {
+  if (!startDate || monthCount <= 0) return ''
+  const start = parseIsoDate(startDate)
+  if (!start) return ''
+  const end = new Date(start.getFullYear(), start.getMonth() + monthCount, start.getDate())
+  return toIsoDate(end)
 }

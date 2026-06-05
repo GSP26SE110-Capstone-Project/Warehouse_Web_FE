@@ -1,11 +1,9 @@
 import { AlertModal } from '../ui/modal/AlertModal'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
-  estimateMonthCount,
+  addCalendarMonthsToDateOnly,
   estimateRentalDays,
   isRentalStartOnOrAfterToday,
-  meetsMinimumRentalMonths,
-  minRentalEndDate,
   minRentalStartDate,
 } from '../../utils/rentalPeriod'
 import { ApiError } from '../../api/client'
@@ -21,12 +19,8 @@ import type { ApiProductKindTreeNode, ApiSizeFactor } from '../../api/productCat
 import { createTenant } from '../../api/tenants'
 import {
   BILLING_CYCLE_GUEST_OPTIONS,
-  GUEST_CONTRACT_TYPE_OPTIONS,
   defaultPricingModel,
   guestRegionWarehouseCopy,
-  requestedAreaFieldHint,
-  requestedAreaFieldLabel,
-  showsRequestedAreaField,
   type ContractTypeValue,
 } from '../../data/contractTypes'
 import { LoadingOverlay } from '../ui/LoadingOverlay'
@@ -41,7 +35,12 @@ import {
 import {
   countEstimatedSkusFromProductLines,
   deriveSuggestedZoneType,
+  type DedicatedZonePreference,
 } from '../../utils/rentalRequestGuest'
+import { formatVnd } from '../../data/pricing'
+import { recommendGuestContractType } from '../../utils/contractTypeRecommendation'
+import { buildProductKindMap, computeProductLinesSummary } from '../../utils/volumeUnits'
+import { ContractTypeGuide } from './ContractTypeGuide'
 import { WarehouseUtilizationBar } from './WarehouseUtilizationBar'
 import {
   dedicatedLeaseBadge,
@@ -95,6 +94,7 @@ function TextInput({
   onChange,
   placeholder,
   min,
+  disabled,
 }: {
   id: string
   type?: string
@@ -103,6 +103,7 @@ function TextInput({
   onChange: (v: string) => void
   placeholder?: string
   min?: number
+  disabled?: boolean
 }) {
   return (
     <div className="input-glow relative rounded-lg" style={inputWrapStyle}>
@@ -112,9 +113,10 @@ function TextInput({
         required={required}
         value={value}
         min={min}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="block w-full px-4 py-3 bg-transparent border-0 text-white focus:outline-none text-base"
+        className="block w-full px-4 py-3 bg-transparent border-0 text-white focus:outline-none text-base disabled:cursor-not-allowed disabled:opacity-60"
       />
     </div>
   )
@@ -231,14 +233,11 @@ function GuestStorageOption({
 }
 
 export function RentalRequestForm({
-  contractType,
-  onContractTypeChange,
   onSubmitted,
 }: {
-  contractType: ContractTypeValue
-  onContractTypeChange: (value: ContractTypeValue) => void
   onSubmitted?: (requestCode: string, contactEmail: string) => void
 }) {
+  const [contractType, setContractType] = useState<ContractTypeValue>('NEEDS_CONSULTATION')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [errorVariant, setErrorVariant] = useState<'error' | 'warning'>('error')
@@ -263,36 +262,109 @@ export function RentalRequestForm({
   const [regionWarehousesLoading, setRegionWarehousesLoading] = useState(false)
   const [billingCycle, setBillingCycle] = useState('MONTHLY')
   const [requestedAreaM2, setRequestedAreaM2] = useState('')
-  const [requiresFastPicking, setRequiresFastPicking] = useState(false)
-  const [requiresPremiumStorage, setRequiresPremiumStorage] = useState(false)
+  const [preferredZoneType, setPreferredZoneType] = useState<DedicatedZonePreference>('')
   const [expectedStartDate, setExpectedStartDate] = useState('')
-  const [expectedEndDate, setExpectedEndDate] = useState('')
+  const [rentalMonthCount, setRentalMonthCount] = useState('')
   const [notes, setNotes] = useState('')
   const [productLines, setProductLines] = useState<RentalProductLineDraft[]>([
     createEmptyProductLine(),
   ])
   const [catalogTree, setCatalogTree] = useState<ApiProductKindTreeNode[]>([])
   const [sizeFactors, setSizeFactors] = useState<ApiSizeFactor[]>([])
+  const [userOverrodeContractType, setUserOverrodeContractType] = useState(false)
+  const [lastScaleSignature, setLastScaleSignature] = useState('')
+
+  const catalogByKind = useMemo(() => {
+    const kinds = catalogTree.flatMap((group) => group.productKinds ?? [])
+    return buildProductKindMap(kinds)
+  }, [catalogTree])
+
+  const readyDrafts = useMemo(
+    () =>
+      productLines
+        .filter((line) => line.productKind && line.quantity)
+        .map((line) => ({
+          productKind: line.productKind,
+          size: line.size,
+          quantity: Number(line.quantity),
+        })),
+    [productLines]
+  )
+
+  const productLinesSummary = useMemo(() => {
+    if (!catalogTree.length || !sizeFactors.length) return null
+    return computeProductLinesSummary(readyDrafts, catalogByKind, sizeFactors)
+  }, [readyDrafts, catalogByKind, sizeFactors, catalogTree.length])
+
+  const requestedAreaNum = useMemo(() => {
+    const n = Number(requestedAreaM2)
+    return Number.isFinite(n) && n > 0 ? n : null
+  }, [requestedAreaM2])
+
+  const recommendation = useMemo(
+    () =>
+      recommendGuestContractType({
+        estimatedBoxCount: productLinesSummary?.estimatedBoxCount,
+        totalCommittedVolumeUnits: productLinesSummary?.totalCommittedVolumeUnits,
+        requestedAreaM2: requestedAreaNum,
+      }),
+    [productLinesSummary, requestedAreaNum]
+  )
+
+  const scaleSignature = useMemo(
+    () =>
+      JSON.stringify({
+        boxes: productLinesSummary?.estimatedBoxCount ?? null,
+        area: requestedAreaNum,
+      }),
+    [productLinesSummary?.estimatedBoxCount, requestedAreaNum]
+  )
 
   const handleContractTypeChange = (value: ContractTypeValue) => {
-    onContractTypeChange(value)
+    if (value !== recommendation.contractType) {
+      setUserOverrodeContractType(true)
+    }
+    setContractType(value)
   }
+
+  useEffect(() => {
+    if (scaleSignature !== lastScaleSignature) {
+      setLastScaleSignature(scaleSignature)
+      setUserOverrodeContractType(false)
+    }
+  }, [scaleSignature, lastScaleSignature])
+
+  useEffect(() => {
+    if (!userOverrodeContractType && recommendation.contractType !== contractType) {
+      setContractType(recommendation.contractType)
+    }
+  }, [userOverrodeContractType, recommendation.contractType, contractType])
+
+  useEffect(() => {
+    if (contractType !== 'DEDICATED_ZONE') {
+      setPreferredZoneType('')
+    }
+  }, [contractType])
+
+  const rentalMonthsNum = useMemo(() => {
+    const n = Number(rentalMonthCount)
+    return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 0
+  }, [rentalMonthCount])
+
+  const expectedEndDate = useMemo(
+    () =>
+      expectedStartDate && rentalMonthsNum > 0
+        ? addCalendarMonthsToDateOnly(expectedStartDate, rentalMonthsNum)
+        : '',
+    [expectedStartDate, rentalMonthsNum]
+  )
 
   const rentalDays = useMemo(
     () => estimateRentalDays(expectedStartDate, expectedEndDate),
     [expectedStartDate, expectedEndDate]
   )
-  const rentalMonths = useMemo(
-    () => estimateMonthCount(expectedStartDate, expectedEndDate),
-    [expectedStartDate, expectedEndDate]
-  )
 
   const minStartDate = useMemo(() => minRentalStartDate(), [])
-
-  const minEndDate = useMemo(
-    () => minRentalEndDate(expectedStartDate),
-    [expectedStartDate]
-  )
 
   useEffect(() => {
     let cancelled = false
@@ -397,20 +469,20 @@ export function RentalRequestForm({
       setError('Vui lòng chọn thành phố và quận/huyện')
       return
     }
-    if (!expectedStartDate || !expectedEndDate) {
-      setError('Vui lòng chọn ngày bắt đầu và ngày kết thúc thuê kho dự kiến')
+    if (!expectedStartDate) {
+      setError('Vui lòng chọn ngày bắt đầu thuê kho dự kiến')
       return
     }
     if (!isRentalStartOnOrAfterToday(expectedStartDate)) {
       setError('Ngày bắt đầu dự kiến không được trước hôm nay')
       return
     }
-    if (expectedEndDate <= expectedStartDate) {
-      setError('Ngày kết thúc phải sau ngày bắt đầu')
+    if (rentalMonthsNum < 1) {
+      setError('Vui lòng nhập số tháng muốn thuê (tối thiểu 1 tháng)')
       return
     }
-    if (!meetsMinimumRentalMonths(expectedStartDate, expectedEndDate)) {
-      setError('Thời hạn thuê tối thiểu 1 tháng (ngày kết thúc phải sau ngày bắt đầu ít nhất 30 ngày)')
+    if (!expectedEndDate) {
+      setError('Không tính được ngày kết thúc dự kiến. Vui lòng kiểm tra lại ngày bắt đầu và số tháng thuê')
       return
     }
 
@@ -447,9 +519,12 @@ export function RentalRequestForm({
           ? countEstimatedSkusFromProductLines(productLinesPayload)
           : undefined,
         requestedAreaM2: hasArea ? areaNum : undefined,
-        suggestedZoneType: deriveSuggestedZoneType(requiresFastPicking, requiresPremiumStorage),
-        requiresFastPicking,
-        requiresPremiumStorage,
+        suggestedZoneType:
+          contractType === 'DEDICATED_ZONE'
+            ? deriveSuggestedZoneType(preferredZoneType)
+            : undefined,
+        requiresPremiumStorage:
+          contractType === 'DEDICATED_ZONE' && preferredZoneType === 'PREMIUM',
         expectedStartDate: new Date(expectedStartDate).toISOString(),
         expectedEndDate: new Date(expectedEndDate).toISOString(),
         notes: mergedNotes,
@@ -515,11 +590,6 @@ export function RentalRequestForm({
     )
   }
 
-  const contractSelectOptions = GUEST_CONTRACT_TYPE_OPTIONS.map((c) => ({
-    value: c.value,
-    label: c.title,
-  }))
-
   return (
     <>
       <LoadingOverlay show={loading} text="Đang gửi yêu cầu..." />
@@ -583,9 +653,53 @@ export function RentalRequestForm({
             Nhu cầu thuê kho
           </h3>
           <p className="text-sm text-[#9bb9bb] mb-4">
-            Chọn khu vực mong muốn — kho phù hợp sẽ tiếp nhận yêu cầu khi duyệt. Loại hình thuê đã chọn ở phần
-            giải thích phía trên.
+            Khai báo quy mô hàng hóa trước — hệ thống sẽ gợi ý loại hình thuê. Sau đó chọn khu vực và thời hạn
+            dự kiến.
           </p>
+
+          <div className="mb-8">
+            <p className="text-sm font-medium text-gray-200 mb-3 pl-1">Quy mô hàng hóa</p>
+            {catalogTree.length > 0 ? (
+              <div className="overflow-visible rounded-xl border border-white/10 bg-white/[0.02] p-4 md:p-5">
+                <RentalProductLinesEditor
+                  lines={productLines}
+                  onChange={setProductLines}
+                  catalogTree={catalogTree}
+                  sizeFactors={sizeFactors}
+                  theme="guest"
+                />
+              </div>
+            ) : (
+              <p className="text-sm text-[#9bb9bb] pl-1">
+                Đang tải danh mục loại hàng… Bạn vẫn có thể nhập diện tích (m²) bên dưới.
+              </p>
+            )}
+            <div className="mt-4 max-w-md flex flex-col gap-2">
+              <FieldLabel
+                htmlFor="requestedAreaM2"
+                hint="Không bắt buộc nếu đã khai báo loại hàng + size. Dùng để gợi ý thuê khu riêng hoặc nguyên kho."
+              >
+                Diện tích mong muốn (m²) — nếu biết
+              </FieldLabel>
+              <TextInput
+                id="requestedAreaM2"
+                type="number"
+                min={0}
+                value={requestedAreaM2}
+                onChange={setRequestedAreaM2}
+                placeholder="500"
+              />
+            </div>
+          </div>
+
+          <div className="mb-8">
+            <ContractTypeGuide
+              selected={contractType}
+              onSelect={handleContractTypeChange}
+              recommendation={recommendation}
+            />
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {locationsError && (
               <p className="text-sm text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-lg px-4 py-2 sm:col-span-2">
@@ -693,41 +807,6 @@ export function RentalRequestForm({
                 )}
               </div>
             )}
-            <div className="flex flex-col gap-2 sm:col-span-2">
-              <FieldLabel htmlFor="contractType">Loại hình thuê *</FieldLabel>
-              <SelectInput
-                id="contractType"
-                required
-                value={contractType}
-                onChange={(v) => handleContractTypeChange(v as ContractTypeValue)}
-                options={contractSelectOptions}
-              />
-            </div>
-            {(showsRequestedAreaField(contractType) ||
-              contractType === 'SHARED_STORAGE') && (
-              <div className="flex flex-col gap-2 sm:col-span-2">
-                <FieldLabel
-                  htmlFor="requestedAreaM2"
-                  hint={
-                    showsRequestedAreaField(contractType)
-                      ? `${requestedAreaFieldHint(contractType)} Hoặc khai báo loại hàng + size ở mục quy mô hàng bên dưới.`
-                      : 'Không bắt buộc nếu bạn đã khai báo loại hàng + size bên dưới.'
-                  }
-                >
-                  {showsRequestedAreaField(contractType)
-                    ? requestedAreaFieldLabel(contractType)
-                    : 'Diện tích mong muốn (m²) — nếu biết'}
-                </FieldLabel>
-                <TextInput
-                  id="requestedAreaM2"
-                  type="number"
-                  min={0}
-                  value={requestedAreaM2}
-                  onChange={setRequestedAreaM2}
-                  placeholder="500"
-                />
-              </div>
-            )}
             <div className="flex flex-col gap-2">
               <FieldLabel htmlFor="billingCycle" hint="Hóa đơn tổng hợp theo chu kỳ bạn chọn">
                 Chu kỳ thanh toán *
@@ -749,79 +828,74 @@ export function RentalRequestForm({
                 required
                 value={expectedStartDate}
                 min={minStartDate}
-                onChange={(next) => {
-                  setExpectedStartDate(next)
-                  if (expectedEndDate && next >= expectedEndDate) {
-                    setExpectedEndDate('')
-                  }
-                }}
+                onChange={setExpectedStartDate}
                 placeholder="Chọn ngày bắt đầu"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <FieldLabel htmlFor="rentalMonthCount" hint="Tối thiểu 1 tháng">
+                Số tháng muốn thuê *
+              </FieldLabel>
+              <TextInput
+                id="rentalMonthCount"
+                type="number"
+                required
+                min={1}
+                value={rentalMonthCount}
+                onChange={setRentalMonthCount}
+                placeholder="VD: 2"
+                disabled={!expectedStartDate}
               />
             </div>
             <div className="flex flex-col gap-2">
               <FieldLabel
                 htmlFor="expectedEndDate"
                 hint={
-                  rentalDays >= 30
-                    ? `Thời hạn ước tính ~${rentalMonths} tháng (${rentalDays} ngày)`
-                    : 'Tối thiểu 1 tháng kể từ ngày bắt đầu — kho sẽ căn cứ khi lập hợp đồng'
+                  expectedEndDate && rentalDays > 0
+                    ? `Tự động tính từ ngày bắt đầu + ${rentalMonthsNum} tháng (${rentalDays} ngày)`
+                    : 'Chọn ngày bắt đầu và nhập số tháng thuê để xem ngày kết thúc'
                 }
               >
-                Ngày kết thúc dự kiến *
+                Ngày kết thúc dự kiến
               </FieldLabel>
               <DatePickerField
                 id="expectedEndDate"
                 required
                 value={expectedEndDate}
-                min={(minEndDate ?? expectedStartDate) || undefined}
-                onChange={setExpectedEndDate}
-                placeholder="Chọn ngày kết thúc"
-                disabled={!expectedStartDate}
+                onChange={() => {}}
+                placeholder="—"
+                disabled
               />
             </div>
 
-            <div className="sm:col-span-2">
-              <p className="text-sm font-medium text-gray-200 mb-3">Quy mô hàng hóa</p>
-
-              {catalogTree.length > 0 && (
-                <div className="overflow-visible rounded-xl border border-white/10 bg-white/[0.02] p-4 md:p-5">
-                  <RentalProductLinesEditor
-                    lines={productLines}
-                    onChange={setProductLines}
-                    catalogTree={catalogTree}
-                    sizeFactors={sizeFactors}
-                    theme="guest"
+            {contractType === 'DEDICATED_ZONE' && (
+              <div className="sm:col-span-2 space-y-3">
+                <p className="text-sm font-medium text-gray-200 pl-1">Yêu cầu bố trí kho</p>
+                <p className="text-xs text-[#9bb9bb] pl-1">
+                  Chọn loại khu bạn muốn thuê — warehouse admin sẽ ưu tiên zone phù hợp khi duyệt.
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <GuestStorageOption
+                    id="preferredZonePrivate"
+                    checked={preferredZoneType === 'PRIVATE'}
+                    onChange={(checked) => setPreferredZoneType(checked ? 'PRIVATE' : '')}
+                    icon="lock"
+                    title="Private Zone"
+                    description="Khu riêng tách biệt dành cho thương hiệu của bạn trong kho."
+                    zoneHint={`${formatVnd(250_000)}/m²/tháng`}
+                  />
+                  <GuestStorageOption
+                    id="preferredZonePremium"
+                    checked={preferredZoneType === 'PREMIUM'}
+                    onChange={(checked) => setPreferredZoneType(checked ? 'PREMIUM' : '')}
+                    icon="diamond"
+                    title="Premium Zone"
+                    description="Kiểm soát môi trường và bảo mật cao hơn khu private thường."
+                    zoneHint={`${formatVnd(300_000)}/m²/tháng`}
                   />
                 </div>
-              )}
-            </div>
-
-            <div className="sm:col-span-2 space-y-3">
-              <p className="text-sm font-medium text-gray-200 pl-1">Yêu cầu bố trí kho</p>
-              <p className="text-xs text-[#9bb9bb] pl-1">
-                Chọn nếu cần — kho sẽ ưu tiên khu vực phù hợp khi duyệt yêu cầu.
-              </p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <GuestStorageOption
-                  id="requiresFastPicking"
-                  checked={requiresFastPicking}
-                  onChange={setRequiresFastPicking}
-                  icon="local_shipping"
-                  title="Hàng cần lấy nhanh"
-                  description="Xoay vòng cao, cần gần khu xuất — phù hợp fast-moving."
-                  zoneHint="Gợi ý khu Fast moving"
-                />
-                <GuestStorageOption
-                  id="requiresPremiumStorage"
-                  checked={requiresPremiumStorage}
-                  onChange={setRequiresPremiumStorage}
-                  icon="diamond"
-                  title="Bảo quản cao cấp"
-                  description="Kiểm soát môi trường hoặc bảo mật cao hơn khu thường."
-                  zoneHint="Gợi ý khu Premium"
-                />
               </div>
-            </div>
+            )}
 
             <div className="flex flex-col gap-2 sm:col-span-2">
               <FieldLabel htmlFor="notes">Ghi chú thêm</FieldLabel>
