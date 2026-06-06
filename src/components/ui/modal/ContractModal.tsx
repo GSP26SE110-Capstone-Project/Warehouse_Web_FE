@@ -9,7 +9,6 @@ import * as warehousesApi from '../../../api/warehouses'
 import { groupReservationsForTenantView } from '../../../utils/tenantReservationGroups'
 import type { ContractStatus } from '../../../api/types'
 import { ContractTerminationReviewPanel } from '../../contracts/ContractTerminationReviewPanel'
-import { ContractAppendixReviewPanel } from '../../contracts/ContractAppendixReviewPanel'
 import {
   BILLING_CYCLE_GUEST_LABELS,
   PRICING_MODEL_LABELS,
@@ -347,10 +346,6 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
 
               {contractId && (
                 <>
-                  <ContractAppendixReviewPanel
-                    contractId={contractId}
-                    contractStatus={apiStatus}
-                  />
                   <ContractTerminationReviewPanel
                     contractId={contractId}
                     contractStatus={apiStatus}

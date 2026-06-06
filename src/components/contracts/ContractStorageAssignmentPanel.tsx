@@ -25,8 +25,11 @@ import {
   validateStorageSelection,
 } from '../../utils/buildStorageReservations'
 import {
+  allowsCombiningZonesForLpn,
   estimateZoneLpnCapacity,
   formatZoneRackSummary,
+  isZoneEligibleForLpnDemand,
+  zoneLpnShortfallMessage,
 } from '../../utils/warehouseCapacity'
 
 const labelStyle = 'text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block'
@@ -98,6 +101,20 @@ export const ContractStorageAssignmentPanel = forwardRef<
     () => zones.filter((z) => selectedZoneIds.includes(z.zoneId)),
     [zones, selectedZoneIds]
   )
+
+  useEffect(() => {
+    if (!reservedCapacityNum) return
+    setSelectedZoneIds((prev) =>
+      prev.filter((id) => {
+        const z = zones.find((x) => x.zoneId === id)
+        if (!z) return false
+        return (
+          isZoneEligibleForContract(contractType, z) &&
+          isZoneEligibleForLpnDemand(z, reservedCapacityNum, contractType)
+        )
+      })
+    )
+  }, [contractType, zones, reservedCapacityNum])
 
   useEffect(() => {
     if (!warehouseId) return
@@ -258,7 +275,10 @@ export const ContractStorageAssignmentPanel = forwardRef<
             <div className="dark-scrollbar-inset max-h-64 space-y-2 overflow-y-auto rounded-lg border border-white/10 p-2 pr-1">
               {zones.map((z) => {
                 const checked = selectedZoneIds.includes(z.zoneId)
-                const eligible = isZoneEligibleForContract(contractType, z)
+                const typeEligible = isZoneEligibleForContract(contractType, z)
+                const lpnEligible = isZoneEligibleForLpnDemand(z, reservedCapacityNum, contractType)
+                const eligible = typeEligible && lpnEligible
+                const zoneLpn = estimateZoneLpnCapacity(z)
                 return (
                   <label
                     key={z.zoneId}
@@ -284,7 +304,19 @@ export const ContractStorageAssignmentPanel = forwardRef<
                       }}
                       className="mt-1 rounded border-white/20"
                     />
-                    <span className="text-slate-300">{formatZoneOptionLabel(z)}</span>
+                    <span className="text-slate-300">
+                      {formatZoneOptionLabel(z)}
+                      {!typeEligible && requiredZoneType ? (
+                        <span className="mt-0.5 block text-[10px] text-slate-500">
+                          Cần zone {requiredZoneType}
+                        </span>
+                      ) : null}
+                      {typeEligible && !lpnEligible && reservedCapacityNum != null ? (
+                        <span className="mt-0.5 block text-[10px] text-amber-400/90">
+                          {zoneLpnShortfallMessage(zoneLpn, reservedCapacityNum)}
+                        </span>
+                      ) : null}
+                    </span>
                   </label>
                 )
               })}
@@ -298,11 +330,17 @@ export const ContractStorageAssignmentPanel = forwardRef<
             >
               <option value="">— Chọn zone —</option>
               {zones.map((z) => {
-                const eligible = isZoneEligibleForContract(contractType, z)
+                const typeEligible = isZoneEligibleForContract(contractType, z)
+                const lpnEligible = isZoneEligibleForLpnDemand(z, reservedCapacityNum, contractType)
+                const eligible = typeEligible && lpnEligible
+                const zoneLpn = estimateZoneLpnCapacity(z)
                 return (
                   <option key={z.zoneId} value={z.zoneId} disabled={!eligible}>
                     {formatZoneOptionLabel(z)}
-                    {!eligible && requiredZoneType ? ` — cần ${requiredZoneType}` : ''}
+                    {!typeEligible && requiredZoneType ? ` — cần ${requiredZoneType}` : ''}
+                    {typeEligible && !lpnEligible && reservedCapacityNum != null
+                      ? ` — ${zoneLpnShortfallMessage(zoneLpn, reservedCapacityNum)}`
+                      : ''}
                   </option>
                 )
               })}
@@ -310,6 +348,17 @@ export const ContractStorageAssignmentPanel = forwardRef<
           )}
           {zoneEligibilityHint(contractType) && (
             <p className="mt-1 text-[11px] text-slate-500">{zoneEligibilityHint(contractType)}</p>
+          )}
+          {reservedCapacityNum != null &&
+            reservedCapacityNum > 0 &&
+            !allowsCombiningZonesForLpn(contractType) && (
+            <p className="mt-1 text-[11px] text-slate-500">
+              Chỉ chọn zone ước tính ≥{' '}
+              <strong className="text-slate-400">
+                {reservedCapacityNum.toLocaleString('vi-VN')}
+              </strong>{' '}
+              thùng/LPN theo quy mô hàng tenant.
+            </p>
           )}
           {selectedZones.length > 0 && reservedCapacityNum != null && (
             <p className="mt-2 text-xs text-slate-400">

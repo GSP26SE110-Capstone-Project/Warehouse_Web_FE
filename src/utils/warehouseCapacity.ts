@@ -104,21 +104,52 @@ export function formatZoneCapacitySummary(
   return `${c.maxRacks} rack · ${c.binsPerLevel} bin/tầng · tối đa ~${maxBoxes.toLocaleString('vi-VN')} LPN cỡ ${boxLabel} (${perBin} LPN/ngăn · bin ${vol} vol.)`
 }
 
+/** SHARED_STORAGE cho phép ghép nhiều zone; các loại thuê khác cần zone đủ chứa toàn bộ LPN yêu cầu. */
+export function allowsCombiningZonesForLpn(contractType: string): boolean {
+  return contractType === 'SHARED_STORAGE'
+}
+
+export function isZoneEligibleForLpnDemand(
+  zone: {
+    areaM2?: number | null
+    estimatedLpnCapacity?: number | null
+    totalBinSlots?: number | null
+    zoneType?: string | null
+  },
+  requiredLpn: number | null | undefined,
+  contractType: string
+): boolean {
+  if (requiredLpn == null || requiredLpn <= 0) return true
+  if (allowsCombiningZonesForLpn(contractType)) return true
+  return estimateZoneLpnCapacity(zone) >= requiredLpn
+}
+
+export function zoneLpnShortfallMessage(
+  zoneLpn: number,
+  requiredLpn: number
+): string {
+  return `Không đủ sức chứa — zone ~${zoneLpn.toLocaleString('vi-VN')} thùng, tenant cần ~${requiredLpn.toLocaleString('vi-VN')} thùng`
+}
+
+/** Ước tính LPN theo loại zone (SHARED→EXTRA, PRIVATE/PREMIUM→LARGE), đồng bộ formatZoneCapacitySummary. */
 export function estimateZoneLpnCapacity(zone: {
   areaM2?: number | null
   estimatedLpnCapacity?: number | null
   totalBinSlots?: number | null
   zoneType?: string | null
 }): number {
-  if (zone.estimatedLpnCapacity != null && zone.estimatedLpnCapacity > 0) {
-    return zone.estimatedLpnCapacity
-  }
   const perSlot = maxLpnsPerBinSlot(zone.zoneType)
   if (zone.totalBinSlots != null && zone.totalBinSlots > 0) {
     return zone.totalBinSlots * perSlot
   }
   const cap = computeZoneStorageCapacity(zone.areaM2)
-  return cap.totalBinSlots * perSlot
+  if (cap.totalBinSlots > 0) {
+    return cap.totalBinSlots * perSlot
+  }
+  if (zone.estimatedLpnCapacity != null && zone.estimatedLpnCapacity > 0) {
+    return zone.estimatedLpnCapacity
+  }
+  return 0
 }
 
 export function formatZoneRackSummary(zone: {
