@@ -455,6 +455,7 @@ export const WarehouseManagement: React.FC = () => {
         <WarehouseModal
           mode={modal.mode}
           data={modal.data}
+          existingWarehouseCodes={warehouse.map((w) => w.warehouseCode ?? '').filter(Boolean)}
           onClose={() => setModal({ ...modal, open: false })}
           onSubmit={handleSubmit}
         />

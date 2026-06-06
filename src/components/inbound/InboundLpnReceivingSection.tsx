@@ -8,6 +8,8 @@ import { pickLargestBoxTypeForZoneTypes } from '../../data/binCapacityDefaults'
 import { filterBoxTypeOptionsForMax } from '../../data/inboundStatus'
 import { formatBoxTypeName } from '../../data/lpnTerminology'
 import { computePiecesPerLpnForSku } from '../../utils/volumeUnits'
+import { CodeInputWithGenerate } from '../ui/CodeInputWithGenerate'
+import { generateLpnCode } from '../../utils/codeGenerators'
 
 type Props = {
   inboundCode: string
@@ -287,12 +289,17 @@ export function InboundLpnReceivingSection({
         </select>
 
         <div className="mb-2 flex flex-wrap gap-2">
-          <input
-            value={lpnCode}
-            onChange={(e) => onLpnCodeChange(e.target.value)}
-            placeholder={`${inboundCode}-LPN-001 (tự sinh nếu trống)`}
-            className="min-w-[140px] flex-1 rounded border border-white/10 bg-[#0f172a] px-3 py-2 text-sm"
-          />
+          <div className="min-w-[200px] flex-1">
+            <CodeInputWithGenerate
+              value={lpnCode}
+              onChange={onLpnCodeChange}
+              placeholder={`${inboundCode}-LPN-001-ME (tự sinh nếu trống)`}
+              inputClassName="w-full rounded border border-white/10 bg-[#0f172a] px-3 py-2 text-sm font-mono"
+              generateLabel="Sinh mã"
+              generateTitle="Sinh mã LPN theo phiếu nhập và box type"
+              onGenerate={() => generateLpnCode(inboundCode, lpns.length, boxType)}
+            />
+          </div>
           <select
             value={boxType}
             onChange={(e) => onBoxTypeChange(e.target.value as BoxType)}

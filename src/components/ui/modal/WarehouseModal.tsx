@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { InlineAlert } from '../FeedbackAlert'
 import { MODAL_BODY_SCROLL_SPACE } from '../../../styles/scrollClasses'
+import { CodeInputWithGenerate } from '../CodeInputWithGenerate'
+import { generateWarehouseCode } from '../../../utils/codeGenerators'
 import { fetchLocationTree, type LocationCity } from '../../../api/locations'
 import { listUsers } from '../../../api/users'
 import type { ApiUser, WarehouseStatus } from '../../../api/types'
@@ -40,6 +42,7 @@ type WarehouseModalData = Partial<WarehouseFormPayload> & {
 type Props = {
   mode: Mode
   data?: WarehouseModalData
+  existingWarehouseCodes?: string[]
   onClose: () => void
   onSubmit?: (data: WarehouseFormPayload) => void | Promise<void>
 }
@@ -85,7 +88,13 @@ function dataToForm(data?: WarehouseModalData): WarehouseFormPayload {
   }
 }
 
-export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit }) => {
+export const WarehouseModal: React.FC<Props> = ({
+  mode,
+  data,
+  existingWarehouseCodes = [],
+  onClose,
+  onSubmit,
+}) => {
   const isView = mode === 'view'
   const [form, setForm] = useState<WarehouseFormPayload>(() => dataToForm(data))
   const [totalAreaInput, setTotalAreaInput] = useState('')
@@ -291,13 +300,21 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
                 <label className={labelStyle} htmlFor="wh-code">
                   Mã kho
                 </label>
-                <input
+                <CodeInputWithGenerate
                   id="wh-code"
+                  readOnly={mode !== 'create'}
                   disabled={mode !== 'create'}
-                  className={inputStyle}
+                  inputClassName={inputStyle}
                   value={form.warehouseCode}
                   placeholder="WH-HCM-02"
-                  onChange={(e) => setForm({ ...form, warehouseCode: e.target.value })}
+                  generateTitle="Sinh mã kho từ thành phố"
+                  onChange={(warehouseCode) => setForm({ ...form, warehouseCode })}
+                  onGenerate={() =>
+                    generateWarehouseCode(form.city, [
+                      ...existingWarehouseCodes,
+                      form.warehouseCode,
+                    ])
+                  }
                 />
               </div>
               <div>

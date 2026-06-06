@@ -508,6 +508,7 @@ export const ZoneManagement = () => {
           editingZoneAreaM2={
             modal.mode === 'edit' && modal.data?.areaM2 != null ? Number(modal.data.areaM2) : 0
           }
+          existingZoneCodes={zones.map((z) => z.zoneCode)}
           onClose={() => setModal({ open: false, mode: 'view' })}
           onSubmit={handleSubmit}
         />

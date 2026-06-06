@@ -786,6 +786,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
       {skuModal.open && (
         <SkuModal
           mode="create"
+          existingSkuCodes={skus.map((s) => s.skuCode)}
           catalogTree={catalogTree}
           sizeFactors={sizeFactors}
           collections={collections}

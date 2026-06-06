@@ -397,6 +397,7 @@ export const TenantProductManagement = () => {
         <SkuModal
           mode={modal.mode}
           data={modal.data}
+          existingSkuCodes={skus.map((s) => s.skuCode)}
           catalogTree={catalogTree}
           sizeFactors={sizeFactors}
           collections={collections}

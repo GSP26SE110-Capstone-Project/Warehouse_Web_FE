@@ -5,7 +5,7 @@ export const MOVEMENT_CATEGORY_OPTIONS = [
 ] as const
 
 export const SKU_STATUS_OPTIONS = [
-  { value: 'ACTIVE', label: 'Đang bán / active' },
+  { value: 'ACTIVE', label: 'Đang hoạt động' },
   { value: 'INACTIVE', label: 'Ngừng' },
 ] as const
 

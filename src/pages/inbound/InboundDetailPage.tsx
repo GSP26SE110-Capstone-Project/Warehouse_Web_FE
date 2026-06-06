@@ -19,7 +19,7 @@ import {
   type PickupFormState,
 } from '../../components/inbound/InboundPickupForm'
 import { InboundTransportRoutePanel } from '../../components/inbound/InboundTransportRoutePanel'
-import { TenantInboundWorkflow } from '../../components/inbound/TenantInboundWorkflow'
+import { generateLpnCode } from '../../utils/codeGenerators'
 import * as deliveryApi from '../../api/inboundDeliveries'
 import { DELIVERY_MODE_OPTIONS, type DeliveryMode } from '../../data/deliveryMode'
 import { useAuth } from '../../auth/AuthContext'
@@ -590,11 +590,8 @@ export function InboundDetailPage({ mode, basePath }: Props) {
     return Math.max(0, getTargetQtyForItem(item) - allocatedForSku(skuId))
   }
 
-  const nextLpnCode = () => {
-    const base = inbound?.inboundCode?.replace(/[^a-zA-Z0-9-]/g, '') ?? 'IN'
-    const n = lpns.length + 1
-    return `${base}-LPN-${String(n).padStart(3, '0')}`
-  }
+  const nextLpnCode = () =>
+    generateLpnCode(inbound?.inboundCode, lpns.length, boxType)
 
   const createLpnWithSkuQty = async (
     qty: number,

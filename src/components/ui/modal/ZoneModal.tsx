@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AlertModal } from './AlertModal'
+import { CodeInputWithGenerate } from '../CodeInputWithGenerate'
+import { generateZoneCode } from '../../../utils/codeGenerators'
 import type { ApiZone } from '../../../api/zones'
 import * as warehousesApi from '../../../api/warehouses'
 import type { ApiWarehouseZonePlanning } from '../../../api/warehouses'
@@ -39,6 +41,7 @@ type Props = {
   zonePlanning?: ApiWarehouseZonePlanning | null
   /** Diện tích zone đang sửa (trừ khỏi used khi edit) */
   editingZoneAreaM2?: number
+  existingZoneCodes?: string[]
   onClose: () => void
   onSubmit?: (data: ZoneFormPayload) => void | Promise<void>
 }
@@ -85,6 +88,7 @@ export function ZoneModal({
   allowWarehousePick = false,
   zonePlanning = null,
   editingZoneAreaM2 = 0,
+  existingZoneCodes = [],
   onClose,
   onSubmit,
 }: Props) {
@@ -345,13 +349,16 @@ export function ZoneModal({
             <label className={labelStyle} htmlFor="zone-code">
               Mã zone
             </label>
-            <input
+            <CodeInputWithGenerate
               id="zone-code"
+              readOnly={mode !== 'create'}
               disabled={mode !== 'create'}
-              className={inputStyle}
+              inputClassName={inputStyle}
               value={form.zoneCode}
               placeholder="Z-A01"
-              onChange={(e) => setForm({ ...form, zoneCode: e.target.value })}
+              generateTitle="Sinh mã zone tiếp theo trong kho"
+              onChange={(zoneCode) => setForm({ ...form, zoneCode })}
+              onGenerate={() => generateZoneCode(existingZoneCodes)}
             />
           </div>
           <div>

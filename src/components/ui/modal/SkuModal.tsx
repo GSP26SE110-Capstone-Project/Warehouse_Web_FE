@@ -9,8 +9,10 @@ import * as seasonsApi from '../../../api/seasons'
 import { ApiError } from '../../../api/client'
 import { DarkDropdownSelect } from '../DarkDropdownSelect'
 import { buildFlatSizeOptions, buildSizeToGroupMap, roundVolumeUnits } from '../../../utils/volumeUnits'
-import { MOVEMENT_CATEGORY_OPTIONS, SKU_STATUS_OPTIONS } from '../../../data/skuOptions'
+import { SKU_STATUS_OPTIONS } from '../../../data/skuOptions'
 import { MODAL_BODY_SCROLL } from '../../../styles/scrollClasses'
+import { CodeInputWithGenerate } from '../CodeInputWithGenerate'
+import { generateSkuCode } from '../../../utils/codeGenerators'
 
 type Mode = 'create' | 'edit' | 'view'
 
@@ -38,6 +40,7 @@ type Props = {
   onCollectionCreated?: (collection: ApiCollection) => void
   onSeasonCreated?: (season: ApiSeason) => void
   initialValues?: Partial<SkuFormPayload>
+  existingSkuCodes?: string[]
   onClose: () => void
   onSubmit?: (payload: SkuFormPayload) => void | Promise<void>
 }
@@ -73,6 +76,7 @@ export function SkuModal({
   onCollectionCreated,
   onSeasonCreated,
   initialValues,
+  existingSkuCodes = [],
   onClose,
   onSubmit,
 }: Props) {
@@ -285,13 +289,21 @@ export function SkuModal({
               <label className={labelStyle} htmlFor="sku-code">
                 Mã SKU *
               </label>
-              <input
+              <CodeInputWithGenerate
                 id="sku-code"
-                className={inputStyle}
-                disabled={isView || mode === 'edit'}
                 value={form.skuCode}
-                onChange={(e) => setForm((f) => ({ ...f, skuCode: e.target.value.toUpperCase() }))}
+                disabled={isView || mode === 'edit'}
+                inputClassName={inputStyle}
                 placeholder="VD: AO-THUN-001"
+                generateTitle="Sinh mã SKU từ loại hàng / tên sản phẩm"
+                onChange={(skuCode) => setForm((f) => ({ ...f, skuCode: skuCode.toUpperCase() }))}
+                onGenerate={() =>
+                  generateSkuCode({
+                    productKind: form.productKind,
+                    productName: form.productName,
+                    existingCodes: existingSkuCodes,
+                  })
+                }
               />
             </div>
             <div>
@@ -492,25 +504,6 @@ export function SkuModal({
                 placeholder="VD: Cotton, Polyester"
               />
             </div>
-          </div>
-
-          <div>
-            <label className={labelStyle} htmlFor="sku-movement">
-              Tốc độ luân chuyển
-            </label>
-            <select
-              id="sku-movement"
-              className={inputStyle}
-              disabled={isView}
-              value={form.movementCategory}
-              onChange={(e) => setForm((f) => ({ ...f, movementCategory: e.target.value }))}
-            >
-              {MOVEMENT_CATEGORY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
           </div>
 
           {error && (
