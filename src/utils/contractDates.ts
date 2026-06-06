@@ -31,9 +31,10 @@ export function isArrivalBeforeContractStart(
   return arrivalDay < startDay
 }
 
+import { formatDisplayDate, rentalRequestDateOnly } from './datePicker'
+
 export function formatContractDateLabel(iso?: string | null): string {
   if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso.slice(0, 10)
-  return d.toLocaleDateString('vi-VN')
+  const dateOnly = rentalRequestDateOnly(iso)
+  return dateOnly ? formatDisplayDate(dateOnly) : '—'
 }

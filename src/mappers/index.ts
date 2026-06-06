@@ -12,6 +12,7 @@ import type { ApiTenant } from '../api/tenants'
 import type { Account } from '../types/Account'
 import type { Contract } from '../types/Contract'
 import type { Warehouse } from '../types/Warehouse'
+import { formatDisplayDate, rentalRequestDateOnly } from '../utils/datePicker'
 
 export const USER_ROLE_LABEL: Record<UserRole, string> = {
   SYSTEM_ADMIN: 'System Admin',
@@ -59,7 +60,8 @@ export function formatRelativeTime(iso?: string) {
 
 export function formatDate(iso?: string | null) {
   if (!iso) return '—'
-  return iso.slice(0, 10)
+  const dateOnly = rentalRequestDateOnly(iso)
+  return dateOnly ? formatDisplayDate(dateOnly) : '—'
 }
 
 export function userToAccount(u: ApiUser, index = 0): Account {
