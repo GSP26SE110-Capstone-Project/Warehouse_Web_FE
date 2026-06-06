@@ -37,7 +37,7 @@ import {
   deriveSuggestedZoneType,
   type DedicatedZonePreference,
 } from '../../utils/rentalRequestGuest'
-import { formatVnd } from '../../data/pricing'
+import { formatVnd, getZonePricePerM2 } from '../../data/pricing'
 import { recommendGuestContractType } from '../../utils/contractTypeRecommendation'
 import { buildProductKindMap, computeProductLinesSummary } from '../../utils/volumeUnits'
 import { ContractTypeGuide } from './ContractTypeGuide'
@@ -937,7 +937,7 @@ export function RentalRequestForm({
                     icon="lock"
                     title="Private Zone"
                     description="Khu riêng tách biệt dành cho thương hiệu của bạn trong kho."
-                    zoneHint={`${formatVnd(250_000)}/m²/tháng`}
+                    zoneHint={`${formatVnd(getZonePricePerM2('PRIVATE'))}/m²/tháng`}
                   />
                   <GuestStorageOption
                     id="preferredZonePremium"
@@ -946,7 +946,7 @@ export function RentalRequestForm({
                     icon="diamond"
                     title="Premium Zone"
                     description="Kiểm soát môi trường và bảo mật cao hơn khu private thường."
-                    zoneHint={`${formatVnd(300_000)}/m²/tháng`}
+                    zoneHint={`${formatVnd(getZonePricePerM2('PREMIUM'))}/m²/tháng`}
                   />
                 </div>
               </div>

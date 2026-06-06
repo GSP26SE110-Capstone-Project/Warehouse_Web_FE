@@ -82,7 +82,6 @@ export const CONTRACT_TYPE_LABELS: Record<ContractTypeValue, string> = Object.fr
 
 export const BILLING_CYCLE_GUEST_OPTIONS = [
   { value: 'MONTHLY', label: 'Thanh toán theo tháng' },
-  { value: 'YEARLY', label: 'Thanh toán theo năm' },
 ] as const
 
 export const BILLING_CYCLE_GUEST_LABELS: Record<string, string> = {

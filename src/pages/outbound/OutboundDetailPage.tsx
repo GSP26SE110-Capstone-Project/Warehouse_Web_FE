@@ -352,7 +352,7 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
               </section>
             )}
 
-            {isWhAdmin && outbound.status === 'RESERVED' && picking?.tasks.length > 0 && (
+            {isWhAdmin && outbound.status === 'RESERVED' && (picking?.tasks?.length ?? 0) > 0 && (
               <section className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-4">
                 <p className="text-sm font-medium text-violet-200">Đổi nhân viên pick</p>
                 <div className="mt-3 flex flex-wrap items-end gap-3">

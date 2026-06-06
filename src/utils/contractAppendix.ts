@@ -24,12 +24,20 @@ export const STORAGE_LEVEL_LABELS: Record<StorageLevel, string> = {
   ZONE: 'Zone',
   RACK: 'Rack',
   RACK_LEVEL: 'Tầng rack',
-  BIN: 'Bin',
+  BIN: 'Lưu hàng linh hoạt',
 }
 
 const STORAGE_LEVEL_ORDER: StorageLevel[] = [
   'BIN',
   'RACK_LEVEL',
+  'RACK',
+  'ZONE',
+  'WAREHOUSE',
+]
+
+/** Cấp hiển thị trong form yêu cầu phụ lục (không dùng RACK_LEVEL) */
+const APPENDIX_SELECTABLE_LEVELS: StorageLevel[] = [
+  'BIN',
   'RACK',
   'ZONE',
   'WAREHOUSE',
@@ -118,12 +126,12 @@ export function isStorageLevelWithinCeiling(
   requested: StorageLevel,
   ceiling: StorageLevel
 ): boolean {
-  return storageLevelIndex(requested) >= storageLevelIndex(ceiling)
+  return storageLevelIndex(requested) <= storageLevelIndex(ceiling)
 }
 
 export function selectableStorageLevels(ceiling: StorageLevel): StorageLevel[] {
   const ceilingIdx = storageLevelIndex(ceiling)
-  return STORAGE_LEVEL_ORDER.filter((_, i) => i >= ceilingIdx)
+  return APPENDIX_SELECTABLE_LEVELS.filter((l) => storageLevelIndex(l) <= ceilingIdx)
 }
 
 export function appendixNeedsTenantAction(appendix: ApiContractAppendix): boolean {

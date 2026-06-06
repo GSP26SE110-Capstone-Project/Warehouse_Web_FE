@@ -128,7 +128,7 @@ export function ContractAppendixRequestModal({ contract, onClose, onSubmitted }:
               {ceiling && (
                 <p className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-100">
                   Trần cấp HĐ gốc: <strong>{STORAGE_LEVEL_LABELS[ceiling]}</strong> — phụ lục chỉ
-                  thêm cấp ≤ trần này.
+                  thêm cấp không gian ≤ trần này (vd. thuê thêm bin khi trần là Zone).
                 </p>
               )}
               <div>

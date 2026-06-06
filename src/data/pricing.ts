@@ -11,9 +11,9 @@ export type PricingTier = {
 export const WAREHOUSE_PRICING: PricingTier = {
   name: 'DEDICATED_WAREHOUSE',
   label: 'Thuê nguyên kho',
-  price: 120_000,
+  price: 180_000,
   unit: 'm²/tháng',
-  description: 'Thuê toàn bộ warehouse theo diện tích. Ví dụ: 500m² × 120.000 = 60 triệu/tháng.',
+  description: 'Thuê toàn bộ warehouse theo diện tích. Ví dụ: 500m² × 180.000 = 90 triệu/tháng.',
   icon: 'warehouse',
   highlight: true,
 }
@@ -22,7 +22,7 @@ export const ZONE_PRICING: PricingTier[] = [
   {
     name: 'PREMIUM',
     label: 'Premium Zone',
-    price: 300_000,
+    price: 250_000,
     unit: 'm²/tháng',
     description: 'Khu premium với kiểm soát môi trường & bảo mật cao',
     icon: 'diamond',
@@ -30,7 +30,7 @@ export const ZONE_PRICING: PricingTier[] = [
   {
     name: 'PRIVATE',
     label: 'Private Zone',
-    price: 250_000,
+    price: 200_000,
     unit: 'm²/tháng',
     description: 'Khu riêng dành riêng cho tenant, tách biệt khu chia sẻ',
     icon: 'lock',
@@ -75,38 +75,48 @@ export const RACK_LEVEL_PRICING: PricingTier[] = [
   },
 ]
 
+/** Đồng bộ BE STORAGE_BOX_MONTH_PRICE_BY_BOX_TYPE */
+export const STORAGE_BOX_MONTH_BY_TYPE = {
+  SMALL: 10_000,
+  MEDIUM: 15_000,
+  LARGE: 25_000,
+  EXTRA: 45_000,
+} as const
+
+export const DAYS_PER_BILLING_MONTH = 30
+
 export const BIN_PRICING: PricingTier[] = [
   {
     name: 'SMALL',
     label: 'Small Box',
-    price: 10_000,
+    price: Math.round(STORAGE_BOX_MONTH_BY_TYPE.SMALL / DAYS_PER_BILLING_MONTH),
     unit: 'box/ngày',
-    description: 'Thùng nhỏ, hàng nhẹ — đơn giá BOX_DAY',
+    description: 'Thùng nhỏ, hàng nhẹ — prorate từ 10.000 ₫/thùng/tháng',
     icon: 'inventory',
   },
   {
     name: 'MEDIUM',
     label: 'Medium Box',
-    price: 20_000,
+    price: Math.round(STORAGE_BOX_MONTH_BY_TYPE.MEDIUM / DAYS_PER_BILLING_MONTH),
     unit: 'box/ngày',
-    description: 'Đơn giá/ngày × tổng box-day trong kỳ; hóa đơn tổng hợp theo tháng/năm',
+    description: 'Phổ biến nhất — prorate từ 15.000 ₫/thùng/tháng',
     icon: 'package_2',
     highlight: true,
   },
   {
     name: 'LARGE',
     label: 'Large Box',
-    price: 35_000,
+    price: Math.round(STORAGE_BOX_MONTH_BY_TYPE.LARGE / DAYS_PER_BILLING_MONTH),
     unit: 'box/ngày',
-    description: 'Thùng lớn, hàng cồng kềnh — đơn giá BOX_DAY',
+    description: 'Thùng lớn, hàng cồng kềnh — prorate từ 25.000 ₫/thùng/tháng',
     icon: 'package',
   },
   {
     name: 'EXTRA',
     label: 'Extra Box',
-    price: 50_000,
+    price: Math.round(STORAGE_BOX_MONTH_BY_TYPE.EXTRA / DAYS_PER_BILLING_MONTH),
     unit: 'box/ngày',
-    description: 'Thùng siêu lớn hoặc hàng đặc biệt — đơn giá BOX_DAY',
+    description: 'Pallet/thùng đặc biệt — prorate từ 45.000 ₫/thùng/tháng',
     icon: 'deployed_code',
   },
 ]
@@ -119,41 +129,38 @@ export const HANDLING_FEES = [
   { operation: 'Relocation', fee: '3.000 ₫' },
 ]
 
-/** Đồng bộ BE: STORAGE_BOX_DAY × 30 (docs/pricing.md) */
-export const DAYS_PER_BILLING_MONTH = 30
-
 export const BOX_MONTH_PRICING: PricingTier[] = [
   {
     name: 'SMALL',
     label: 'Thùng nhỏ (Small)',
-    price: 10_000 * DAYS_PER_BILLING_MONTH,
+    price: STORAGE_BOX_MONTH_BY_TYPE.SMALL,
     unit: 'thùng/tháng',
-    description: 'Hàng nhẹ, volume 1U — tương đương 10.000 ₫/ngày',
+    description: 'Hàng nhẹ, volume 1U',
     icon: 'inventory',
   },
   {
     name: 'MEDIUM',
     label: 'Thùng trung (Medium)',
-    price: 20_000 * DAYS_PER_BILLING_MONTH,
+    price: STORAGE_BOX_MONTH_BY_TYPE.MEDIUM,
     unit: 'thùng/tháng',
-    description: 'Phổ biến nhất — tương đương 20.000 ₫/ngày',
+    description: 'Phổ biến nhất cho lưu hàng linh hoạt',
     icon: 'package_2',
     highlight: true,
   },
   {
     name: 'LARGE',
     label: 'Thùng lớn (Large)',
-    price: 35_000 * DAYS_PER_BILLING_MONTH,
+    price: STORAGE_BOX_MONTH_BY_TYPE.LARGE,
     unit: 'thùng/tháng',
-    description: 'Hàng cồng kềnh — tương đương 35.000 ₫/ngày',
+    description: 'Hàng cồng kềnh',
     icon: 'package',
   },
   {
     name: 'EXTRA',
     label: 'Thùng siêu lớn (Extra)',
-    price: 50_000 * DAYS_PER_BILLING_MONTH,
+    price: STORAGE_BOX_MONTH_BY_TYPE.EXTRA,
     unit: 'thùng/tháng',
-    description: 'Pallet/thùng đặc biệt — tương đương 50.000 ₫/ngày',
+    description: 'Pallet/thùng đặc biệt',
     icon: 'deployed_code',
   },
 ]
@@ -167,5 +174,9 @@ export function getBinDayPrice(boxType: 'SMALL' | 'MEDIUM' | 'LARGE' | 'EXTRA'):
 }
 
 export function getBinMonthPrice(boxType: 'SMALL' | 'MEDIUM' | 'LARGE' | 'EXTRA'): number {
-  return getBinDayPrice(boxType) * DAYS_PER_BILLING_MONTH
+  return STORAGE_BOX_MONTH_BY_TYPE[boxType]
+}
+
+export function getZonePricePerM2(zoneType: 'PREMIUM' | 'PRIVATE'): number {
+  return ZONE_PRICING.find((z) => z.name === zoneType)?.price ?? 0
 }

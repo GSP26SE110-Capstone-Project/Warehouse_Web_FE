@@ -8,6 +8,7 @@ import { InboundStatusBadge } from '../../components/inbound/InboundStatusBadge'
 import { PutawayBinPicker } from '../../components/inbound/PutawayBinPicker'
 import { AiPutawayPanel } from '../../components/ai/AiPutawayPanel'
 import { InboundLpnReceivingSection } from '../../components/inbound/InboundLpnReceivingSection'
+import { TenantInboundWorkflow } from '../../components/inbound/TenantInboundWorkflow'
 import {
   InboundDeliveryForm,
   emptyDeliveryForm,
