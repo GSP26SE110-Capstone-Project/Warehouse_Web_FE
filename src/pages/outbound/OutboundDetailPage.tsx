@@ -7,12 +7,14 @@ import { OutboundStatusBadge } from '../../components/outbound/OutboundStatusBad
 import { useAuth } from '../../auth/AuthContext'
 import { ApiError } from '../../api/client'
 import * as outboundApi from '../../api/outboundRequests'
+import * as usersApi from '../../api/users'
+import type { ApiUser } from '../../api/types'
 import type {
   ApiOutboundRequestWithItems,
   OutboundPickingTasksResponse,
   OutboundStatus,
 } from '../../api/outboundRequests'
-import { WH_OUTBOUND_NEXT_STATUS } from '../../data/outboundStatus'
+import { getWhOutboundNextAction } from '../../data/outboundStatus'
 import { formatDate } from '../../mappers'
 
 type Mode = 'tenant' | 'warehouse'
@@ -29,6 +31,8 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
 
   const [outbound, setOutbound] = useState<ApiOutboundRequestWithItems | null>(null)
   const [picking, setPicking] = useState<OutboundPickingTasksResponse | null>(null)
+  const [staffList, setStaffList] = useState<ApiUser[]>([])
+  const [assignedPickerUserId, setAssignedPickerUserId] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -59,12 +63,43 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
     void load()
   }, [load])
 
+  const isWhAdmin =
+    isWarehouse && (user?.role === 'WH_ADMIN' || user?.role === 'SYSTEM_ADMIN')
+  const isWhStaff = isWarehouse && user?.role === 'WH_STAFF'
+
+  useEffect(() => {
+    if (!isWhAdmin) return
+    void usersApi
+      .listUsers({ role: 'WH_STAFF', status: 'ACTIVE', limit: 100 })
+      .then((res) => setStaffList(res.items))
+      .catch(() => setStaffList([]))
+  }, [isWhAdmin])
+
+  useEffect(() => {
+    const assigned = picking?.tasks[0]?.assignedTo
+    if (assigned) setAssignedPickerUserId(assigned)
+  }, [picking?.tasks])
+
   const patchStatus = async (status: OutboundStatus) => {
     if (!outboundRequestId) return
+    if (
+      status === 'APPROVED' &&
+      isWhAdmin &&
+      outbound?.status === 'PENDING' &&
+      !assignedPickerUserId.trim()
+    ) {
+      setError('Chọn nhân viên pick trước khi duyệt')
+      return
+    }
     setBusy(true)
     setError('')
     try {
-      await outboundApi.updateOutboundRequest(outboundRequestId, { status })
+      await outboundApi.updateOutboundRequest(outboundRequestId, {
+        status,
+        ...(status === 'APPROVED' && assignedPickerUserId.trim()
+          ? { assignedPickerUserId: assignedPickerUserId.trim() }
+          : {}),
+      })
       await load()
       setAlert({ open: true, type: 'success', message: 'Cập nhật trạng thái thành công' })
     } catch (err) {
@@ -74,12 +109,42 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
     }
   }
 
+  const savePickerAssignment = async () => {
+    if (!outboundRequestId || !assignedPickerUserId.trim()) {
+      setError('Chọn nhân viên pick')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      const result = await outboundApi.assignOutboundPicker(outboundRequestId, {
+        assignedPickerUserId: assignedPickerUserId.trim(),
+      })
+      setPicking(result)
+      setAlert({ open: true, type: 'success', message: 'Đã gán nhân viên pick' })
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Gán nhân viên thất bại')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const handleCancel = () => patchStatus('CANCELLED')
 
-  const nextAction = outbound ? WH_OUTBOUND_NEXT_STATUS[outbound.status] : undefined
-  const canWhAct =
-    isWarehouse &&
-    (user?.role === 'WH_ADMIN' || user?.role === 'WH_STAFF' || user?.role === 'SYSTEM_ADMIN')
+  const nextAction = (() => {
+    if (!outbound) return undefined
+    const action = getWhOutboundNextAction(outbound.status, user?.role)
+    if (isWhStaff && assignedPickerId && assignedPickerId !== user?.userId) {
+      return undefined
+    }
+    return action
+  })()
+  const assignedPickerId = picking?.tasks[0]?.assignedTo
+  const assignedPickerName =
+    staffList.find((s) => s.userId === assignedPickerId)?.fullName ?? assignedPickerId
+  const canWhAct = isWhAdmin || isWhStaff
+  const canWhCancel =
+    canWhAct && !['SHIPPED', 'COMPLETED', 'CANCELLED'].includes(outbound?.status ?? '')
   const canTenantCancel =
     mode === 'tenant' &&
     outbound &&
@@ -116,6 +181,63 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
               <OutboundStatusBadge status={outbound.status} />
             </div>
 
+            {isWhAdmin && outbound.status === 'PENDING' && (
+              <section className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-4">
+                <p className="text-sm font-medium text-violet-200">Gán nhân viên pick</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Bắt buộc trước khi duyệt — nhân viên sẽ nhận email và thấy phiếu trong danh sách
+                  pick.
+                </p>
+                <select
+                  aria-label="Chọn nhân viên pick"
+                  value={assignedPickerUserId}
+                  onChange={(e) => setAssignedPickerUserId(e.target.value)}
+                  className="mt-3 w-full max-w-md rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm"
+                >
+                  <option value="">— Chọn WH Staff —</option>
+                  {staffList.map((s) => (
+                    <option key={s.userId} value={s.userId}>
+                      {s.fullName} · {s.email}
+                    </option>
+                  ))}
+                </select>
+                {staffList.length === 0 && (
+                  <p className="mt-2 text-xs text-amber-300/90">
+                    Chưa có WH_STAFF — tạo trong Quản lý tài khoản.
+                  </p>
+                )}
+              </section>
+            )}
+
+            {isWhAdmin && outbound.status === 'RESERVED' && picking?.tasks.length > 0 && (
+              <section className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-4">
+                <p className="text-sm font-medium text-violet-200">Đổi nhân viên pick</p>
+                <div className="mt-3 flex flex-wrap items-end gap-3">
+                  <select
+                    aria-label="Nhân viên pick"
+                    value={assignedPickerUserId}
+                    onChange={(e) => setAssignedPickerUserId(e.target.value)}
+                    className="min-w-[240px] rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm"
+                  >
+                    <option value="">— Chọn WH Staff —</option>
+                    {staffList.map((s) => (
+                      <option key={s.userId} value={s.userId}>
+                        {s.fullName}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={busy || !assignedPickerUserId.trim()}
+                    onClick={() => void savePickerAssignment()}
+                    className="rounded-lg border border-violet-400/40 px-4 py-2 text-sm font-semibold text-violet-200 hover:bg-violet-400/10 disabled:opacity-50"
+                  >
+                    Lưu gán picker
+                  </button>
+                </div>
+              </section>
+            )}
+
             {canWhAct && nextAction && (
               <section className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-4">
                 <p className="text-sm font-medium text-orange-200">Bước tiếp theo (kho)</p>
@@ -133,7 +255,7 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
               </section>
             )}
 
-            {(canTenantCancel || (canWhAct && !['SHIPPED', 'COMPLETED', 'CANCELLED'].includes(outbound.status))) && (
+            {(canTenantCancel || canWhCancel) && (
               <div className="flex flex-wrap gap-2">
                 {canTenantCancel && (
                   <button
@@ -145,8 +267,10 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
                     Hủy phiếu
                   </button>
                 )}
-                {canWhAct &&
-                  ['RESERVED', 'PICKING', 'PACKING'].includes(outbound.status) && (
+                {canWhCancel &&
+                  outbound &&
+                  ['RESERVED', 'PICKING', 'PACKING'].includes(outbound.status) &&
+                  (isWhAdmin || (isWhStaff && assignedPickerId === user?.userId)) && (
                     <button
                       type="button"
                       disabled={busy}
@@ -213,6 +337,17 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
                   <div key={task.pickingTaskId} className="mt-4 space-y-2">
                     <p className="text-xs text-slate-400">
                       Task {task.pickingTaskId.slice(0, 8)}… · {task.status}
+                      {task.assignedTo && (
+                        <>
+                          {' · '}
+                          Picker:{' '}
+                          <span className="text-violet-300">
+                            {staffList.find((s) => s.userId === task.assignedTo)?.fullName ??
+                              assignedPickerName ??
+                              `${task.assignedTo.slice(0, 8)}…`}
+                          </span>
+                        </>
+                      )}
                     </p>
                     <ul className="space-y-1 text-sm">
                       {task.items.map((item) => (

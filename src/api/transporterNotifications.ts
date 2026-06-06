@@ -12,6 +12,7 @@ export interface TransporterTripAlertItem {
 
 export interface TransporterTripAlerts {
   assignedCount: number
+  inTransitCount: number
   recent: TransporterTripAlertItem[]
 }
 

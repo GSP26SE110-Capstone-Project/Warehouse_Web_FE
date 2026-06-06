@@ -4,12 +4,14 @@ import { ApiError } from '../../../api/client'
 import {
   fetchGuestAccountAlerts,
   fetchWhArrivedInboundAlerts,
+  fetchWhInTransitInboundAlerts,
   fetchWhContractPaymentAlerts,
   fetchWhPendingInboundAlerts,
   fetchWhPendingAppendixAlerts,
   fetchWhPendingRentalAlerts,
   type GuestAccountAlerts,
   type WhArrivedInboundAlerts,
+  type WhInTransitInboundAlerts,
   type WhContractPaymentAlerts,
   type WhPendingAppendixAlerts,
   type WhPendingInboundAlerts,
@@ -42,6 +44,7 @@ export function AdminNotificationBell() {
   const [whRentalAlerts, setWhRentalAlerts] = useState<WhPendingRentalAlerts | null>(null)
   const [whInboundAlerts, setWhInboundAlerts] = useState<WhPendingInboundAlerts | null>(null)
   const [whArrivedAlerts, setWhArrivedAlerts] = useState<WhArrivedInboundAlerts | null>(null)
+  const [whInTransitAlerts, setWhInTransitAlerts] = useState<WhInTransitInboundAlerts | null>(null)
   const [whContractPayments, setWhContractPayments] = useState<WhContractPaymentAlerts | null>(
     null
   )
@@ -62,15 +65,17 @@ export function AdminNotificationBell() {
     }
     if (isWh) {
       try {
-        const [rentals, inbounds, arrived, contractPaid, appendices] = await Promise.all([
+        const [rentals, inbounds, inTransit, arrived, contractPaid, appendices] = await Promise.all([
           fetchWhPendingRentalAlerts(),
           fetchWhPendingInboundAlerts(),
+          fetchWhInTransitInboundAlerts(),
           fetchWhArrivedInboundAlerts(),
           fetchWhContractPaymentAlerts(),
           fetchWhPendingAppendixAlerts(),
         ])
         setWhRentalAlerts(rentals)
         setWhInboundAlerts(inbounds)
+        setWhInTransitAlerts(inTransit)
         setWhArrivedAlerts(arrived)
         setWhContractPayments(contractPaid)
         setWhAppendixAlerts(appendices)
@@ -78,6 +83,7 @@ export function AdminNotificationBell() {
         if (!(err instanceof ApiError && err.status === 403)) {
           setWhRentalAlerts(null)
           setWhInboundAlerts(null)
+          setWhInTransitAlerts(null)
           setWhArrivedAlerts(null)
           setWhContractPayments(null)
           setWhAppendixAlerts(null)
@@ -108,14 +114,16 @@ export function AdminNotificationBell() {
   const whRentalPending = whRentalAlerts?.pendingCount ?? 0
   const whInboundPending = whInboundAlerts?.pendingCount ?? 0
   const whInboundArrived = whArrivedAlerts?.arrivedCount ?? 0
+  const whInboundInTransit = whInTransitAlerts?.inTransitCount ?? 0
   const whContractPaid = whContractPayments?.recentCount ?? 0
   const whAppendixPending = whAppendixAlerts?.pendingCount ?? 0
   const badgeCount = isSa
     ? guestCount
-    : whRentalPending + whInboundPending + whInboundArrived + whContractPaid + whAppendixPending
+    : whRentalPending + whInboundPending + whInboundInTransit + whInboundArrived + whContractPaid + whAppendixPending
   const whHasAny =
     whRentalPending > 0 ||
     whInboundPending > 0 ||
+    whInboundInTransit > 0 ||
     whInboundArrived > 0 ||
     whContractPaid > 0 ||
     whAppendixPending > 0
@@ -319,6 +327,32 @@ export function AdminNotificationBell() {
                         <p className="mt-0.5 text-[10px] text-slate-500">
                           Chờ duyệt · {formatWhen(item.createdAt)}
                         </p>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              {whInTransitAlerts && whInTransitAlerts.recent.length > 0 && (
+                <>
+                  <p className="border-t border-white/5 px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    Đang về kho
+                  </p>
+                  <ul className="max-h-40 overflow-y-auto dark-scrollbar border-b border-white/5 py-1">
+                    {whInTransitAlerts.recent.map((item) => (
+                      <li key={item.inboundRequestId} className="px-3 py-2 hover:bg-white/5">
+                        <Link
+                          to={`/admin/inbound/${item.inboundRequestId}`}
+                          onClick={() => setOpen(false)}
+                          className="block no-underline"
+                        >
+                          <p className="truncate text-sm font-medium text-white">{item.companyName}</p>
+                          <p className="font-mono text-xs text-orange-300">{item.inboundCode}</p>
+                          <p className="mt-0.5 text-[10px] text-slate-500">
+                            {item.driverName ?? 'Tài xế'} · {item.vehiclePlate ?? '—'} ·{' '}
+                            {formatWhen(item.actualPickupAt ?? '')}
+                          </p>
+                        </Link>
                       </li>
                     ))}
                   </ul>

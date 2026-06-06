@@ -13,7 +13,7 @@ import * as zonesApi from '../../api/zones'
 import type { ApiZone } from '../../api/zones'
 import * as warehousesApi from '../../api/warehouses'
 import { useAuth } from '../../auth/AuthContext'
-import { ZONE_TYPE_LABELS, ZONE_TYPE_OPTIONS } from '../../data/zoneTypes'
+import { ZONE_TYPE_OPTIONS, zoneTypeLabel } from '../../data/zoneTypes'
 
 function formatArea(m2?: number | null) {
   if (m2 == null) return '—'
@@ -407,7 +407,7 @@ export const ZoneManagement = () => {
                         )}
                         <td className="px-6 py-4 text-white">{z.zoneName || '—'}</td>
                         <td className="px-6 py-4 text-slate-300">
-                          {ZONE_TYPE_LABELS[z.zoneType ?? ''] ?? z.zoneType}
+                          {zoneTypeLabel(z.zoneType)}
                         </td>
                         <td className="px-6 py-4 text-center">{formatArea(z.areaM2)}</td>
                         

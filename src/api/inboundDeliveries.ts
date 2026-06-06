@@ -16,6 +16,7 @@ export interface ApiInboundDelivery {
   pickupContactName?: string | null
   pickupContactPhone?: string | null
   pickupNotes?: string | null
+  actualPickupAt?: string | null
 }
 
 export type InboundDeliveryPayload = {

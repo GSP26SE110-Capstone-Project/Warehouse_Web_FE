@@ -73,7 +73,7 @@ export default function WarehouseScene2DFallback({
                     Khu {zone.id}
                   </span>
                   {showLabel && (
-                    <span className="mt-0.5 text-[10px] text-white/90">{capacity.maxBoxType}</span>
+                    <span className="mt-0.5 text-[10px] text-white/90">{capacity.maxBoxTypeLabel}</span>
                   )}
 
                   {focusRack && isFocus && (

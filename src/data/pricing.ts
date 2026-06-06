@@ -20,14 +20,6 @@ export const WAREHOUSE_PRICING: PricingTier = {
 
 export const ZONE_PRICING: PricingTier[] = [
   {
-    name: 'SHARED',
-    label: 'Khu lưu hàng chung',
-    price: 120_000,
-    unit: 'm²/tháng',
-    description: 'Khu vận hành chung — kho xếp hàng lên kệ/ngăn phù hợp',
-    icon: 'grid_view',
-  },
-  {
     name: 'PREMIUM',
     label: 'Premium Zone',
     price: 300_000,
@@ -127,11 +119,43 @@ export const HANDLING_FEES = [
   { operation: 'Relocation', fee: '3.000 ₫' },
 ]
 
-export const SURCHARGES = [
-  { name: 'Fast Moving SKU', detail: '+20% – +40% trên phí lưu trữ' },
-  { name: 'Humidity Control', detail: '+20% (Premium Zone)' },
-  { name: 'Camera / Security', detail: '+15% (Premium Zone)' },
-  { name: 'Restricted Access', detail: '+10% (Premium Zone)' },
+/** Đồng bộ BE: STORAGE_BOX_DAY × 30 (docs/pricing.md) */
+export const DAYS_PER_BILLING_MONTH = 30
+
+export const BOX_MONTH_PRICING: PricingTier[] = [
+  {
+    name: 'SMALL',
+    label: 'Thùng nhỏ (Small)',
+    price: 10_000 * DAYS_PER_BILLING_MONTH,
+    unit: 'thùng/tháng',
+    description: 'Hàng nhẹ, volume 1U — tương đương 10.000 ₫/ngày',
+    icon: 'inventory',
+  },
+  {
+    name: 'MEDIUM',
+    label: 'Thùng trung (Medium)',
+    price: 20_000 * DAYS_PER_BILLING_MONTH,
+    unit: 'thùng/tháng',
+    description: 'Phổ biến nhất — tương đương 20.000 ₫/ngày',
+    icon: 'package_2',
+    highlight: true,
+  },
+  {
+    name: 'LARGE',
+    label: 'Thùng lớn (Large)',
+    price: 35_000 * DAYS_PER_BILLING_MONTH,
+    unit: 'thùng/tháng',
+    description: 'Hàng cồng kềnh — tương đương 35.000 ₫/ngày',
+    icon: 'package',
+  },
+  {
+    name: 'EXTRA',
+    label: 'Thùng siêu lớn (Extra)',
+    price: 50_000 * DAYS_PER_BILLING_MONTH,
+    unit: 'thùng/tháng',
+    description: 'Pallet/thùng đặc biệt — tương đương 50.000 ₫/ngày',
+    icon: 'deployed_code',
+  },
 ]
 
 export function formatVnd(amount: number): string {
@@ -140,4 +164,8 @@ export function formatVnd(amount: number): string {
 
 export function getBinDayPrice(boxType: 'SMALL' | 'MEDIUM' | 'LARGE' | 'EXTRA'): number {
   return BIN_PRICING.find((tier) => tier.name === boxType)?.price ?? 0
+}
+
+export function getBinMonthPrice(boxType: 'SMALL' | 'MEDIUM' | 'LARGE' | 'EXTRA'): number {
+  return getBinDayPrice(boxType) * DAYS_PER_BILLING_MONTH
 }

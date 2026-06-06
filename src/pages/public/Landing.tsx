@@ -8,7 +8,7 @@ import { WarehouseStructureExplorer } from '../../components/public/WarehouseStr
 import {
   formatVnd,
   HANDLING_FEES,
-  SURCHARGES,
+  BOX_MONTH_PRICING,
   WAREHOUSE_PRICING,
   ZONE_PRICING,
   type PricingTier,
@@ -227,7 +227,7 @@ export const Landing: React.FC = () => {
               title="Thuê khu riêng (Zone)"
               subtitle="Một khu vực tách riêng trong kho — giá theo loại khu và diện tích m²/tháng"
             />
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl">
               {ZONE_PRICING.map((tier) => (
                 <PricingCard key={tier.name} tier={tier} />
               ))}
@@ -259,23 +259,37 @@ export const Landing: React.FC = () => {
 
             <div className="glass-panel rounded-xl p-6">
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#06edf9]">trending_up</span>
-                Phụ phí & Surcharge
+                <span className="material-symbols-outlined text-[#06edf9]">package_2</span>
+                Giá lưu trữ theo loại thùng
               </h3>
               <p className="text-sm text-[#9bb9bb] mb-4">
-                Áp dụng khi SKU fast-moving hoặc zone premium có yêu cầu đặc biệt.
+                Lưu hàng linh hoạt (SHARED_STORAGE) — đơn giá cố định theo loại LPN/thùng, tính theo tháng
+                (30 ngày). Số thùng thực tế × đơn giá/tháng trên hóa đơn.
               </p>
-              <ul className="space-y-3">
-                {SURCHARGES.map((item) => (
-                  <li
-                    key={item.name}
-                    className="flex flex-col sm:flex-row sm:justify-between gap-1 border-t border-white/5 pt-3 first:border-0 first:pt-0"
-                  >
-                    <span className="text-white font-medium">{item.name}</span>
-                    <span className="text-sm text-[#9bb9bb]">{item.detail}</span>
-                  </li>
-                ))}
-              </ul>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 text-left text-xs uppercase text-[#9bb9bb]">
+                    <th className="pb-2 font-medium">Loại thùng</th>
+                    <th className="pb-2 text-right font-medium">Giá/tháng</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {BOX_MONTH_PRICING.map((row) => (
+                    <tr key={row.name} className="border-t border-white/5">
+                      <td className="py-2.5">
+                        <span className="text-white font-medium">{row.label}</span>
+                        {row.description && (
+                          <span className="mt-0.5 block text-xs text-[#9bb9bb]">{row.description}</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 text-right align-top">
+                        <span className="font-semibold text-[#06edf9]">{formatVnd(row.price)}</span>
+                        <span className="block text-xs text-[#9bb9bb]">/ {row.unit}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 

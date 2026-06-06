@@ -1,5 +1,6 @@
 import { RACK_FIXED_LEVEL_COUNT } from '../data/rackStructure'
-import { getDefaultBinCapacity } from '../data/binCapacityDefaults'
+import { getDefaultBinCapacity, getMaxLpnBoxTypeForZone } from '../data/binCapacityDefaults'
+import { formatBoxTypeName } from '../data/lpnTerminology'
 import { lpnsPerBin } from './putawayCapacity'
 
 /** Đồng bộ với BE `warehouseCapacity.js` */
@@ -67,23 +68,27 @@ function fmtM2(n: number) {
   return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(n)
 }
 
-/** Ước tính số thùng EXTRA theo số ngăn bin và volume mặc định của loại zone. */
-export function estimateExtraBoxCapacity(
+/** Ước tính số LPN theo max box type của zone (SHARED→EXTRA, PREMIUM/PRIVATE→LARGE). */
+export function estimateMaxBoxCapacity(
   totalBinSlots: number,
   zoneType?: string | null
 ): number {
   if (totalBinSlots <= 0) return 0
-  const binVolume = getDefaultBinCapacity(zoneType).maxVolumeUnits
-  return totalBinSlots * lpnsPerBin('EXTRA', binVolume)
+  return totalBinSlots * maxLpnsPerBinSlot(zoneType)
 }
 
-function lpnPerBinSlot(zoneType?: string | null): number {
-  return getDefaultBinCapacity(zoneType).maxLpnCount
+/** @deprecated Dùng estimateMaxBoxCapacity */
+export function estimateExtraBoxCapacity(
+  totalBinSlots: number,
+  zoneType?: string | null
+): number {
+  return estimateMaxBoxCapacity(totalBinSlots, zoneType)
 }
 
-function extraLpnsPerBin(zoneType?: string | null): number {
+function maxLpnsPerBinSlot(zoneType?: string | null): number {
+  const maxBoxType = getMaxLpnBoxTypeForZone(zoneType)
   const binVolume = getDefaultBinCapacity(zoneType).maxVolumeUnits
-  return lpnsPerBin('EXTRA', binVolume)
+  return lpnsPerBin(maxBoxType, binVolume)
 }
 
 export function formatZoneCapacitySummary(
@@ -91,10 +96,12 @@ export function formatZoneCapacitySummary(
   zoneType?: string | null
 ): string {
   if (!c.hasArea) return ''
-  const extraBoxes = estimateExtraBoxCapacity(c.totalBinSlots, zoneType)
-  const perBin = extraLpnsPerBin(zoneType)
+  const maxBoxType = getMaxLpnBoxTypeForZone(zoneType)
+  const maxBoxes = estimateMaxBoxCapacity(c.totalBinSlots, zoneType)
+  const perBin = maxLpnsPerBinSlot(zoneType)
   const vol = getDefaultBinCapacity(zoneType).maxVolumeUnits
-  return `${c.maxRacks} rack · ${c.binsPerLevel} bin/tầng · tối đa ~${extraBoxes.toLocaleString('vi-VN')} LPN cỡ EXTRA (${perBin} LPN/ngăn · bin ${vol} vol.)`
+  const boxLabel = formatBoxTypeName(maxBoxType)
+  return `${c.maxRacks} rack · ${c.binsPerLevel} bin/tầng · tối đa ~${maxBoxes.toLocaleString('vi-VN')} LPN cỡ ${boxLabel} (${perBin} LPN/ngăn · bin ${vol} vol.)`
 }
 
 export function estimateZoneLpnCapacity(zone: {
@@ -106,7 +113,7 @@ export function estimateZoneLpnCapacity(zone: {
   if (zone.estimatedLpnCapacity != null && zone.estimatedLpnCapacity > 0) {
     return zone.estimatedLpnCapacity
   }
-  const perSlot = lpnPerBinSlot(zone.zoneType)
+  const perSlot = maxLpnsPerBinSlot(zone.zoneType)
   if (zone.totalBinSlots != null && zone.totalBinSlots > 0) {
     return zone.totalBinSlots * perSlot
   }

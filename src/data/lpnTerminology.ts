@@ -6,8 +6,8 @@
 export const LPN_SIZE_LABELS: Record<string, string> = {
   SMALL: 'Nhỏ (S)',
   MEDIUM: 'Vừa (M)',
-  LARGE: 'Lớn (L)',
-  EXTRA: 'Cực lớn (XL)',
+  LARGE: 'Large',
+  EXTRA: 'Extra',
 }
 
 export const CONTRACT_ITEM_TYPE_LABELS: Record<string, string> = {

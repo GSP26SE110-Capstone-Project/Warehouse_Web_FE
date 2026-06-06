@@ -29,7 +29,7 @@ const LAYERS: {
     title: 'Zone (Khu)',
     subtitle: 'Chia kho thành các khu chức năng',
     description:
-      'Mỗi khu có loại riêng: Chia sẻ, Hàng đi nhanh, Premium hoặc Khu riêng. Click vào từng khu trên mô hình 3D để xem loại thùng LPN lớn nhất có thể dùng.',
+      'Mỗi khu có loại riêng: Chia sẻ, Premium hoặc Khu riêng. Click vào từng khu trên mô hình 3D để xem loại thùng LPN lớn nhất có thể dùng.',
   },
   {
     id: 'rack',
@@ -70,7 +70,7 @@ function ZoneInfoPanel({ zone }: { zone: DemoZone3D }) {
         Bin mặc định: <strong className="text-white">{capacity.binVolume} volume</strong>
         {' · '}
         LPN lớn nhất:{' '}
-        <strong className="text-[#06edf9]">{capacity.maxBoxType}</strong>
+        <strong className="text-[#06edf9]">{capacity.maxBoxTypeLabel}</strong>
       </p>
       <p className="mt-2 text-xs text-[#9bb9bb]/90 leading-relaxed">{capacity.note}</p>
     </div>
@@ -310,7 +310,7 @@ export function WarehouseStructureExplorer() {
                         Khu {zone.id} · {zone.title}
                       </span>
                     </span>
-                    <span className="shrink-0 font-medium text-[#9bb9bb]">{cap.maxBoxType}</span>
+                    <span className="shrink-0 font-medium text-[#9bb9bb]">{cap.maxBoxTypeLabel}</span>
                   </button>
                 )
               })}

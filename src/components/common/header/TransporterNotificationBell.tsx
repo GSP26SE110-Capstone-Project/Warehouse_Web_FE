@@ -26,7 +26,7 @@ export function TransporterNotificationBell() {
   const rootRef = useRef<HTMLDivElement>(null)
 
   const isTransporter = user?.role === 'WH_TRANSPORTER'
-  const badgeCount = alerts?.assignedCount ?? 0
+  const badgeCount = (alerts?.assignedCount ?? 0) + (alerts?.inTransitCount ?? 0)
 
   const load = useCallback(async () => {
     if (!isTransporter) return
@@ -80,7 +80,7 @@ export function TransporterNotificationBell() {
             <p className="text-sm font-semibold text-white">Chuyến được gán</p>
             <p className="mt-0.5 text-xs text-slate-400">
               {badgeCount > 0
-                ? `${badgeCount} chuyến chờ thực hiện`
+                ? `${alerts?.assignedCount ?? 0} chờ lấy · ${alerts?.inTransitCount ?? 0} đang về kho`
                 : 'Chưa có chuyến mới'}
             </p>
           </div>
@@ -114,6 +114,9 @@ export function TransporterNotificationBell() {
                     )}
                     {trip.status === 'APPROVED' && (
                       <p className="mt-1 text-[11px] text-amber-300">Chờ đi lấy hàng</p>
+                    )}
+                    {trip.status === 'IN_TRANSIT' && (
+                      <p className="mt-1 text-[11px] text-orange-300">Đã lấy hàng · báo xe đến kho</p>
                     )}
                   </Link>
                 </li>

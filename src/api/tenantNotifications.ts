@@ -13,6 +13,7 @@ export interface TenantTransportAlertItem {
 
 export interface TenantTransportAlerts {
   assignedCount: number
+  inTransitCount: number
   arrivedCount: number
   recent: TenantTransportAlertItem[]
 }

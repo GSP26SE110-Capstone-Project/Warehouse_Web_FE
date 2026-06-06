@@ -37,6 +37,7 @@ export function OutboundListPage({ mode, basePath }: Props) {
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 8
   const isWhStaff = user?.role === 'WH_STAFF'
+  const isWhAdmin = user?.role === 'WH_ADMIN' || user?.role === 'SYSTEM_ADMIN'
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -51,6 +52,9 @@ export function OutboundListPage({ mode, basePath }: Props) {
         params.tenantId = tenantId
       } else if (warehouseId) {
         params.warehouseId = warehouseId
+        if (isWhStaff) {
+          params.assignedPickerMe = true
+        }
       }
 
       const outboundRes = await outboundApi.listOutboundRequests(params)
@@ -79,7 +83,7 @@ export function OutboundListPage({ mode, basePath }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [mode, tenantId, warehouseId])
+  }, [mode, tenantId, warehouseId, isWhStaff])
 
   useEffect(() => {
     load()
@@ -133,8 +137,8 @@ export function OutboundListPage({ mode, basePath }: Props) {
                   {mode === 'tenant'
                     ? 'Tạo phiếu xuất theo HĐ ACTIVE/TERMINATED (còn tồn khả dụng)'
                     : isWhStaff
-                      ? 'Duyệt, pick, đóng gói và shipped (FIFO + scan OUT-*)'
-                      : 'Duyệt, pick, đóng gói và xuất hàng (FIFO)'}
+                      ? 'Phiếu pick được gán cho bạn — RESERVED → PICKING → PACKING'
+                      : 'Duyệt, gán picker, duyệt packing và xuất hàng (FIFO)'}
                 </p>
               </div>
               {canCreate && (
@@ -153,8 +157,8 @@ export function OutboundListPage({ mode, basePath }: Props) {
             {mode === 'warehouse' && isWhStaff && stats.inProgress > 0 && (
               <div className="flex flex-col gap-3 rounded-lg border border-violet-400/30 bg-violet-400/10 px-4 py-3 text-sm text-violet-100 sm:flex-row sm:items-center sm:justify-between">
                 <p>
-                  <strong>{stats.inProgress}</strong> phiếu đang pick/đóng gói — mở chi tiết để cập nhật
-                  trạng thái (RESERVED → PICKING → PACKING → SHIPPED).
+                  <strong>{stats.inProgress}</strong> phiếu được gán — bắt đầu pick rồi xác nhận
+                  hoàn tất pick (WH Admin duyệt packing).
                 </p>
                 <button
                   type="button"
@@ -169,7 +173,7 @@ export function OutboundListPage({ mode, basePath }: Props) {
               </div>
             )}
 
-            {mode === 'warehouse' && stats.pending > 0 && (
+            {mode === 'warehouse' && isWhAdmin && stats.pending > 0 && (
               <div className="flex flex-col gap-3 rounded-lg border border-orange-400/30 bg-orange-400/10 px-4 py-3 text-sm text-orange-100 sm:flex-row sm:items-center sm:justify-between">
                 <p>
                   Có <strong>{stats.pending}</strong> phiếu xuất chờ duyệt — mở chi tiết để duyệt

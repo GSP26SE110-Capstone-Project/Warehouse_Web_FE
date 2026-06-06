@@ -9,6 +9,7 @@ import { BarcodeScanPanel } from '../../components/warehouse/BarcodeScanPanel'
 import { ApiError } from '../../api/client'
 import * as inboundApi from '../../api/inboundRequests'
 import * as outboundApi from '../../api/outboundRequests'
+import * as staffNotificationsApi from '../../api/staffNotifications'
 import * as inventoriesApi from '../../api/inventories'
 import * as warehousesApi from '../../api/warehouses'
 import * as zonesApi from '../../api/zones'
@@ -39,7 +40,7 @@ const QUICK_ACTIONS = [
     href: '/staff/outbound-ops',
     icon: 'outbound',
     label: 'Xuất kho',
-    desc: 'Pick, pack & shipped',
+    desc: 'Pick được gán cho bạn',
     color: 'border-orange-500/30 hover:bg-orange-500/10',
   },
   {
@@ -65,6 +66,9 @@ export function WhStaffDashboard() {
   const [zonePlanning, setZonePlanning] = useState<
     Awaited<ReturnType<typeof warehousesApi.getWarehouseZonePlanning>> | null
   >(null)
+  const [pickAlerts, setPickAlerts] = useState<
+    Awaited<ReturnType<typeof staffNotificationsApi.getWhStaffAssignedPickAlerts>> | null
+  >(null)
 
   const load = useCallback(async () => {
     if (!warehouseId) {
@@ -76,10 +80,16 @@ export function WhStaffDashboard() {
     setLoading(true)
     setError('')
     try {
-      const [wh, inboundRes, outboundRes, invRes, planning, zonesRes] = await Promise.all([
+      const [wh, inboundRes, outboundRes, pickAlertRes, invRes, planning, zonesRes] =
+        await Promise.all([
         warehousesApi.getWarehouse(warehouseId).catch(() => null),
         inboundApi.listInboundRequests({ warehouseId, limit: 200 }),
-        outboundApi.listOutboundRequests({ warehouseId, limit: 200 }),
+        outboundApi.listOutboundRequests({
+          warehouseId,
+          assignedPickerMe: true,
+          limit: 200,
+        }),
+        staffNotificationsApi.getWhStaffAssignedPickAlerts().catch(() => null),
         inventoriesApi.listInventories({ warehouseId, limit: 1 }),
         warehousesApi.getWarehouseZonePlanning(warehouseId).catch(() => null),
         zonesApi.listZones({ warehouseId, limit: 50 }).catch(() => ({ items: [] as ApiZone[] })),
@@ -88,6 +98,7 @@ export function WhStaffDashboard() {
       setWarehouseName(wh?.warehouseName ?? wh?.warehouseCode ?? 'Kho')
       setInbounds(inboundRes.items)
       setOutbounds(outboundRes.items)
+      setPickAlerts(pickAlertRes)
       setInventoryTotal(invRes.meta.total)
       setZonePlanning(planning)
       setZoneItems(zonesRes.items)
@@ -106,7 +117,7 @@ export function WhStaffDashboard() {
     const arrived = inbounds.filter((i) => i.status === 'ARRIVED').length
     const receiving = inbounds.filter((i) => i.status === 'RECEIVING').length
     const outboundActive = outbounds.filter((i) =>
-      ['PENDING', 'RESERVED', 'PICKING', 'PACKING'].includes(i.status)
+      ['RESERVED', 'PICKING'].includes(i.status)
     ).length
     const util = zonePlanning?.usableAreaM2
       ? Math.round(
@@ -127,7 +138,7 @@ export function WhStaffDashboard() {
   const workQueueOutbound = useMemo(
     () =>
       outbounds
-        .filter((i) => ['PENDING', 'RESERVED', 'PICKING', 'PACKING'].includes(i.status))
+        .filter((i) => ['RESERVED', 'PICKING'].includes(i.status))
         .slice(0, 6),
     [outbounds]
   )
@@ -168,7 +179,7 @@ export function WhStaffDashboard() {
       {
         timestamp: new Date().toLocaleTimeString('vi-VN'),
         level: (kpis.outboundActive > 5 ? 'WARN' : 'INFO') as 'INFO' | 'WARN' | 'SYS',
-        message: `${kpis.outboundActive} phiếu xuất cần xử lý (duyệt / pick / pack).`,
+        message: `${kpis.outboundActive} phiếu pick được gán (chờ pick / đang pick).`,
       },
     ],
     [kpis.arrived, kpis.receiving, kpis.outboundActive]
@@ -230,8 +241,8 @@ export function WhStaffDashboard() {
             accentColor="orange"
           />
           <StatsCard
-            title="Xuất cần xử lý"
-            value={kpis.outboundActive}
+            title="Pick được gán"
+            value={pickAlerts?.assignedCount ?? kpis.outboundActive}
             icon="outbound"
             accentColor="emerald"
           />
@@ -282,14 +293,17 @@ export function WhStaffDashboard() {
             <div className="mb-4 flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-lg font-bold text-white">
                 <span className="material-symbols-outlined text-orange-400">outbound</span>
-                Phiếu xuất đang mở
+                Phiếu pick được gán
               </h3>
+              {pickAlerts && pickAlerts.pickingCount > 0 && (
+                <span className="text-xs text-cyan-300">{pickAlerts.pickingCount} đang pick</span>
+              )}
               <Link to="/staff/outbound-ops" className="text-xs text-orange-400 hover:underline">
                 Xem tất cả
               </Link>
             </div>
             {workQueueOutbound.length === 0 ? (
-              <p className="text-sm text-slate-500">Không có phiếu xuất cần xử lý.</p>
+              <p className="text-sm text-slate-500">Chưa có phiếu pick được gán.</p>
             ) : (
               <ul className="divide-y divide-white/5">
                 {workQueueOutbound.map((row) => (

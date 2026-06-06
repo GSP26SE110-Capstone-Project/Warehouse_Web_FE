@@ -4,6 +4,9 @@ import type { ApiSku } from '../../../api/skus'
 import type { ApiProductKindTreeNode, ApiSizeFactor } from '../../../api/productCatalog'
 import type { ApiCollection } from '../../../api/collections'
 import type { ApiSeason } from '../../../api/seasons'
+import * as collectionsApi from '../../../api/collections'
+import * as seasonsApi from '../../../api/seasons'
+import { ApiError } from '../../../api/client'
 import { DarkDropdownSelect } from '../DarkDropdownSelect'
 import { buildFlatSizeOptions, buildSizeToGroupMap, roundVolumeUnits } from '../../../utils/volumeUnits'
 import { MOVEMENT_CATEGORY_OPTIONS, SKU_STATUS_OPTIONS } from '../../../data/skuOptions'
@@ -30,6 +33,9 @@ type Props = {
   sizeFactors: ApiSizeFactor[]
   collections: ApiCollection[]
   seasons: ApiSeason[]
+  tenantId?: string
+  onCollectionCreated?: (collection: ApiCollection) => void
+  onSeasonCreated?: (season: ApiSeason) => void
   initialValues?: Partial<SkuFormPayload>
   onClose: () => void
   onSubmit?: (payload: SkuFormPayload) => void | Promise<void>
@@ -62,6 +68,9 @@ export function SkuModal({
   sizeFactors,
   collections,
   seasons,
+  tenantId,
+  onCollectionCreated,
+  onSeasonCreated,
   initialValues,
   onClose,
   onSubmit,
@@ -70,6 +79,10 @@ export function SkuModal({
   const [form, setForm] = useState(() => toForm(data, initialValues))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [quickCreate, setQuickCreate] = useState<'collection' | 'season' | null>(null)
+  const [quickName, setQuickName] = useState('')
+  const [quickError, setQuickError] = useState('')
+  const [quickSaving, setQuickSaving] = useState(false)
 
   const productKindGroups = useMemo(
     () =>
@@ -176,6 +189,14 @@ export function SkuModal({
       setError('Vui lòng chọn size cho loại hàng này')
       return
     }
+    if (!form.color.trim()) {
+      setError('Màu sắc là bắt buộc')
+      return
+    }
+    if (!form.material.trim()) {
+      setError('Chất liệu là bắt buộc')
+      return
+    }
     setSaving(true)
     setError('')
     try {
@@ -186,13 +207,60 @@ export function SkuModal({
         productKind: form.productKind,
         collectionId: form.collectionId || '',
         seasonId: form.seasonId || '',
-        size: requiresSize ? form.size : '',
+        color: form.color.trim(),
+        material: form.material.trim(),
+        size: requiresSize ? form.size.trim() : '',
       })
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Lưu thất bại')
+      setError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Lưu thất bại')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const openQuickCreate = (kind: 'collection' | 'season') => {
+    setQuickCreate(kind)
+    setQuickName('')
+    setQuickError('')
+  }
+
+  const closeQuickCreate = () => {
+    if (quickSaving) return
+    setQuickCreate(null)
+    setQuickName('')
+    setQuickError('')
+  }
+
+  const handleQuickCreateSave = async () => {
+    const name = quickName.trim()
+    if (!name) {
+      setQuickError('Tên không được để trống')
+      return
+    }
+    setQuickSaving(true)
+    setQuickError('')
+    try {
+      if (quickCreate === 'collection') {
+        if (!tenantId) {
+          setQuickError('Thiếu tenant — không thể tạo bộ sưu tập')
+          return
+        }
+        const created = await collectionsApi.createCollection({ tenantId, collectionName: name })
+        onCollectionCreated?.(created)
+        setForm((f) => ({ ...f, collectionId: created.collectionId }))
+      } else if (quickCreate === 'season') {
+        const created = await seasonsApi.createSeason({ seasonName: name })
+        onSeasonCreated?.(created)
+        setForm((f) => ({ ...f, seasonId: created.seasonId }))
+      }
+      setQuickCreate(null)
+      setQuickName('')
+      setQuickError('')
+    } catch (err) {
+      setQuickError(err instanceof ApiError ? err.message : 'Tạo thất bại')
+    } finally {
+      setQuickSaving(false)
     }
   }
 
@@ -293,50 +361,80 @@ export function SkuModal({
               <label className={labelStyle} htmlFor="sku-collection">
                 Bộ sưu tập
               </label>
-              <select
-                id="sku-collection"
-                className={inputStyle}
-                disabled={isView}
-                value={form.collectionId}
-                onChange={(e) => setForm((f) => ({ ...f, collectionId: e.target.value }))}
-              >
-                <option value="">—</option>
-                {collections.map((c) => (
-                  <option key={c.collectionId} value={c.collectionId}>
-                    {c.collectionName}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  id="sku-collection"
+                  className={`${inputStyle} min-w-0 flex-1`}
+                  disabled={isView}
+                  value={form.collectionId}
+                  onChange={(e) => setForm((f) => ({ ...f, collectionId: e.target.value }))}
+                >
+                  <option value="">—</option>
+                  {collections.map((c) => (
+                    <option key={c.collectionId} value={c.collectionId}>
+                      {c.collectionName}
+                    </option>
+                  ))}
+                </select>
+                {!isView && tenantId && (
+                  <button
+                    type="button"
+                    title="Thêm bộ sưu tập"
+                    aria-label="Thêm bộ sưu tập"
+                    onClick={() => openQuickCreate('collection')}
+                    className="shrink-0 rounded-lg border border-cyan-500/40 px-2.5 py-2 text-cyan-300 hover:bg-cyan-500/10"
+                  >
+                    <span className="material-symbols-outlined text-lg leading-none">add</span>
+                  </button>
+                )}
+              </div>
             </div>
             <div>
               <label className={labelStyle} htmlFor="sku-season">
                 Mùa
               </label>
-              <select
-                id="sku-season"
-                className={inputStyle}
-                disabled={isView}
-                value={form.seasonId}
-                onChange={(e) => setForm((f) => ({ ...f, seasonId: e.target.value }))}
-              >
-                <option value="">—</option>
-                {seasons.map((s) => (
-                  <option key={s.seasonId} value={s.seasonId}>
-                    {s.seasonName}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  id="sku-season"
+                  className={`${inputStyle} min-w-0 flex-1`}
+                  disabled={isView}
+                  value={form.seasonId}
+                  onChange={(e) => setForm((f) => ({ ...f, seasonId: e.target.value }))}
+                >
+                  <option value="">—</option>
+                  {seasons.map((s) => (
+                    <option key={s.seasonId} value={s.seasonId}>
+                      {s.seasonName}
+                    </option>
+                  ))}
+                </select>
+                {!isView && (
+                  <button
+                    type="button"
+                    title="Thêm mùa"
+                    aria-label="Thêm mùa"
+                    onClick={() => openQuickCreate('season')}
+                    className="shrink-0 rounded-lg border border-cyan-500/40 px-2.5 py-2 text-cyan-300 hover:bg-cyan-500/10"
+                  >
+                    <span className="material-symbols-outlined text-lg leading-none">add</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className={labelStyle}>Màu</label>
+              <label className={labelStyle} htmlFor="sku-color">
+                Màu *
+              </label>
               <input
+                id="sku-color"
                 className={inputStyle}
                 disabled={isView}
                 value={form.color}
                 onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
+                placeholder="VD: Đen, Trắng"
               />
             </div>
             <div>
@@ -381,12 +479,16 @@ export function SkuModal({
               )}
             </div>
             <div>
-              <label className={labelStyle}>Chất liệu</label>
+              <label className={labelStyle} htmlFor="sku-material">
+                Chất liệu *
+              </label>
               <input
+                id="sku-material"
                 className={inputStyle}
                 disabled={isView}
                 value={form.material}
                 onChange={(e) => setForm((f) => ({ ...f, material: e.target.value }))}
+                placeholder="VD: Cotton, Polyester"
               />
             </div>
           </div>
@@ -434,6 +536,65 @@ export function SkuModal({
           )}
         </form>
       </div>
+
+      {quickCreate && (
+        <div className="fixed inset-0 z-90 flex items-center justify-center p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60"
+            onClick={closeQuickCreate}
+            aria-label="Đóng"
+          />
+          <div className="relative z-10 w-full max-w-md rounded-xl border border-white/10 bg-[#0f172a] p-5 shadow-2xl">
+            <h3 className="text-base font-semibold text-white">
+              {quickCreate === 'collection' ? 'Thêm bộ sưu tập' : 'Thêm mùa'}
+            </h3>
+            <p className="mt-1 text-xs text-slate-500">
+              {quickCreate === 'collection'
+                ? 'Bộ sưu tập mới sẽ được chọn ngay trong form SKU.'
+                : 'Mùa mới sẽ được chọn ngay trong form SKU.'}
+            </p>
+            <label className={`${labelStyle} mt-4`} htmlFor="sku-quick-name">
+              Tên *
+            </label>
+            <input
+              id="sku-quick-name"
+              className={inputStyle}
+              value={quickName}
+              autoFocus
+              onChange={(e) => setQuickName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  void handleQuickCreateSave()
+                }
+              }}
+              placeholder={quickCreate === 'collection' ? 'VD: SS26 Core' : 'VD: Xuân 2026'}
+            />
+            {quickError && (
+              <InlineAlert compact className="mt-3" message={quickError} onDismiss={() => setQuickError('')} />
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={quickSaving}
+                onClick={closeQuickCreate}
+                className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={quickSaving}
+                onClick={() => void handleQuickCreateSave()}
+                className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50"
+              >
+                {quickSaving ? 'Đang lưu…' : 'Tạo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

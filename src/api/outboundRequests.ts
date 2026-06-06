@@ -82,10 +82,16 @@ export function listOutboundRequests(params?: {
   warehouseId?: string
   contractId?: string
   status?: OutboundStatus
+  assignedPickerMe?: boolean
   page?: number
   limit?: number
 }) {
-  return apiPaginated<ApiOutboundRequest>(`/outbound-requests${buildQuery(params ?? {})}`)
+  return apiPaginated<ApiOutboundRequest>(
+    `/outbound-requests${buildQuery({
+      ...params,
+      assignedPickerMe: params?.assignedPickerMe ? 'true' : undefined,
+    })}`
+  )
 }
 
 export function getOutboundRequest(
@@ -119,6 +125,7 @@ export function updateOutboundRequest(
     status?: OutboundStatus
     requestedShipDate?: string | null
     actualShippedAt?: string | null
+    assignedPickerUserId?: string
   }
 ) {
   return apiRequest<ApiOutboundRequest>(`/outbound-requests/${outboundRequestId}`, {
@@ -152,5 +159,15 @@ export function addOutboundItem(
 export function listOutboundPickingTasks(outboundRequestId: string) {
   return apiRequest<OutboundPickingTasksResponse>(
     `/outbound-requests/${outboundRequestId}/picking-tasks`
+  )
+}
+
+export function assignOutboundPicker(
+  outboundRequestId: string,
+  body: { assignedPickerUserId: string }
+) {
+  return apiRequest<OutboundPickingTasksResponse>(
+    `/outbound-requests/${outboundRequestId}/picking-tasks/assign`,
+    { method: 'PATCH', body }
   )
 }

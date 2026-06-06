@@ -3,7 +3,7 @@ import { AlertModal } from './AlertModal'
 import type { ApiZone } from '../../../api/zones'
 import * as warehousesApi from '../../../api/warehouses'
 import type { ApiWarehouseZonePlanning } from '../../../api/warehouses'
-import { ZONE_STATUS_OPTIONS, ZONE_TYPE_OPTIONS } from '../../../data/zoneTypes'
+import { ZONE_STATUS_OPTIONS, ZONE_TYPE_OPTIONS, normalizeZoneType } from '../../../data/zoneTypes'
 import {
   REFERENCE_ZONE_AREA_M2,
   computeZoneStorageCapacity,
@@ -69,7 +69,7 @@ function toForm(data?: ApiZone, fallbackWarehouseId = ''): ZoneFormPayload {
     warehouseId: data.warehouseId ?? fallbackWarehouseId,
     zoneCode: data.zoneCode,
     zoneName: data.zoneName ?? '',
-    zoneType: data.zoneType ?? 'SHARED',
+    zoneType: normalizeZoneType(data.zoneType),
     areaM2: data.areaM2 ?? null,
     isDedicated: Boolean(data.isDedicated),
     status: data.status ?? 'ACTIVE',

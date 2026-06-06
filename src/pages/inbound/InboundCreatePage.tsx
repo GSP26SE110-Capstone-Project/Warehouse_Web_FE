@@ -790,6 +790,17 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
           sizeFactors={sizeFactors}
           collections={collections}
           seasons={seasons}
+          tenantId={tenantId}
+          onCollectionCreated={(c) =>
+            setCollections((prev) =>
+              prev.some((x) => x.collectionId === c.collectionId) ? prev : [...prev, c]
+            )
+          }
+          onSeasonCreated={(s) =>
+            setSeasons((prev) =>
+              prev.some((x) => x.seasonId === s.seasonId) ? prev : [...prev, s]
+            )
+          }
           initialValues={skuModalInitialValues}
           onClose={() => setSkuModal({ open: false })}
           onSubmit={handleCreateSku}

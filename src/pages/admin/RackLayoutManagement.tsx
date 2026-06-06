@@ -47,7 +47,7 @@ import type { ApiBin } from '../../api/bins'
 import * as inventoriesApi from '../../api/inventories'
 import type { ApiInventory } from '../../api/inventories'
 import { useAuth } from '../../auth/AuthContext'
-import { ZONE_TYPE_LABELS } from '../../data/zoneTypes'
+import { zoneTypeLabel } from '../../data/zoneTypes'
 import { BIN_STATUS_LABELS } from '../../data/rackStructure'
 import {
   aggregateInventoriesByRackFromBinCodes,
@@ -710,7 +710,7 @@ export const RackLayoutManagement = () => {
 
   const zoneScreenLabel = activeZone
     ? `${activeZone.zoneCode}${activeZone.zoneName ? ` · ${activeZone.zoneName}` : ''} — ${
-        ZONE_TYPE_LABELS[activeZone.zoneType ?? ''] ?? activeZone.zoneType
+        zoneTypeLabel(activeZone.zoneType)
       }`
     : 'Chọn zone'
 

@@ -14,7 +14,8 @@ export function TenantTransportNotificationBell() {
   const rootRef = useRef<HTMLDivElement>(null)
 
   const isTenantAdmin = user?.role === 'TENANT_ADMIN'
-  const badgeCount = (alerts?.assignedCount ?? 0) + (alerts?.arrivedCount ?? 0)
+  const badgeCount =
+    (alerts?.assignedCount ?? 0) + (alerts?.inTransitCount ?? 0) + (alerts?.arrivedCount ?? 0)
 
   const load = useCallback(async () => {
     if (!isTenantAdmin) return
@@ -67,7 +68,7 @@ export function TenantTransportNotificationBell() {
             <p className="text-sm font-semibold text-white">Vận chuyển inbound</p>
             <p className="mt-0.5 text-xs text-slate-400">
               {badgeCount > 0
-                ? `${alerts?.arrivedCount ?? 0} đã tới kho · ${alerts?.assignedCount ?? 0} đang chờ lấy hàng`
+                ? `${alerts?.arrivedCount ?? 0} đã tới kho · ${alerts?.inTransitCount ?? 0} đang về kho · ${alerts?.assignedCount ?? 0} chờ lấy hàng`
                 : 'Chưa có thông báo mới'}
             </p>
           </div>
@@ -86,6 +87,8 @@ export function TenantTransportNotificationBell() {
                     <p className="mt-1 text-xs text-slate-400">
                       {row.status === 'ARRIVED' ? (
                         <span className="text-violet-300">Đã tới kho</span>
+                      ) : row.status === 'IN_TRANSIT' ? (
+                        <span className="text-orange-300">Đã lấy hàng · đang về kho</span>
                       ) : (
                         <>
                           {row.driverName ?? 'Tài xế'} · {row.vehiclePlate ?? '—'}

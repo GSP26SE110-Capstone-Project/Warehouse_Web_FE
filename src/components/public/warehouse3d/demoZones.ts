@@ -1,5 +1,5 @@
 import { getDefaultBinCapacity, getMaxLpnBoxTypeForZone } from '../../../data/binCapacityDefaults'
-import { formatLpnSize } from '../../../data/lpnTerminology'
+import { formatBoxTypeName } from '../../../data/lpnTerminology'
 import { ZONE_TYPE_LABELS } from '../../../data/zoneTypes'
 
 export type DemoZoneType = 'SHARED' | 'PREMIUM' | 'PRIVATE'
@@ -63,7 +63,7 @@ export function describeZoneLpnCapacity(zoneType: DemoZoneType) {
   const maxBoxType = getMaxLpnBoxTypeForZone(zoneType)
   return {
     maxBoxType,
-    maxBoxTypeLabel: formatLpnSize(maxBoxType),
+    maxBoxTypeLabel: formatBoxTypeName(maxBoxType),
     binVolume: preset.maxVolumeUnits,
     note: preset.note,
   }

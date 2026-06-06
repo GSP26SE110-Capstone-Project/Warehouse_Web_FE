@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState, type PointerEvent } from 'react'
-import { ZONE_TYPE_LABELS } from '../../data/zoneTypes'
+import { zoneTypeLabel } from '../../data/zoneTypes'
 
 export type ZoneUtilStatus = 'empty' | 'active' | 'stable' | 'alert'
 
@@ -293,7 +293,7 @@ export function ZoneUtilization({
           <div className="pointer-events-none absolute bottom-2 left-1/2 z-30 w-[min(100%,280px)] -translate-x-1/2 rounded-xl border border-cyan-500/30 bg-[#0b101a]/95 px-3 py-2 text-center shadow-xl backdrop-blur-md">
             <p className="font-mono text-sm font-bold text-cyan-300">{focusZone.zoneCode}</p>
             <p className="text-[10px] text-slate-400">
-              {focusZone.zoneName || ZONE_TYPE_LABELS[focusZone.zoneType ?? ''] || focusZone.zoneType}
+              {focusZone.zoneName || zoneTypeLabel(focusZone.zoneType) || focusZone.zoneType}
               {focusZone.areaM2 != null ? ` · ${fmtM2(focusZone.areaM2)} m²` : ''}
             </p>
             <p className="mt-1 text-xs text-white">

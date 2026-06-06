@@ -84,6 +84,27 @@ export function fetchWhArrivedInboundAlerts() {
   return apiRequest<WhArrivedInboundAlerts>('/admin/notifications/wh-arrived-inbounds')
 }
 
+export interface WhInTransitInboundAlertItem {
+  inboundRequestId: string
+  inboundCode: string
+  status: string
+  actualPickupAt: string | null
+  vehiclePlate: string | null
+  driverName: string | null
+  pickupAddress: string | null
+  companyName: string
+}
+
+export interface WhInTransitInboundAlerts {
+  inTransitCount: number
+  warehouseName: string | null
+  recent: WhInTransitInboundAlertItem[]
+}
+
+export function fetchWhInTransitInboundAlerts() {
+  return apiRequest<WhInTransitInboundAlerts>('/admin/notifications/wh-in-transit-inbounds')
+}
+
 export interface WhContractPaymentAlertItem {
   contractId: string
   contractCode: string

@@ -19,12 +19,12 @@ const PRESETS: Record<string, BinCapacityPreset> = {
   PREMIUM: {
     maxLpnCount: 4,
     maxVolumeUnits: 4,
-    note: 'Hàng giá trị cao — 1 LARGE / 2 MEDIUM / 4 SMALL',
+    note: 'Premium — tối đa LPN cỡ LARGE (1 LARGE / 2 MEDIUM / 4 SMALL)',
   },
   PRIVATE: {
     maxLpnCount: 16,
     maxVolumeUnits: 16,
-    note: 'Khu riêng tenant — cùng chuẩn bin SHARED (2 EXTRA / 4 LARGE / 8 MEDIUM / 16 SMALL)',
+    note: 'Khu riêng tenant — tối đa LPN cỡ LARGE (4 LARGE / 8 MEDIUM / 16 SMALL)',
   },
 }
 
@@ -39,14 +39,19 @@ const LPN_BOX_VOLUME: Record<LpnBoxType, number> = {
   EXTRA: 8,
 }
 
-/** LPN box type lớn nhất mà bin mặc định của zone chứa được (theo maxVolumeUnits). */
+/** Loại thùng LPN lớn nhất theo nghiệp vụ zone (đồng bộ BE binCapacityDefaults.js). */
+const ZONE_MAX_LPN_BOX_TYPE: Record<string, LpnBoxType> = {
+  SHARED: 'EXTRA',
+  PREMIUM: 'LARGE',
+  PRIVATE: 'LARGE',
+}
+
+/** LPN box type lớn nhất gợi ý cho zone (SHARED → EXTRA; PREMIUM/PRIVATE → LARGE). */
 export function getMaxLpnBoxTypeForZone(zoneType?: string | null): LpnBoxType {
-  const vol = getDefaultBinCapacity(zoneType).maxVolumeUnits
-  const order: LpnBoxType[] = ['EXTRA', 'LARGE', 'MEDIUM', 'SMALL']
-  for (const type of order) {
-    if (vol >= LPN_BOX_VOLUME[type]) return type
-  }
-  return 'SMALL'
+  const key = String(zoneType ?? 'SHARED').toUpperCase()
+  if (ZONE_MAX_LPN_BOX_TYPE[key]) return ZONE_MAX_LPN_BOX_TYPE[key]
+  if (key === 'FAST_MOVING') return 'LARGE'
+  return 'EXTRA'
 }
 
 /** Loại thùng lớn nhất trong các zone được cấp (đồng bộ BE pickLargestBoxTypeForZoneTypes). */

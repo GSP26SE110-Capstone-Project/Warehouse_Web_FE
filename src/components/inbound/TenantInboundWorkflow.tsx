@@ -11,7 +11,7 @@ import * as skusApi from '../../api/skus'
 import type { ApiSku } from '../../api/skus'
 import * as contractsApi from '../../api/contracts'
 import { INBOUND_STATUS_LABELS } from '../../data/inboundStatus'
-import { TENANT_INBOUND_STEPS, tenantInboundStepProgress } from '../../data/tenantInboundWorkflow'
+import { getTenantInboundSteps, tenantInboundStepProgress } from '../../data/tenantInboundWorkflow'
 import type { DeliveryMode } from '../../data/deliveryMode'
 
 type Props = {
@@ -60,7 +60,8 @@ export function TenantInboundWorkflow({
     inbound.status === 'APPROVED' &&
     Boolean(inbound.delivery?.vehiclePlate?.trim())
 
-  const stepProgress = tenantInboundStepProgress(inbound.status)
+  const stepProgress = tenantInboundStepProgress(inbound.status, deliveryMode)
+  const workflowSteps = getTenantInboundSteps(deliveryMode)
   const commitmentByKey = useMemo(() => {
     const map = new Map<string, contractsApi.ApiContractInboundCommitmentLine>()
     for (const line of commitment?.productLines ?? []) {
@@ -181,7 +182,7 @@ export function TenantInboundWorkflow({
             Tiến độ yêu cầu
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {TENANT_INBOUND_STEPS.map((step, i) => {
+            {workflowSteps.map((step, i) => {
               const done = i < stepProgress
               const current = step.status === inbound.status
               return (
@@ -239,7 +240,18 @@ export function TenantInboundWorkflow({
 
       {inbound.status === 'APPROVED' && isWarehouseTransport && (
         <p className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-100">
-          Kho sẽ đi lấy hàng và báo khi xe tới cổng — bạn không cần đánh dấu &quot;Xe đã đến&quot;.
+          Kho đã gán tài xế — tài xế sẽ báo <strong>Đã lấy hàng</strong> khi tới điểm lấy của bạn,
+          sau đó báo <strong>Xe đến kho</strong> khi về cổng kho.
+        </p>
+      )}
+
+      {inbound.status === 'IN_TRANSIT' && isWarehouseTransport && (
+        <p className="rounded-lg border border-orange-500/25 bg-orange-500/10 px-4 py-3 text-sm text-orange-100">
+          Tài xế đã lấy hàng
+          {inbound.delivery?.actualPickupAt
+            ? ` lúc ${new Date(inbound.delivery.actualPickupAt).toLocaleString('vi-VN')}`
+            : ''}
+          . Hàng đang được vận chuyển về kho — bạn sẽ được thông báo khi xe tới cổng.
         </p>
       )}
 

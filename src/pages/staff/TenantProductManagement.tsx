@@ -401,6 +401,17 @@ export const TenantProductManagement = () => {
           sizeFactors={sizeFactors}
           collections={collections}
           seasons={seasons}
+          tenantId={tenantId}
+          onCollectionCreated={(c) =>
+            setCollections((prev) =>
+              prev.some((x) => x.collectionId === c.collectionId) ? prev : [...prev, c]
+            )
+          }
+          onSeasonCreated={(s) =>
+            setSeasons((prev) =>
+              prev.some((x) => x.seasonId === s.seasonId) ? prev : [...prev, s]
+            )
+          }
           onClose={() => setModal({ open: false, mode: 'view' })}
           onSubmit={canEdit ? handleSubmit : undefined}
         />

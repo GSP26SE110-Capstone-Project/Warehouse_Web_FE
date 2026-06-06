@@ -30,10 +30,38 @@ export const WH_OUTBOUND_NEXT_STATUS: Partial<
   PENDING: {
     label: 'Duyệt + reserve FIFO',
     status: 'APPROVED',
-    hint: 'Tạo picking task và chuyển RESERVED',
+    hint: 'Chọn nhân viên pick, tạo picking task và chuyển RESERVED',
   },
   RESERVED: { label: 'Bắt đầu pick', status: 'PICKING' },
   PICKING: { label: 'Xác nhận pick đủ', status: 'PACKING' },
-  PACKING: { label: 'Xuất hàng (trừ tồn)', status: 'SHIPPED' },
+  PACKING: {
+    label: 'Duyệt packing & xuất hàng',
+    status: 'SHIPPED',
+    hint: 'WH Admin kiểm tra pick rồi trừ tồn',
+  },
   SHIPPED: { label: 'Hoàn tất phiếu', status: 'COMPLETED' },
+}
+
+type WhRole = string | undefined
+
+/** Nút workflow theo role: admin duyệt/ship; staff pick (chỉ phiếu được gán). */
+export function getWhOutboundNextAction(
+  status: OutboundStatus,
+  role: WhRole
+): { label: string; status: OutboundStatus; hint?: string } | undefined {
+  const isAdmin = role === 'WH_ADMIN' || role === 'SYSTEM_ADMIN'
+  const isStaff = role === 'WH_STAFF'
+
+  if (isAdmin) {
+    if (status === 'PENDING') return WH_OUTBOUND_NEXT_STATUS.PENDING
+    if (status === 'PACKING') return WH_OUTBOUND_NEXT_STATUS.PACKING
+    if (status === 'SHIPPED') return WH_OUTBOUND_NEXT_STATUS.SHIPPED
+  }
+
+  if (isStaff) {
+    if (status === 'RESERVED') return WH_OUTBOUND_NEXT_STATUS.RESERVED
+    if (status === 'PICKING') return WH_OUTBOUND_NEXT_STATUS.PICKING
+  }
+
+  return undefined
 }

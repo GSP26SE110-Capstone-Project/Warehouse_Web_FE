@@ -187,7 +187,7 @@ function ZoneTiles({
               >
                 <div className="whitespace-nowrap rounded-md border border-white/20 bg-[#0b1617]/90 px-2 py-1 text-[10px] font-semibold text-white shadow-lg backdrop-blur-sm">
                   {zone.title}
-                  <span className="ml-1 font-normal text-[#9bb9bb]">· {capacity.maxBoxType}</span>
+                  <span className="ml-1 font-normal text-[#9bb9bb]">· {capacity.maxBoxTypeLabel}</span>
                 </div>
               </Html>
             )}

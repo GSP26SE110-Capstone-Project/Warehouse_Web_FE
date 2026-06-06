@@ -5,7 +5,7 @@ import { listLpns, type ApiLpn, type BoxType } from '../../../api/lpns'
 import { getDefaultBinCapacity } from '../../../data/binCapacityDefaults'
 import { isBinAtCapacity, isBinEmpty } from '../../../utils/binOccupancy'
 import { BIN_STATUS_LABELS, RESERVATION_TYPE_LABELS } from '../../../data/rackStructure'
-import { ZONE_TYPE_LABELS } from '../../../data/zoneTypes'
+import { zoneTypeLabel } from '../../../data/zoneTypes'
 
 type Mode = 'create' | 'edit'
 
@@ -271,7 +271,7 @@ export function BinModal({
 
         <p className="mt-3 rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2 text-xs text-violet-200/90">
           Gợi ý zone{' '}
-          <strong>{ZONE_TYPE_LABELS[zoneType ?? ''] ?? zoneType ?? 'SHARED'}</strong>:{' '}
+          <strong>{zoneTypeLabel(zoneType)}</strong>:{' '}
           <strong>{preset.maxVolumeUnits}</strong> volume units (LPN cap ={' '}
           <strong>{preset.maxLpnCount}</strong>) — {preset.note}
         </p>
@@ -300,7 +300,7 @@ export function BinModal({
             <p id="bin-volume-help" className="mt-1 text-[11px] text-slate-500">
               Lock theo preset zone{' '}
               <strong className="text-slate-300">
-                {ZONE_TYPE_LABELS[zoneType ?? ''] ?? zoneType ?? 'SHARED'}
+                {zoneTypeLabel(zoneType)}
               </strong>{' '}
               ({preset.maxVolumeUnits} vol). Quy ước: 1 SMALL = 1, MEDIUM = 2, LARGE = 4,
               EXTRA = 8 volume unit. Đổi sức chứa = đổi physical shelf design → cần cập

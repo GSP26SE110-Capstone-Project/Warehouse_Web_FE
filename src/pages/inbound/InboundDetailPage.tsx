@@ -105,6 +105,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   const [warehouse, setWarehouse] = useState<ApiWarehouse | null>(null)
   const [assignedDriverUserId, setAssignedDriverUserId] = useState('')
   const [transporters, setTransporters] = useState<ApiUser[]>([])
+  const [busyTransporterTrips, setBusyTransporterTrips] = useState<Record<string, string>>({})
   const [productCatalogByKind, setProductCatalogByKind] = useState<Map<string, ApiProductKind>>(
     () => new Map()
   )
@@ -256,18 +257,50 @@ export function InboundDetailPage({ mode, basePath }: Props) {
       return
     }
     let cancelled = false
-    usersApi
-      .listUsers({ role: 'WH_TRANSPORTER', status: 'ACTIVE', limit: 100 })
-      .then((res) => {
-        if (!cancelled) setTransporters(res.items)
+    Promise.all([
+      usersApi.listUsers({ role: 'WH_TRANSPORTER', status: 'ACTIVE', limit: 100 }),
+      inboundApi.listInboundRequests({
+        status: 'PENDING',
+        deliveryMode: 'WAREHOUSE_TRANSPORT',
+        includeDelivery: true,
+        limit: 100,
+      }),
+      inboundApi.listInboundRequests({
+        status: 'APPROVED',
+        deliveryMode: 'WAREHOUSE_TRANSPORT',
+        includeDelivery: true,
+        limit: 100,
+      }),
+      inboundApi.listInboundRequests({
+        status: 'IN_TRANSIT',
+        deliveryMode: 'WAREHOUSE_TRANSPORT',
+        includeDelivery: true,
+        limit: 100,
+      }),
+    ])
+      .then(([usersRes, pendingRes, approvedRes, inTransitRes]) => {
+        if (cancelled) return
+        setTransporters(usersRes.items)
+        const busy: Record<string, string> = {}
+        for (const row of [...pendingRes.items, ...approvedRes.items, ...inTransitRes.items]) {
+          if (row.inboundRequestId === inboundRequestId) continue
+          const driverId = row.delivery?.assignedDriverUserId
+          if (driverId && !busy[driverId]) {
+            busy[driverId] = row.inboundCode
+          }
+        }
+        setBusyTransporterTrips(busy)
       })
       .catch(() => {
-        if (!cancelled) setTransporters([])
+        if (!cancelled) {
+          setTransporters([])
+          setBusyTransporterTrips({})
+        }
       })
     return () => {
       cancelled = true
     }
-  }, [isWarehouse, isWhAdmin])
+  }, [isWarehouse, isWhAdmin, inboundRequestId])
 
   useEffect(() => {
     if (!isWarehouse || isTransporter) return
@@ -375,7 +408,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   const canEditDelivery = isTransporter
     ? inbound && inbound.status === 'APPROVED'
     : isWarehouse
-      ? inbound && ['PENDING', 'APPROVED', 'ARRIVED'].includes(inbound.status)
+      ? inbound && ['PENDING', 'APPROVED', 'IN_TRANSIT', 'ARRIVED'].includes(inbound.status)
       : inbound &&
         ['DRAFT', 'PENDING', 'APPROVED'].includes(inbound.status) &&
         !tenantDeliveryLocked
@@ -443,6 +476,11 @@ export function InboundDetailPage({ mode, basePath }: Props) {
     isWarehouseTransport &&
     inbound &&
     ['PENDING', 'APPROVED'].includes(inbound.status)
+
+  const reportPickup = () =>
+    runAction(async () => {
+      await inboundApi.reportInboundPickup(inboundRequestId)
+    }, 'Đã báo lấy hàng tại tenant')
 
   const reportArrival = () =>
     runAction(async () => {
@@ -768,7 +806,15 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                   )}
                   {inbound.status === 'APPROVED' && isWarehouseTransport && isWarehouse && !isTransporter && (
                     <span className="ml-2 text-slate-400">
-                      · Tài xế kho sẽ báo &quot;Xe đã đến&quot; sau khi tới cổng
+                      · Tài xế báo &quot;Đã lấy hàng&quot; rồi &quot;Xe đến kho&quot;
+                    </span>
+                  )}
+                  {inbound.status === 'IN_TRANSIT' && isWarehouseTransport && isWarehouse && !isTransporter && (
+                    <span className="ml-2 text-orange-300">
+                      · Hàng đang về kho
+                      {inbound.delivery?.actualPickupAt
+                        ? ` (lấy lúc ${formatDate(inbound.delivery.actualPickupAt)})`
+                        : ''}
                     </span>
                   )}
                 </p>
@@ -822,16 +868,28 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                       className="w-full max-w-md rounded border border-white/10 bg-black/30 px-3 py-2 text-sm"
                     >
                       <option value="">— Chưa gán —</option>
-                      {transporters.map((t) => (
-                        <option key={t.userId} value={t.userId}>
-                          {t.fullName}
-                          {t.defaultVehiclePlate ? ` · ${t.defaultVehiclePlate}` : ''} ({t.email})
-                        </option>
-                      ))}
+                      {transporters.map((t) => {
+                        const busyCode = busyTransporterTrips[t.userId]
+                        const isCurrentAssignee =
+                          t.userId === inbound?.delivery?.assignedDriverUserId
+                        const isBusyElsewhere = Boolean(busyCode && !isCurrentAssignee)
+                        return (
+                          <option
+                            key={t.userId}
+                            value={t.userId}
+                            disabled={isBusyElsewhere}
+                          >
+                            {t.fullName}
+                            {t.defaultVehiclePlate ? ` · ${t.defaultVehiclePlate}` : ''}
+                            {isBusyElsewhere ? ` · đang có chuyến ${busyCode}` : ''} ({t.email})
+                          </option>
+                        )
+                      })}
                     </select>
                     <p className="mt-1 text-xs text-slate-500">
                       Chọn tài xế để tự điền biển số, SĐT, CCCD từ hồ sơ — có thể gán ngay khi duyệt
-                      inbound.
+                      inbound. Tài xế đang có chuyến PENDING/APPROVED/IN_TRANSIT khác sẽ bị vô hiệu trong danh
+                      sách.
                     </p>
                     {transporters.length === 0 && (
                       <p className="mt-1 text-xs text-amber-300">
@@ -904,6 +962,23 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                                 setAlert({
                                   open: true,
                                   type: 'confirm',
+                                  title: 'Đã lấy hàng tại tenant?',
+                                  message: `Xác nhận đã lấy hàng cho ${inbound.inboundCode} tại điểm lấy.`,
+                                  onConfirm: reportPickup,
+                                })
+                              }
+                              className="rounded-lg bg-orange-600 px-3 py-1.5 text-sm font-medium hover:bg-orange-500"
+                            >
+                              Đã lấy hàng
+                            </button>
+                          )}
+                          {isTransporter && inbound.status === 'IN_TRANSIT' && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setAlert({
+                                  open: true,
+                                  type: 'confirm',
                                   title: 'Xe đã đến kho?',
                                   message: `Xác nhận ${inbound.inboundCode} đã tới cổng kho.`,
                                   onConfirm: reportArrival,
@@ -911,7 +986,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                               }
                               className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-medium hover:bg-violet-500"
                             >
-                              Xe đã đến
+                              Xe đã đến kho
                             </button>
                           )}
                         </div>

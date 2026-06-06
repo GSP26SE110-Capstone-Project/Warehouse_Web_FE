@@ -7,6 +7,7 @@ export type InboundStatus =
   | 'DRAFT'
   | 'PENDING'
   | 'APPROVED'
+  | 'IN_TRANSIT'
   | 'ARRIVED'
   | 'RECEIVING'
   | 'COMPLETED'
@@ -80,6 +81,13 @@ export function listInboundRequests(params?: {
   }
   return apiPaginated<ApiInboundRequestWithItems>(
     `/inbound-requests${buildQuery(q)}`
+  )
+}
+
+export function reportInboundPickup(inboundRequestId: string) {
+  return apiRequest<ApiInboundRequest>(
+    `/inbound-requests/${inboundRequestId}/report-pickup`,
+    { method: 'POST' }
   )
 }
 
