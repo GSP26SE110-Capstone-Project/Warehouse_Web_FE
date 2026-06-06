@@ -332,6 +332,12 @@ export function bulkPutawayInbound(
   })
 }
 
+export function getInboundOperationalInvoice(inboundRequestId: string) {
+  return apiRequest<import('./types').ApiContractInvoice | null>(
+    `/inbound-requests/${inboundRequestId}/operational-invoice`
+  )
+}
+
 export function autoPutawayInbound(
   inboundRequestId: string,
   body: {

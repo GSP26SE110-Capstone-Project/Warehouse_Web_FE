@@ -13,6 +13,8 @@ export interface ApiInboundDelivery {
   notes?: string | null
   assignedDriverUserId?: string | null
   pickupAddress?: string | null
+  pickupCity?: string | null
+  pickupDistrict?: string | null
   pickupContactName?: string | null
   pickupContactPhone?: string | null
   pickupNotes?: string | null
@@ -29,6 +31,8 @@ export type InboundDeliveryPayload = {
   notes?: string
   assignedDriverUserId?: string | null
   pickupAddress?: string
+  pickupCity?: string
+  pickupDistrict?: string
   pickupContactName?: string
   pickupContactPhone?: string
   pickupNotes?: string

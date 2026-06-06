@@ -36,6 +36,7 @@ import { TenantContractsPage } from './pages/staff/TenantContractsPage'
 import { ContractPaymentReturnPage } from './pages/staff/ContractPaymentReturnPage'
 import { ContractPaymentCancelPage } from './pages/staff/ContractPaymentCancelPage'
 import { TenantRentalRequestsPage } from './pages/staff/TenantRentalRequestsPage'
+import { TenantRecurringRentPage } from './pages/staff/TenantRecurringRentPage'
 import { MyDeliveriesPage } from './pages/transporter/MyDeliveriesPage'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { RoleLayout } from './components/common/layout/RoleLayout'
@@ -126,6 +127,7 @@ export const Router: React.FC = () => {
               <Route path="/staff" element={<Navigate to="/staff/dashboard" replace />} />
               <Route path="/staff/dashboard" element={<StaffDashboard />} />
               <Route path="/staff/contracts" element={<TenantContractsPage />} />
+              <Route path="/staff/recurring-rent" element={<TenantRecurringRentPage />} />
               <Route
                 path="/staff/contracts/payment/return"
                 element={<ContractPaymentReturnPage />}

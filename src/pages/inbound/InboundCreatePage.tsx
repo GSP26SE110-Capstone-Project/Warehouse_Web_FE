@@ -171,6 +171,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
       .then((tenant) => {
         if (cancelled) return
         setPickupForm((prev) => ({
+          ...prev,
           pickupAddress: prev.pickupAddress || tenant.address || '',
           pickupContactName: prev.pickupContactName || tenant.contactName || '',
           pickupContactPhone: prev.pickupContactPhone || tenant.contactPhone || '',

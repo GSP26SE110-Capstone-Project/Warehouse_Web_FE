@@ -21,6 +21,9 @@ import type {
 import { OUTBOUND_DELIVERY_MODE_OPTIONS } from '../../data/deliveryMode'
 import { getWhOutboundNextAction } from '../../data/outboundStatus'
 import { formatDate } from '../../mappers'
+import { OperationalInvoicePayPanel } from '../../components/billing/OperationalInvoicePayPanel'
+import * as warehousesApi from '../../api/warehouses'
+import type { ApiWarehouse } from '../../api/types'
 
 type Mode = 'tenant' | 'warehouse' | 'transporter'
 
@@ -48,6 +51,7 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
   const [shipToAddress, setShipToAddress] = useState('')
   const [shipToContactName, setShipToContactName] = useState('')
   const [shipToContactPhone, setShipToContactPhone] = useState('')
+  const [warehouse, setWarehouse] = useState<ApiWarehouse | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -92,6 +96,14 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
         setShipToAddress(ob.delivery.shipToAddress ?? '')
         setShipToContactName(ob.delivery.shipToContactName ?? '')
         setShipToContactPhone(ob.delivery.shipToContactPhone ?? '')
+      }
+      if (ob.deliveryMode === 'WAREHOUSE_TRANSPORT' && ob.warehouseId) {
+        warehousesApi
+          .getWarehouse(ob.warehouseId)
+          .then(setWarehouse)
+          .catch(() => setWarehouse(null))
+      } else {
+        setWarehouse(null)
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không tải được phiếu xuất')
@@ -207,8 +219,16 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
 
   const saveTenantDelivery = () => {
     if (outbound?.deliveryMode === 'WAREHOUSE_TRANSPORT') {
+      const city = warehouse?.city?.trim()
+      const district = warehouse?.district?.trim()
+      if (!city || !district) {
+        setError('Kho chưa có thông tin thành phố/quận — liên hệ WH Admin')
+        return Promise.resolve()
+      }
       return saveDelivery({
         shipToAddress,
+        shipToCity: city,
+        shipToDistrict: district,
         shipToContactName,
         shipToContactPhone,
       })
@@ -381,11 +401,30 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
               </section>
             )}
 
+            {isTenant && ['DRAFT', 'PENDING'].includes(outbound.status) && (
+              <OperationalInvoicePayPanel
+                contractId={outbound.contractId}
+                title="Phí outbound — thanh toán trước khi kho duyệt / pick"
+                hint="Bao gồm phí LPN xuất và phí vận chuyển kho (250.000 ₫/chuyến nếu có)."
+                loadInvoice={() =>
+                  outboundApi.getOutboundOperationalInvoice(outboundRequestId)
+                }
+                onPaid={() => void load()}
+              />
+            )}
+
             {isTenant &&
               outbound.deliveryMode === 'WAREHOUSE_TRANSPORT' &&
               ['PENDING', 'DRAFT'].includes(outbound.status) && (
                 <section className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
                   <p className="text-sm font-medium text-emerald-200">Địa chỉ giao hàng</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Chỉ giao trong cùng thành phố và quận với kho (
+                    {warehouse?.city && warehouse?.district
+                      ? `${warehouse.city} · ${warehouse.district}`
+                      : 'đang tải…'}
+                    ).
+                  </p>
                   <div className="mt-3 space-y-2">
                     <input
                       aria-label="Địa chỉ giao"

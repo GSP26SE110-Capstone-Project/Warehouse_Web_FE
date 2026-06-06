@@ -39,6 +39,7 @@ import { formatReservedCapacityLabel } from '../../utils/rentalCapacitySummary'
 import { resolveEffectiveContractDates } from '../../utils/rentalPeriod'
 import { formatDisplayDate, rentalRequestDateOnly } from '../../utils/datePicker'
 import { ContractPaymentSummary } from './ContractPaymentSummary'
+import { ContractInvoicesPanel } from './ContractInvoicesPanel'
 import { ContractAppendixListPanel } from './ContractAppendixListPanel'
 import { ContractAppendixRequestModal } from './ContractAppendixRequestModal'
 import type { ApiContractAppendix } from '../../api/contractAppendices'
@@ -56,6 +57,7 @@ type Props = {
   onSign?: () => void
   onTerminationChange?: () => void
   onAppendixChange?: () => void
+  onInvoicePaid?: () => void
 }
 
 function formatDate(iso?: string | null) {
@@ -107,6 +109,7 @@ export function TenantContractDetailModal({
   onSign,
   onTerminationChange,
   onAppendixChange,
+  onInvoicePaid,
 }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -327,6 +330,16 @@ export function TenantContractDetailModal({
                 variant="detail"
                 activationDate={activationDate}
               />
+
+              {(contract.status === 'ACTIVE' || contract.status === 'PENDING_PAYMENT') && (
+                <ContractInvoicesPanel
+                  contractId={contractId}
+                  onPaid={() => {
+                    void loadDetail()
+                    onInvoicePaid?.()
+                  }}
+                />
+              )}
 
               <section>
                 <h3 className="text-sm font-semibold text-white">Vị trí đã cấp trên HĐ</h3>

@@ -212,6 +212,12 @@ export function listOutboundPickingTasks(outboundRequestId: string) {
   )
 }
 
+export function getOutboundOperationalInvoice(outboundRequestId: string) {
+  return apiRequest<import('./types').ApiContractInvoice | null>(
+    `/outbound-requests/${outboundRequestId}/operational-invoice`
+  )
+}
+
 export function previewOutboundFifoAllocation(outboundRequestId: string) {
   return apiRequest<OutboundFifoPreviewResponse>(
     `/outbound-requests/${outboundRequestId}/fifo-preview`

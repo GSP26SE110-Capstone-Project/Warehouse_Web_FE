@@ -76,40 +76,48 @@ export type EffectiveContractDates = {
 }
 
 /**
- * Khi WH duyệt muộn hơn ngày bắt đầu dự kiến: dịch start lên `effectiveFrom` (mặc định hôm nay),
- * end = start + số tháng lịch khách đã chọn — giữ đủ thời hạn thuê.
+ * HĐ bắt đầu từ ngày WH approve — giữ số tháng thuê khách đã chọn.
  */
+export function resolveContractDatesFromApproval(
+  expectedStart: string,
+  expectedEnd: string,
+  approveDate: string = minRentalStartDate()
+): EffectiveContractDates {
+  const start = expectedStart.trim()
+  const end = expectedEnd.trim()
+  const approve = approveDate.trim() || minRentalStartDate()
+
+  if (!start || !end) {
+    return {
+      startDate: approve,
+      endDate: end,
+      shifted: Boolean(start && start !== approve),
+      billingMonths: 0,
+      requestedStartDate: start || undefined,
+      requestedEndDate: end || undefined,
+    }
+  }
+
+  const billingMonths = contractBillingMonths(start, end)
+  const effectiveEnd = addCalendarMonthsToDateOnly(approve, billingMonths)
+
+  return {
+    startDate: approve,
+    endDate: effectiveEnd || end,
+    shifted: approve !== start,
+    billingMonths,
+    requestedStartDate: start,
+    requestedEndDate: end,
+  }
+}
+
+/** @deprecated Dùng resolveContractDatesFromApproval */
 export function resolveEffectiveContractDates(
   expectedStart: string,
   expectedEnd: string,
   effectiveFrom: string = minRentalStartDate()
 ): EffectiveContractDates {
-  const start = expectedStart.trim()
-  const end = expectedEnd.trim()
-  if (!start || !end) {
-    return { startDate: start, endDate: end, shifted: false, billingMonths: 0 }
-  }
-
-  const billingMonths = contractBillingMonths(start, end)
-
-  if (start >= effectiveFrom) {
-    return { startDate: start, endDate: end, shifted: false, billingMonths }
-  }
-
-  const effectiveStart = effectiveFrom
-  const effectiveEnd = addCalendarMonthsToDateOnly(effectiveStart, billingMonths)
-  if (!effectiveEnd || !meetsMinimumRentalMonths(effectiveStart, effectiveEnd)) {
-    return { startDate: start, endDate: end, shifted: false, billingMonths }
-  }
-
-  return {
-    startDate: effectiveStart,
-    endDate: effectiveEnd,
-    shifted: true,
-    billingMonths,
-    requestedStartDate: start,
-    requestedEndDate: end,
-  }
+  return resolveContractDatesFromApproval(expectedStart, expectedEnd, effectiveFrom)
 }
 
 /** Cộng số tháng lịch vào ngày bắt đầu (giữ nguyên ngày trong tháng). VD: 2026-06-05 + 2 → 2026-08-05 */

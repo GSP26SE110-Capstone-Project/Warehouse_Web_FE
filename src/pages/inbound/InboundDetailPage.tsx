@@ -9,6 +9,7 @@ import { PutawayBinPicker } from '../../components/inbound/PutawayBinPicker'
 import { AiPutawayPanel } from '../../components/ai/AiPutawayPanel'
 import { InboundLpnReceivingSection } from '../../components/inbound/InboundLpnReceivingSection'
 import { TenantInboundWorkflow } from '../../components/inbound/TenantInboundWorkflow'
+import { OperationalInvoicePayPanel } from '../../components/billing/OperationalInvoicePayPanel'
 import {
   InboundDeliveryForm,
   emptyDeliveryForm,
@@ -147,6 +148,8 @@ export function InboundDetailPage({ mode, basePath }: Props) {
       })
       setPickupForm({
         pickupAddress: d?.pickupAddress ?? '',
+        pickupCity: d?.pickupCity ?? '',
+        pickupDistrict: d?.pickupDistrict ?? '',
         pickupContactName: d?.pickupContactName ?? '',
         pickupContactPhone: d?.pickupContactPhone ?? '',
         pickupNotes: d?.pickupNotes ?? '',
@@ -455,14 +458,21 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   const saveDelivery = () => runAction(() => persistDelivery(), 'Đã lưu thông tin vận chuyển')
 
   const persistPickup = async () => {
+    const city = warehouse?.city?.trim() ?? pickupForm.pickupCity.trim()
+    const district = warehouse?.district?.trim() ?? pickupForm.pickupDistrict.trim()
     if (!pickupForm.pickupAddress.trim()) {
       throw new ApiError('Nhập địa chỉ lấy hàng', 400)
+    }
+    if (!city || !district) {
+      throw new ApiError('Kho chưa có thông tin thành phố/quận — liên hệ WH Admin', 400)
     }
     if (!pickupForm.pickupContactName.trim() || !pickupForm.pickupContactPhone.trim()) {
       throw new ApiError('Nhập người liên hệ và SĐT tại điểm lấy', 400)
     }
     await deliveryApi.upsertInboundDelivery(inboundRequestId, {
       pickupAddress: pickupForm.pickupAddress.trim(),
+      pickupCity: city,
+      pickupDistrict: district,
       pickupContactName: pickupForm.pickupContactName.trim(),
       pickupContactPhone: pickupForm.pickupContactPhone.trim(),
       pickupNotes: pickupForm.pickupNotes?.trim() || undefined,
@@ -826,8 +836,14 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                     <p className="mb-2 text-sm font-medium text-emerald-200">Điểm lấy hàng của bạn</p>
                     <InboundPickupForm
                       value={pickupForm}
+                      warehouseCity={warehouse?.city}
+                      warehouseDistrict={warehouse?.district}
                       onChange={(next) => {
-                        setPickupForm(next)
+                        setPickupForm({
+                          ...next,
+                          pickupCity: warehouse?.city?.trim() ?? next.pickupCity,
+                          pickupDistrict: warehouse?.district?.trim() ?? next.pickupDistrict,
+                        })
                         setPickupDirty(true)
                       }}
                     />
@@ -1023,6 +1039,20 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                   <p className="text-sm text-slate-500">Chưa có thông tin xe.</p>
                 )}
               </section>
+
+              {isTenant &&
+                inbound &&
+                ['DRAFT', 'PENDING'].includes(inbound.status) && (
+                  <OperationalInvoicePayPanel
+                    contractId={inbound.contractId}
+                    title="Phí inbound — thanh toán trước khi kho duyệt"
+                    hint="Bao gồm phí LPN theo loại thùng và phí vận chuyển kho (nếu có)."
+                    loadInvoice={() =>
+                      inboundApi.getInboundOperationalInvoice(inboundRequestId)
+                    }
+                    onPaid={() => void load()}
+                  />
+                )}
 
               {isTenant && inbound && tenantId && (
                 <TenantInboundWorkflow

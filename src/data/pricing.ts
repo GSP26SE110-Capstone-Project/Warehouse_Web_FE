@@ -122,8 +122,9 @@ export const BIN_PRICING: PricingTier[] = [
 ]
 
 export const HANDLING_FEES = [
-  { operation: 'Inbound LPN', fee: '5.000 – 15.000 ₫' },
-  { operation: 'Outbound LPN', fee: '7.000 – 20.000 ₫' },
+  { operation: 'Inbound LPN (SMALL / MEDIUM / LARGE / EXTRA)', fee: '2k / 3k / 5k / 8k ₫' },
+  { operation: 'Outbound LPN (cùng bảng inbound)', fee: '2k / 3k / 5k / 8k ₫' },
+  { operation: 'Vận chuyển kho (WAREHOUSE_TRANSPORT)', fee: '250.000 ₫ / chuyến' },
   { operation: 'Repacking', fee: '10.000 ₫' },
   { operation: 'QC Inspection', fee: '5.000 ₫' },
   { operation: 'Relocation', fee: '3.000 ₫' },

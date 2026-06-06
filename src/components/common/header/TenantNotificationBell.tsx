@@ -3,10 +3,13 @@ import { Link } from 'react-router-dom'
 import { ApiError } from '../../../api/client'
 import {
   fetchTenantContractActionAlerts,
+  fetchTenantRecurringRentAlerts,
   fetchTenantRentalStatusAlerts,
   type TenantContractAlerts,
+  type TenantRecurringRentAlerts,
   type TenantRentalAlerts,
 } from '../../../api/tenantNotifications'
+import { formatVnd } from '../../../data/pricing'
 import { rentalRequestStatusLabel } from '../../../data/rentalRequestStatus'
 import { contractStatusLabel } from '../../../utils/contractSigning'
 import { useAuth } from '../../../auth/AuthContext'
@@ -28,6 +31,7 @@ export function TenantNotificationBell() {
   const [open, setOpen] = useState(false)
   const [rentalAlerts, setRentalAlerts] = useState<TenantRentalAlerts | null>(null)
   const [contractAlerts, setContractAlerts] = useState<TenantContractAlerts | null>(null)
+  const [recurringAlerts, setRecurringAlerts] = useState<TenantRecurringRentAlerts | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
 
   const isTenantAdmin = user?.role === 'TENANT_ADMIN'
@@ -35,21 +39,26 @@ export function TenantNotificationBell() {
     (rentalAlerts?.approvedCount ?? 0) +
     (rentalAlerts?.rejectedCount ?? 0) +
     (contractAlerts?.needsSignCount ?? 0) +
-    (contractAlerts?.needsPaymentCount ?? 0)
+    (contractAlerts?.needsPaymentCount ?? 0) +
+    (recurringAlerts?.dueSoonCount ?? 0) +
+    (recurringAlerts?.pendingRecurringCount ?? 0)
 
   const load = useCallback(async () => {
     if (!isTenantAdmin) return
     try {
-      const [rentals, contracts] = await Promise.all([
+      const [rentals, contracts, recurring] = await Promise.all([
         fetchTenantRentalStatusAlerts(),
         fetchTenantContractActionAlerts(),
+        fetchTenantRecurringRentAlerts(),
       ])
       setRentalAlerts(rentals)
       setContractAlerts(contracts)
+      setRecurringAlerts(recurring)
     } catch (err) {
       if (!(err instanceof ApiError && err.status === 403)) {
         setRentalAlerts(null)
         setContractAlerts(null)
+        setRecurringAlerts(null)
       }
     }
   }, [isTenantAdmin])
@@ -70,11 +79,6 @@ export function TenantNotificationBell() {
   }, [open])
 
   if (!isTenantAdmin) return null
-
-  const hasRental =
-    (rentalAlerts?.approvedCount ?? 0) > 0 || (rentalAlerts?.rejectedCount ?? 0) > 0
-  const hasContract =
-    (contractAlerts?.needsSignCount ?? 0) > 0 || (contractAlerts?.needsPaymentCount ?? 0) > 0
 
   return (
     <div ref={rootRef} className="relative">
@@ -101,7 +105,7 @@ export function TenantNotificationBell() {
           <div className="border-b border-white/5 px-4 py-3">
             <p className="text-sm font-semibold text-white">Thông báo</p>
             <p className="mt-0.5 text-xs text-slate-400">
-              Yêu cầu thuê · hợp đồng cần ký / thanh toán
+              Yêu cầu thuê · hợp đồng · tiền thuê định kỳ
             </p>
           </div>
 
@@ -139,6 +143,23 @@ export function TenantNotificationBell() {
                   cầu thuê bị từ chối gần đây.
                 </p>
               )}
+              {(recurringAlerts?.dueSoonCount ?? 0) > 0 && (
+                <p>
+                  <span className="font-semibold text-amber-300">
+                    {recurringAlerts?.dueSoonCount}
+                  </span>{' '}
+                  hợp đồng sắp đến kỳ tiền thuê định kỳ (trong{' '}
+                  {recurringAlerts?.reminderDays ?? 3} ngày).
+                </p>
+              )}
+              {(recurringAlerts?.pendingRecurringCount ?? 0) > 0 && (
+                <p>
+                  <span className="font-semibold text-orange-300">
+                    {recurringAlerts?.pendingRecurringCount}
+                  </span>{' '}
+                  hóa đơn tiền thuê định kỳ chờ thanh toán.
+                </p>
+              )}
             </div>
           )}
 
@@ -171,6 +192,44 @@ export function TenantNotificationBell() {
                       <p className="mt-0.5 text-[10px] text-slate-500">
                         {formatWhen(item.updatedAt)}
                       </p>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {(recurringAlerts?.recent ?? []).length > 0 && (
+            <>
+              <p className="border-t border-white/5 px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Tiền thuê định kỳ
+              </p>
+              <ul className="max-h-40 overflow-y-auto dark-scrollbar border-b border-white/5 py-1">
+                {recurringAlerts?.recent.map((item) => (
+                  <li key={item.contractId} className="px-3 py-2 hover:bg-white/5">
+                    <Link
+                      to="/staff/recurring-rent"
+                      onClick={() => setOpen(false)}
+                      className="block no-underline"
+                    >
+                      <p className="font-mono text-sm text-cyan-300">{item.contractCode}</p>
+                      <p className="mt-0.5 text-xs text-slate-400">
+                        {item.paymentStatus === 'PENDING_INVOICE' ? (
+                          <span className="text-orange-300">
+                            Chờ thanh toán · {formatVnd(item.monthlyRent)}
+                          </span>
+                        ) : (
+                          <span className="text-amber-300">
+                            Sắp đến hạn · {item.nextBillingDateLabel ?? '—'}
+                          </span>
+                        )}
+                        {item.warehouseName ? ` · ${item.warehouseName}` : ''}
+                      </p>
+                      {item.pendingInvoiceCode ? (
+                        <p className="mt-0.5 font-mono text-[10px] text-slate-500">
+                          {item.pendingInvoiceCode}
+                        </p>
+                      ) : null}
                     </Link>
                   </li>
                 ))}
@@ -216,6 +275,13 @@ export function TenantNotificationBell() {
           )}
 
           <div className="flex flex-wrap gap-2 border-t border-white/5 p-3">
+            <Link
+              to="/staff/recurring-rent"
+              onClick={() => setOpen(false)}
+              className="flex-1 min-w-[7rem] rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-center text-xs font-semibold text-orange-300 no-underline hover:bg-orange-500/15"
+            >
+              Tiền thuê định kỳ
+            </Link>
             <Link
               to="/staff/contracts"
               onClick={() => setOpen(false)}

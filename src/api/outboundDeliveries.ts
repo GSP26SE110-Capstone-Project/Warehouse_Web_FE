@@ -10,6 +10,8 @@ export interface ApiOutboundDelivery {
   driverIdNumber?: string | null
   carrierName?: string | null
   shipToAddress?: string | null
+  shipToCity?: string | null
+  shipToDistrict?: string | null
   shipToContactName?: string | null
   shipToContactPhone?: string | null
   shipToNotes?: string | null

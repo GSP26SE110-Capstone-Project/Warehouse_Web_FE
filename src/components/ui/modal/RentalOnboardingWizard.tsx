@@ -38,7 +38,7 @@ import {
   estimateZoneLpnCapacity,
   formatZoneRackSummary,
 } from '../../../utils/warehouseCapacity'
-import { estimateMonthCount, resolveEffectiveContractDates } from '../../../utils/rentalPeriod'
+import { estimateMonthCount, resolveContractDatesFromApproval } from '../../../utils/rentalPeriod'
 import { formatDisplayDate, rentalRequestDateOnly } from '../../../utils/datePicker'
 import {
   filterWarehousesForRentalClaim,
@@ -76,11 +76,6 @@ const inputStyle =
 const selectStyle = inputStyle
 const ESTIMATE_BIN_SLOT_FOOTPRINT_M2 = 0.25
 const ESTIMATE_DEFAULT_BIN_MAX_LPN_COUNT = 4
-
-function toDateInput(iso?: string | null) {
-  if (!iso) return ''
-  return iso.slice(0, 10)
-}
 
 function initialStep(row: RentalRequestRow): number {
   if (row.apiStatus === 'APPROVED') return 1
@@ -169,7 +164,7 @@ export function RentalOnboardingWizard({
         billingMonths: 0,
       }
     }
-    return resolveEffectiveContractDates(requestedStart, requestedEnd)
+    return resolveContractDatesFromApproval(requestedStart, requestedEnd)
   }, [row.expectedStartDate, row.expectedEndDate])
   const contractStart = effectiveDates.startDate
   const contractEnd = effectiveDates.endDate

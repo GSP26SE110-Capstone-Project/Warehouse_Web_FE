@@ -62,3 +62,27 @@ export interface TenantContractAlerts {
 export function fetchTenantContractActionAlerts() {
   return apiRequest<TenantContractAlerts>('/admin/notifications/tenant-contract-actions')
 }
+
+export interface TenantRecurringRentAlertItem {
+  contractId: string
+  contractCode: string
+  warehouseName?: string | null
+  nextBillingDate?: string | null
+  nextBillingDateLabel?: string | null
+  daysUntilNextBilling?: number | null
+  monthlyRent: number
+  paymentStatus: string
+  pendingInvoiceId?: string | null
+  pendingInvoiceCode?: string | null
+}
+
+export interface TenantRecurringRentAlerts {
+  dueSoonCount: number
+  pendingRecurringCount: number
+  reminderDays: number
+  recent: TenantRecurringRentAlertItem[]
+}
+
+export function fetchTenantRecurringRentAlerts() {
+  return apiRequest<TenantRecurringRentAlerts>('/admin/notifications/tenant-recurring-rent')
+}

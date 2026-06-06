@@ -26,6 +26,7 @@ import { CONTRACT_TYPE_LABELS, type ContractTypeValue } from '../../data/contrac
 import { formatVnd } from '../../data/pricing'
 
 import type { ApiContract } from '../../api/types'
+import { isPendingRecurringRent } from '../../utils/invoiceLabels'
 
 import {
 
@@ -108,6 +109,9 @@ export function TenantContractsPage() {
   const [detailContractId, setDetailContractId] = useState<string | null>(null)
   const [terminationContractId, setTerminationContractId] = useState<string | null>(null)
   const [pendingTerminationIds, setPendingTerminationIds] = useState<Set<string>>(new Set())
+  const [pendingInvoiceCountByContract, setPendingInvoiceCountByContract] = useState<
+    Map<string, number>
+  >(new Map())
 
   const load = useCallback(async () => {
 
@@ -148,6 +152,25 @@ export function TenantContractsPage() {
       const activeIds = contractRes.items
         .filter((c) => c.status === 'ACTIVE')
         .map((c) => c.contractId)
+      const activeContractIds = contractRes.items
+        .filter((c) => c.status === 'ACTIVE')
+        .map((c) => c.contractId)
+      if (activeContractIds.length > 0) {
+        const invoiceResults = await Promise.allSettled(
+          activeContractIds.map((id) => contractsApi.listContractInvoices(id))
+        )
+        const pendingInvoices = new Map<string, number>()
+        activeContractIds.forEach((id, i) => {
+          const result = invoiceResults[i]
+          const rows = result?.status === 'fulfilled' ? result.value : []
+          const count = rows.filter(isPendingRecurringRent).length
+          if (count > 0) pendingInvoices.set(id, count)
+        })
+        setPendingInvoiceCountByContract(pendingInvoices)
+      } else {
+        setPendingInvoiceCountByContract(new Map())
+      }
+
       if (activeIds.length > 0) {
         const pendingLists = await Promise.all(
           activeIds.map((id) =>
@@ -243,6 +266,16 @@ export function TenantContractsPage() {
     [contracts]
   )
 
+  const contractsWithPendingInvoices = useMemo(
+    () =>
+      contracts.filter(
+        (c) =>
+          c.status === 'ACTIVE' &&
+          (pendingInvoiceCountByContract.get(c.contractId) ?? 0) > 0
+      ),
+    [contracts, pendingInvoiceCountByContract]
+  )
+
   const handlePayWithPayOS = useCallback(
     async (contractId: string) => {
       if (payOsInFlightRef.current) return
@@ -260,16 +293,18 @@ export function TenantContractsPage() {
 
       try {
         const invoices = await contractsApi.listContractInvoices(contractId)
-        const initial =
-          invoices.find((i) => i.invoiceCategory === 'INITIAL') ?? invoices[0]
-        if (!initial) {
+        const pending =
+          invoices.find(
+            (i) => i.invoiceCategory === 'INITIAL' && i.paymentStatus === 'PENDING'
+          ) ?? invoices.find((i) => i.invoiceCategory === 'INITIAL')
+        if (!pending) {
           payTab.close()
-          setError('Chưa có invoice đầu — liên hệ kho')
+          setError('Chưa có invoice cần thanh toán — liên hệ kho')
           return
         }
         const link = await contractsApi.createContractInvoicePayOSLink(
           contractId,
-          initial.invoiceId
+          pending.invoiceId
         )
         if (!link.checkoutUrl) {
           payTab.close()
@@ -387,6 +422,22 @@ export function TenantContractsPage() {
                 <strong>{pendingPaymentContracts.length}</strong> hợp đồng chờ thanh toán invoice
                 đầu qua <strong className="text-white">PayOS</strong>. Sau khi trả, HĐ ACTIVE và mở
                 inbound.
+              </span>
+            </p>
+          </div>
+        )}
+
+        {!loading && contractsWithPendingInvoices.length > 0 && (
+          <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-5 py-4">
+            <p className="flex items-start gap-2 text-sm text-cyan-100">
+              <span className="material-symbols-outlined shrink-0 text-lg text-cyan-400">
+                receipt_long
+              </span>
+              <span>
+                <strong>{contractsWithPendingInvoices.length}</strong> hợp đồng ACTIVE có{' '}
+                <strong className="text-white">tiền thuê tháng</strong> chưa trả. Mở{' '}
+                <strong className="text-white">Chi tiết</strong> → <strong className="text-white">Hóa đơn</strong>{' '}
+                để thanh toán RECURRING_RENT (phụ phí inbound/outbound trả tại phiếu nhập/xuất).
               </span>
             </p>
           </div>
@@ -521,17 +572,18 @@ export function TenantContractsPage() {
                       </td>
 
                       <td className="px-6 py-3">
-
-                        <span
-
-                          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${statusBadgeClass(c.status)}`}
-
-                        >
-
-                          {contractStatusLabel(c.status)}
-
-                        </span>
-
+                        <div className="flex flex-col items-start gap-1">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${statusBadgeClass(c.status)}`}
+                          >
+                            {contractStatusLabel(c.status)}
+                          </span>
+                          {(pendingInvoiceCountByContract.get(c.contractId) ?? 0) > 0 && (
+                            <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-semibold text-orange-300 ring-1 ring-orange-500/25">
+                              {pendingInvoiceCountByContract.get(c.contractId)} tiền thuê chưa trả
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       <td className="px-6 py-3 text-xs text-slate-400">
@@ -667,6 +719,7 @@ export function TenantContractsPage() {
           onSign={() => setSignContractId(detailContractId)}
           onTerminationChange={load}
           onAppendixChange={load}
+          onInvoicePaid={load}
         />
       )}
 

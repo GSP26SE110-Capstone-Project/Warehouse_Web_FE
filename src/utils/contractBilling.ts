@@ -1,6 +1,8 @@
 import type { ApiContract } from '../api/types'
 import { parseContractAmount } from './contractSigning'
 
+export const INVOICE_PAYMENT_DUE_DAYS = 3
+
 /** Số tháng lịch trong kỳ HĐ (mirror BE rentalPeriodPricing.contractBillingMonths). */
 export function contractBillingMonths(
   startDate?: string | null,
@@ -36,9 +38,6 @@ export function deriveMonthlyRent(contract: ContractBillingInput): number {
 export function initialInvoiceAmount(contract: ContractBillingInput): number | null {
   const total = parseContractAmount(contract.estimatedTotalAmount)
   if (total == null) return null
-  if (contract.billingCycle === 'YEARLY') {
-    return Math.round(total)
-  }
   return deriveMonthlyRent(contract)
 }
 
@@ -59,22 +58,17 @@ function formatDateVi(iso: string): string {
 }
 
 export function recurringPaymentScheduleNote(
-  contract: Pick<ApiContract, 'billingCycle' | 'status'>,
-  activationDate?: string | null
+  contract: Pick<ApiContract, 'billingCycle' | 'status' | 'startDate'>,
+  _activationDate?: string | null
 ): string | null {
-  if (contract.billingCycle !== 'MONTHLY') return null
-
-  if (contract.status === 'ACTIVE' && activationDate) {
-    const next = addMonthSameCalendarDay(activationDate)
-    return `Kỳ tiền thuê tiếp theo dự kiến: ${formatDateVi(next.toISOString())} (cùng ngày trong tháng sau ngày HĐ ACTIVE).`
+  if (contract.status === 'ACTIVE' && contract.startDate) {
+    const next = addMonthSameCalendarDay(contract.startDate)
+    return `Kỳ tiền thuê tiếp theo dự kiến: ${formatDateVi(next.toISOString())} (cùng ngày trong tháng với ngày WH duyệt).`
   }
 
-  return 'Các kỳ tiền thuê tiếp theo sẽ đến hạn cùng ngày trong tháng sau ngày HĐ được kích hoạt (ACTIVE).'
+  return 'Các kỳ tiền thuê tiếp theo đến hạn cùng ngày trong tháng với ngày bắt đầu HĐ (ngày WH duyệt).'
 }
 
-export function actualPaymentSubtitle(billingCycle?: string | null): string {
-  if (billingCycle === 'YEARLY') {
-    return 'Thanh toán một lần cho cả kỳ hợp đồng'
-  }
-  return 'Tiền thuê tháng đầu — thanh toán ngay sau khi ký'
+export function actualPaymentSubtitle(_billingCycle?: string | null): string {
+  return `Tiền thuê tháng đầu — thanh toán trong ${INVOICE_PAYMENT_DUE_DAYS} ngày sau khi phát hành invoice`
 }

@@ -1,5 +1,7 @@
 export type PickupFormState = {
   pickupAddress: string
+  pickupCity: string
+  pickupDistrict: string
   pickupContactName: string
   pickupContactPhone: string
   pickupNotes?: string
@@ -8,6 +10,8 @@ export type PickupFormState = {
 export function emptyPickupForm(): PickupFormState {
   return {
     pickupAddress: '',
+    pickupCity: '',
+    pickupDistrict: '',
     pickupContactName: '',
     pickupContactPhone: '',
     pickupNotes: '',
@@ -21,16 +25,39 @@ type Props = {
   value: PickupFormState
   onChange: (next: PickupFormState) => void
   disabled?: boolean
+  /** Kho HĐ — chỉ cho phép lấy hàng cùng thành phố + quận với kho */
+  warehouseCity?: string | null
+  warehouseDistrict?: string | null
 }
 
-export function InboundPickupForm({ value, onChange, disabled }: Props) {
+export function InboundPickupForm({
+  value,
+  onChange,
+  disabled,
+  warehouseCity,
+  warehouseDistrict,
+}: Props) {
   const set = (patch: Partial<PickupFormState>) => onChange({ ...value, ...patch })
+  const lockedRegion = Boolean(warehouseCity?.trim() && warehouseDistrict?.trim())
 
   return (
     <div className="space-y-3">
       <p className="text-xs text-slate-400">
-        Tài xế kho sẽ đến địa chỉ này để lấy hàng, sau đó chuyển về kho trong hợp đồng.
+        Tài xế kho sẽ đến địa chỉ này để lấy hàng (cùng thành phố và quận với kho — phí vận chuyển
+        250.000 ₫/chuyến).
       </p>
+      {lockedRegion ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs text-slate-500">Thành phố</label>
+            <input disabled className={inputClass} value={warehouseCity ?? ''} readOnly />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-slate-500">Quận / huyện</label>
+            <input disabled className={inputClass} value={warehouseDistrict ?? ''} readOnly />
+          </div>
+        </div>
+      ) : null}
       <div>
         <label className="mb-1 block text-xs text-slate-500" htmlFor="pickupAddress">
           Địa chỉ lấy hàng *
