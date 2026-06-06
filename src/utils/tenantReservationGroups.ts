@@ -1,11 +1,21 @@
 import type { ApiStorageReservation } from '../api/storageReservations'
 
+export function reservationZoneLabel(r: ApiStorageReservation): string {
+  const name = r.zoneName?.trim()
+  if (name) return name
+  const code = r.zoneCode?.trim()
+  if (code) return code
+  if (r.storageLevel === 'WAREHOUSE') return 'Toàn kho'
+  return '—'
+}
+
 export type ContractZoneGroup = {
   key: string
   contractId: string
   contractCode: string
   warehouseName: string
   zoneCode: string
+  zoneLabel: string
   zoneId: string | null
   /** Quyền trên HĐ: zone pool, rack, bin cố định… */
   zoneLevelReservations: ApiStorageReservation[]
@@ -35,6 +45,7 @@ export function groupReservationsForTenantView(
         contractCode,
         warehouseName: r.warehouseName ?? r.warehouseCode ?? '—',
         zoneCode: r.zoneCode ?? r.zoneName ?? (r.storageLevel === 'WAREHOUSE' ? 'Toàn kho' : '—'),
+        zoneLabel: reservationZoneLabel(r),
         zoneId: r.zoneId ?? null,
         zoneLevelReservations: [],
         detailReservations: [],

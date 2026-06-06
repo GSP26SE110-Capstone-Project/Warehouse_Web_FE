@@ -2,17 +2,20 @@ import { useEffect, useState } from 'react'
 import { InlineAlert } from '../FeedbackAlert'
 import { ApiError } from '../../../api/client'
 import * as contractsApi from '../../../api/contracts'
+import * as rentalRequestsApi from '../../../api/rentalRequests'
+import * as storageReservationsApi from '../../../api/storageReservations'
 import * as tenantsApi from '../../../api/tenants'
 import * as warehousesApi from '../../../api/warehouses'
+import { groupReservationsForTenantView } from '../../../utils/tenantReservationGroups'
 import type { ContractStatus } from '../../../api/types'
 import { ContractTerminationReviewPanel } from '../../contracts/ContractTerminationReviewPanel'
-import { ContractAppendixReviewPanel } from '../../contracts/ContractAppendixReviewPanel'
 import {
   BILLING_CYCLE_GUEST_LABELS,
   PRICING_MODEL_LABELS,
   CONTRACT_TYPE_LABELS,
   type ContractTypeValue,
 } from '../../../data/contractTypes'
+import { ContractStatusBadge } from '../../contracts/ContractStatusBadge'
 
 type Mode = 'create' | 'edit' | 'view'
 
@@ -61,9 +64,11 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
   const [contractType, setContractType] = useState('')
   const [pricingModel, setPricingModel] = useState('')
   const [billingCycle, setBillingCycle] = useState('')
-  const [rentalRequestId, setRentalRequestId] = useState<string | null>(null)
-
-  const [warehouseLabel, setWarehouseLabel] = useState('')
+  const [rentalRequestCode, setRentalRequestCode] = useState('')
+  const [warehouseName, setWarehouseName] = useState('')
+  const [zoneGroups, setZoneGroups] = useState<
+    ReturnType<typeof groupReservationsForTenantView>
+  >([])
   const [tenantCompany, setTenantCompany] = useState('')
   const [tenantEmail, setTenantEmail] = useState('')
   const [tenantTaxCode, setTenantTaxCode] = useState('')
@@ -87,9 +92,16 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
       setError('')
       try {
         const contract = await contractsApi.getContract(contractId)
-        const [tenant, warehouse] = await Promise.all([
+        const [tenant, warehouse, reservationRes, rentalRequest] = await Promise.all([
           tenantsApi.getTenant(contract.tenantId),
           warehousesApi.getWarehouse(contract.warehouseId),
+          storageReservationsApi.listStorageReservations({
+            contractId,
+            limit: 100,
+          }),
+          contract.rentalRequestId
+            ? rentalRequestsApi.getRentalRequest(contract.rentalRequestId).catch(() => null)
+            : Promise.resolve(null),
         ])
         if (cancelled) return
 
@@ -98,10 +110,11 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
         setContractType(contract.contractType)
         setPricingModel(contract.pricingModel)
         setBillingCycle(contract.billingCycle ?? '')
-        setRentalRequestId(contract.rentalRequestId ?? null)
+        setRentalRequestCode(rentalRequest?.requestCode ?? '')
 
-        setWarehouseLabel(
-          `${warehouse.warehouseName} (${warehouse.warehouseCode}) — ${warehouse.district}, ${warehouse.city}`
+        setWarehouseName(warehouse.warehouseName)
+        setZoneGroups(
+          groupReservationsForTenantView(reservationRes.items, new Map([[contractId, contract.contractCode]]))
         )
         setTenantCompany(tenant.companyName)
         setTenantEmail(tenant.contactEmail ?? '')
@@ -163,8 +176,8 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
             <p className="mt-1 text-xs text-slate-400">
               Mã: <span className="font-mono text-cyan-400">{contractCode || '—'}</span>
               {apiStatus && (
-                <span className="ml-2 rounded bg-white/5 px-2 py-0.5 text-slate-300">
-                  {apiStatus}
+                <span className="ml-2 inline-flex align-middle">
+                  <ContractStatusBadge status={apiStatus} />
                 </span>
               )}
             </p>
@@ -185,9 +198,28 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
           {!loading && !error && (
             <>
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className="rounded-lg border border-white/5 bg-white/[0.02] p-4">
-                  <h3 className="mb-3 text-sm font-semibold text-cyan-400">BÊN CHO THUÊ / KHO</h3>
-                  <p className="text-sm text-white">{warehouseLabel || '—'}</p>
+                <div className="space-y-4 rounded-lg border border-white/5 bg-white/[0.02] p-4">
+                  <div>
+                    <h3 className="mb-3 text-sm font-semibold text-cyan-400">BÊN CHO THUÊ / KHO</h3>
+                    <p className="text-sm font-medium text-white">{warehouseName || '—'}</p>
+                  </div>
+                  <div>
+                    <p className={labelStyle}>Zone đã gán</p>
+                    {zoneGroups.length === 0 ? (
+                      <p className="text-sm text-slate-500">Chưa có phân bổ zone</p>
+                    ) : (
+                      <ul className="mt-1.5 space-y-1.5">
+                        {zoneGroups.map((g) => (
+                          <li
+                            key={g.key}
+                            className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-slate-200"
+                          >
+                            {g.zoneLabel}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-3 rounded-lg border border-white/5 bg-white/[0.02] p-4">
@@ -249,13 +281,13 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
                       onChange={(e) => setContractName(e.target.value)}
                     />
                   </div>
-                  {rentalRequestId && (
+                  {rentalRequestCode && (
                     <div>
                       <label className={labelStyle}>Yêu cầu thuê (RR)</label>
                       <input
                         disabled
-                        className={`${inputStyle} font-mono text-xs`}
-                        value={rentalRequestId}
+                        className={`${inputStyle} font-mono text-sm text-cyan-300`}
+                        value={rentalRequestCode}
                       />
                     </div>
                   )}
@@ -314,10 +346,6 @@ export const ContractModal: React.FC<Props> = ({ mode, contractId, onClose, onSu
 
               {contractId && (
                 <>
-                  <ContractAppendixReviewPanel
-                    contractId={contractId}
-                    contractStatus={apiStatus}
-                  />
                   <ContractTerminationReviewPanel
                     contractId={contractId}
                     contractStatus={apiStatus}

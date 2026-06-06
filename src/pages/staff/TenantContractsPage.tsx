@@ -3,8 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError } from '../../api/client'
 
 import * as contractsApi from '../../api/contracts'
-import * as contractAppendicesApi from '../../api/contractAppendices'
-import type { ApiContractAppendix } from '../../api/contractAppendices'
 
 import * as storageReservationsApi from '../../api/storageReservations'
 
@@ -12,9 +10,6 @@ import * as warehousesApi from '../../api/warehouses'
 
 import { TenantContractSignModal } from '../../components/contracts/TenantContractSignModal'
 import { TenantContractDetailModal } from '../../components/contracts/TenantContractDetailModal'
-import { ContractAppendixRequestModal } from '../../components/contracts/ContractAppendixRequestModal'
-import { ContractAppendixSignModal } from '../../components/contracts/ContractAppendixSignModal'
-import { TenantContractAppendixActions } from '../../components/contracts/TenantContractAppendixActions'
 import { ContractTerminationModal } from '../../components/contracts/ContractTerminationModal'
 import { TenantStorageAllocationPanel } from '../../components/contracts/TenantStorageAllocationPanel'
 import { InlineAlert } from '../../components/ui/FeedbackAlert'
@@ -72,6 +67,17 @@ function statusBadgeClass(status: ApiContract['status']) {
 
 const PAYOS_WINDOW_NAME = 'smartwarehouse_payos_checkout'
 
+const TENANT_CONTRACT_STATUS_FILTERS: { value: '' | ContractStatus; label: string }[] = [
+  { value: '', label: 'Tất cả trạng thái' },
+  { value: 'ACTIVE', label: 'Đang hiệu lực' },
+  { value: 'PENDING_APPROVAL', label: 'Chờ bạn ký' },
+  { value: 'PENDING_PAYMENT', label: 'Chờ thanh toán' },
+  { value: 'DRAFT', label: 'Nháp' },
+  { value: 'EXPIRED', label: 'Hết hạn' },
+  { value: 'TERMINATED', label: 'Chấm dứt' },
+  { value: 'CANCELLED', label: 'Đã hủy' },
+]
+
 export function TenantContractsPage() {
 
   const { user } = useAuth()
@@ -95,16 +101,6 @@ export function TenantContractsPage() {
 
   const [signContractId, setSignContractId] = useState<string | null>(null)
   const [payingContractId, setPayingContractId] = useState<string | null>(null)
-  const [payingAppendixId, setPayingAppendixId] = useState<string | null>(null)
-  const [appendixActionCount, setAppendixActionCount] = useState(0)
-  const [appendixByContract, setAppendixByContract] = useState<
-    Map<string, ApiContractAppendix[]>
-  >(new Map())
-  const [appendixRequestContractId, setAppendixRequestContractId] = useState<string | null>(null)
-  const [appendixSignTarget, setAppendixSignTarget] = useState<{
-    contractId: string
-    appendix: ApiContractAppendix
-  } | null>(null)
   const payOsInFlightRef = useRef(false)
   const [detailContractId, setDetailContractId] = useState<string | null>(null)
   const [terminationContractId, setTerminationContractId] = useState<string | null>(null)
@@ -182,26 +178,8 @@ export function TenantContractsPage() {
           if (pendingLists[i]?.length) pending.add(id)
         })
         setPendingTerminationIds(pending)
-
-        const appendixMap = new Map<string, ApiContractAppendix[]>()
-        let actionCount = 0
-        const appendixResults = await Promise.allSettled(
-          activeIds.map((id) => contractAppendicesApi.listContractAppendices(id, { limit: 50 }))
-        )
-        activeIds.forEach((id, i) => {
-          const result = appendixResults[i]
-          const items = result?.status === 'fulfilled' ? result.value.items : []
-          if (items.length > 0) appendixMap.set(id, items)
-          actionCount += items.filter(
-            (a) => a.status === 'PENDING_APPROVAL' || a.status === 'PENDING_PAYMENT'
-          ).length
-        })
-        setAppendixByContract(appendixMap)
-        setAppendixActionCount(actionCount)
       } else {
         setPendingTerminationIds(new Set())
-        setAppendixActionCount(0)
-        setAppendixByContract(new Map())
       }
 
     } catch (e) {
@@ -328,62 +306,6 @@ export function TenantContractsPage() {
     []
   )
 
-  const handlePayAppendixWithPayOS = useCallback(
-    async (contractId: string, appendix: ApiContractAppendix) => {
-      if (payOsInFlightRef.current) return
-      payOsInFlightRef.current = true
-      setPayingAppendixId(appendix.appendixId)
-      setError('')
-
-      const payTab = window.open('about:blank', PAYOS_WINDOW_NAME)
-      if (!payTab) {
-        payOsInFlightRef.current = false
-        setPayingAppendixId(null)
-        setError('Trình duyệt chặn cửa sổ mới — cho phép popup cho site này rồi bấm lại.')
-        return
-      }
-
-      try {
-        const invoices = await contractAppendicesApi.listAppendixInvoices(
-          contractId,
-          appendix.appendixId
-        )
-        const initial =
-          invoices.find((i) => i.invoiceCategory === 'APPENDIX_INITIAL') ?? invoices[0]
-        if (!initial) {
-          payTab.close()
-          setError('Chưa có invoice phụ lục — liên hệ kho')
-          return
-        }
-        const returnUrl = `${window.location.origin}/staff/contracts/payment/return?contractId=${encodeURIComponent(contractId)}&invoiceId=${encodeURIComponent(initial.invoiceId)}&appendixId=${encodeURIComponent(appendix.appendixId)}`
-        const link = await contractAppendicesApi.createAppendixInvoicePayOSLink(
-          contractId,
-          appendix.appendixId,
-          initial.invoiceId,
-          { returnUrl, cancelUrl: returnUrl }
-        )
-        if (!link.checkoutUrl) {
-          payTab.close()
-          setError('PayOS không trả checkout URL')
-          return
-        }
-        payTab.location.href = link.checkoutUrl
-        payTab.focus()
-      } catch (e) {
-        payTab.close()
-        const msg = e instanceof ApiError ? e.message : 'Không tạo được link PayOS phụ lục'
-        setError(msg)
-        if (e instanceof ApiError && e.code === 'INVOICE_ALREADY_PAID') {
-          void load()
-        }
-      } finally {
-        payOsInFlightRef.current = false
-        setPayingAppendixId(null)
-      }
-    },
-    [load]
-  )
-
   return (
 
     <div className="overflow-y-auto overflow-x-hidden bg-[#0b101a] p-6 text-slate-100 md:p-8">
@@ -489,10 +411,55 @@ export function TenantContractsPage() {
 
         <section className="glass-panel overflow-hidden rounded-xl border border-white/5">
 
-          <div className="border-b border-white/5 px-6 py-4 text-sm font-semibold text-cyan-300">
-
-            Hợp đồng của tenant
-
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 bg-white/[0.02] px-6 py-4">
+            <div>
+              <h3 className="text-sm font-semibold text-cyan-300">Hợp đồng của tenant</h3>
+              {!loading && contracts.length > 0 && (
+                <p className="mt-1 text-xs text-slate-500">
+                  Hiển thị {filteredContracts.length.toLocaleString('vi-VN')} /{' '}
+                  {contracts.length.toLocaleString('vi-VN')} hợp đồng
+                </p>
+              )}
+            </div>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+              <div className="relative min-w-[12rem] flex-1 sm:max-w-xs">
+                <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-500">
+                  <span className="material-symbols-outlined text-lg">search</span>
+                </span>
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Tìm mã HĐ, tên, kho, loại..."
+                  aria-label="Tìm hợp đồng"
+                  className="w-full rounded-lg border border-white/10 bg-[#1a2333] py-2 pl-10 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30"
+                />
+              </div>
+              <select
+                aria-label="Lọc trạng thái hợp đồng"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as '' | ContractStatus)}
+                className="rounded-lg border border-white/10 bg-[#1a2333] px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30"
+              >
+                {TENANT_CONTRACT_STATUS_FILTERS.map((opt) => (
+                  <option key={opt.value || 'all'} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              {(search.trim() || statusFilter) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch('')
+                    setStatusFilter('')
+                  }}
+                  className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  Xóa lọc
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -517,8 +484,6 @@ export function TenantContractsPage() {
 
                   <th className="px-6 py-3">Tiến độ ký</th>
 
-                  <th className="px-6 py-3">Phụ lục</th>
-
                   <th className="px-6 py-3" />
 
                 </tr>
@@ -527,7 +492,7 @@ export function TenantContractsPage() {
 
               <tbody className="divide-y divide-white/5">
 
-                {contracts.map((c) => {
+                {filteredContracts.map((c) => {
 
                   const ct = c.contractType as ContractTypeValue
 
@@ -535,7 +500,6 @@ export function TenantContractsPage() {
 
                   const signCtx = signingContextFor(c.contractId)
                   const canSign = needsTenantSignature(c, signCtx)
-                  const contractAppendices = appendixByContract.get(c.contractId) ?? []
 
                   return (
 
@@ -590,23 +554,6 @@ export function TenantContractsPage() {
 
                         {contractSigningStepLabel(c, signCtx)}
 
-                      </td>
-
-                      <td className="px-6 py-3 align-top">
-                        <TenantContractAppendixActions
-                          contract={c}
-                          appendices={contractAppendices}
-                          isTenantAdmin={isTenantAdmin}
-                          payingAppendixId={payingAppendixId}
-                          onRequest={() => setAppendixRequestContractId(c.contractId)}
-                          onSign={(appendix) =>
-                            setAppendixSignTarget({ contractId: c.contractId, appendix })
-                          }
-                          onPay={(appendix) =>
-                            void handlePayAppendixWithPayOS(c.contractId, appendix)
-                          }
-                          onViewDetail={() => setDetailContractId(c.contractId)}
-                        />
                       </td>
 
                       <td className="px-6 py-3 align-top text-right">
@@ -673,17 +620,19 @@ export function TenantContractsPage() {
                 })}
 
                 {!loading && contracts.length === 0 && (
-
                   <tr>
-
-                    <td colSpan={9} className="px-6 py-4 text-slate-500">
-
+                    <td colSpan={8} className="px-6 py-4 text-slate-500">
                       Chưa có hợp đồng nào.
-
                     </td>
-
                   </tr>
+                )}
 
+                {!loading && contracts.length > 0 && filteredContracts.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
+                      Không tìm thấy hợp đồng phù hợp. Thử đổi từ khóa hoặc bộ lọc trạng thái.
+                    </td>
+                  </tr>
                 )}
 
               </tbody>
@@ -712,9 +661,6 @@ export function TenantContractsPage() {
           reservations={reservations}
           signingContext={signingContextFor(detailContractId)}
           canRequestTermination={isTenantAdmin}
-          isTenantAdmin={isTenantAdmin}
-          payingAppendixId={payingAppendixId}
-          onPayAppendix={(a) => void handlePayAppendixWithPayOS(detailContractId, a)}
           onClose={() => setDetailContractId(null)}
           onSign={() => setSignContractId(detailContractId)}
           onTerminationChange={load}
@@ -744,27 +690,6 @@ export function TenantContractsPage() {
 
         />
 
-      )}
-
-      {appendixRequestContractId && (() => {
-        const contract = contracts.find((c) => c.contractId === appendixRequestContractId)
-        if (!contract) return null
-        return (
-          <ContractAppendixRequestModal
-            contract={contract}
-            onClose={() => setAppendixRequestContractId(null)}
-            onSubmitted={load}
-          />
-        )
-      })()}
-
-      {appendixSignTarget && (
-        <ContractAppendixSignModal
-          contractId={appendixSignTarget.contractId}
-          appendix={appendixSignTarget.appendix}
-          onClose={() => setAppendixSignTarget(null)}
-          onSigned={load}
-        />
       )}
 
     </div>

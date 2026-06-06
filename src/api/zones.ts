@@ -14,7 +14,7 @@ export interface ApiZone {
   /** Gợi ý tối đa rack theo diện tích (sau trừ lối đi) */
   maxRacks?: number
   totalBinSlots?: number
-  /** ≈ totalBinSlots × 4 LPN/thùng */
+  /** ≈ totalBinSlots × LPN cỡ lớn nhất theo zoneType (SHARED→EXTRA, PRIVATE/PREMIUM→LARGE) */
   estimatedLpnCapacity?: number
 }
 

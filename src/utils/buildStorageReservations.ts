@@ -7,9 +7,12 @@ import {
   type StorageLevel,
 } from './onboardingStorage'
 import {
+  allowsCombiningZonesForLpn,
   estimateZoneLpnCapacity,
+  isZoneEligibleForLpnDemand,
   splitReservedCapacityAcrossZones,
   splitReservedCapacityEvenly,
+  zoneLpnShortfallMessage,
 } from './warehouseCapacity'
 
 export type StorageReservationInput = {
@@ -44,6 +47,23 @@ export function validateStorageSelection(input: StorageReservationInput): string
       return hint
         ? `${hint} Bỏ chọn: ${ineligible.map((z) => z.zoneCode).join(', ')}.`
         : `Zone không phù hợp loại thuê. Bỏ chọn: ${ineligible.map((z) => z.zoneCode).join(', ')}.`
+    }
+
+    if (
+      input.reservedCapacityNum != null &&
+      input.reservedCapacityNum > 0 &&
+      !allowsCombiningZonesForLpn(input.contractType)
+    ) {
+      const undersized = selectedZones.filter(
+        (z) => !isZoneEligibleForLpnDemand(z, input.reservedCapacityNum, input.contractType)
+      )
+      if (undersized.length > 0) {
+        const first = undersized[0]
+        return zoneLpnShortfallMessage(
+          estimateZoneLpnCapacity(first),
+          input.reservedCapacityNum
+        )
+      }
     }
   }
 

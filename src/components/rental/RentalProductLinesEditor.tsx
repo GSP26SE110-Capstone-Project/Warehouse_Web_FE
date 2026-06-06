@@ -3,6 +3,7 @@ import type { ApiProductKindTreeNode, ApiSizeFactor } from '../../api/productCat
 import { DarkDropdownSelect, type DarkDropdownOptionGroup } from '../ui/DarkDropdownSelect'
 import {
   computeProductLinesSummary,
+  type BoxType,
   type ProductLinesSummary,
 } from '../../utils/volumeUnits'
 
@@ -63,6 +64,9 @@ export function RentalProductLinesEditor({
   theme = 'staff',
   quantityLabel = 'Số lượng (cái/tháng)',
   quantityHint = 'Ước tính số cái lưu kho trung bình mỗi tháng — không nhân với số tháng thuê.',
+  maxBoxType,
+  boxAllocationHint,
+  hideBoxAllocation = false,
 }: {
   lines: RentalProductLineDraft[]
   onChange: (lines: RentalProductLineDraft[]) => void
@@ -71,6 +75,11 @@ export function RentalProductLinesEditor({
   theme?: Theme
   quantityLabel?: string
   quantityHint?: string
+  /** Giới hạn loại thùng gợi ý (vd. Premium → LARGE, Private → EXTRA). */
+  maxBoxType?: BoxType | null
+  boxAllocationHint?: string | null
+  /** Ẩn phân bổ thùng ở đây — hiển thị gần chọn loại khu (dedicated zone). */
+  hideBoxAllocation?: boolean
 }) {
   const t = themeClasses(theme)
 
@@ -125,8 +134,8 @@ export function RentalProductLinesEditor({
   )
 
   const summary: ProductLinesSummary | null = useMemo(
-    () => computeProductLinesSummary(readyDrafts, catalogByKind, sizeFactors),
-    [readyDrafts, catalogByKind, sizeFactors]
+    () => computeProductLinesSummary(readyDrafts, catalogByKind, sizeFactors, maxBoxType),
+    [readyDrafts, catalogByKind, sizeFactors, maxBoxType]
   )
 
   const updateLine = (id: string, patch: Partial<RentalProductLineDraft>) => {
@@ -301,16 +310,28 @@ export function RentalProductLinesEditor({
             </strong>
           </p>
 
-          <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-              Phân bổ thùng
-            </span>
-            <span className={`text-sm tabular-nums ${t.summaryAccent}`}>
-              {summary.boxAllocation
-                .map((row) => `${row.count.toLocaleString('vi-VN')} thùng ${row.boxType.toLowerCase()}`)
-                .join(' + ')}
-            </span>
-          </div>
+          {!hideBoxAllocation && (
+            <div className="mt-3 space-y-1">
+              {boxAllocationHint && (
+                <p className="text-[11px] text-slate-500">{boxAllocationHint}</p>
+              )}
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  Phân bổ thùng
+                </span>
+                <span className={`text-sm tabular-nums ${t.summaryAccent}`}>
+                  {summary.boxAllocation.length > 0
+                    ? summary.boxAllocation
+                        .map(
+                          (row) =>
+                            `${row.count.toLocaleString('vi-VN')} thùng ${row.boxType.toLowerCase()}`
+                        )
+                        .join(' + ')
+                    : '—'}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

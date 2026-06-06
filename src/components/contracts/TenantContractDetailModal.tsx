@@ -50,9 +50,6 @@ type Props = {
   reservations: ApiStorageReservation[]
   signingContext: ContractSigningContext
   canRequestTermination?: boolean
-  isTenantAdmin?: boolean
-  onPayAppendix?: (appendix: ApiContractAppendix) => void
-  payingAppendixId?: string | null
   onClose: () => void
   onSign?: () => void
   onTerminationChange?: () => void
@@ -102,9 +99,6 @@ export function TenantContractDetailModal({
   reservations,
   signingContext,
   canRequestTermination = false,
-  isTenantAdmin = false,
-  onPayAppendix,
-  payingAppendixId,
   onClose,
   onSign,
   onTerminationChange,
@@ -117,7 +111,6 @@ export function TenantContractDetailModal({
   const [pendingTermination, setPendingTermination] =
     useState<ApiContractTerminationRequest | null>(null)
   const [showTerminationModal, setShowTerminationModal] = useState(false)
-  const [showAppendixRequestModal, setShowAppendixRequestModal] = useState(false)
   const [warehouse, setWarehouse] = useState<Awaited<
     ReturnType<typeof warehousesApi.getWarehouse>
   > | null>(null)
@@ -125,6 +118,7 @@ export function TenantContractDetailModal({
   const [activationDate, setActivationDate] = useState<string | null>(null)
   const [boxAllocation, setBoxAllocation] = useState<ApiBoxAllocationRow[]>([])
   const [rentalDatesNote, setRentalDatesNote] = useState<string | null>(null)
+  const [rentalRequestCode, setRentalRequestCode] = useState('')
   const loadDetail = useCallback(async () => {
     setLoading(true)
     setError('')
@@ -141,6 +135,7 @@ export function TenantContractDetailModal({
       if (c.rentalRequestId) {
         try {
           const rr = await rentalRequestsApi.getRentalRequest(c.rentalRequestId)
+          setRentalRequestCode(rr.requestCode ?? '')
           setBoxAllocation(rr.boxAllocation ?? rr.boxAllocationJson ?? [])
 
           const reqStart = rentalRequestDateOnly(rr.expectedStartDate)
@@ -164,10 +159,12 @@ export function TenantContractDetailModal({
             setRentalDatesNote(null)
           }
         } catch {
+          setRentalRequestCode('')
           setBoxAllocation([])
           setRentalDatesNote(null)
         }
       } else {
+        setRentalRequestCode('')
         setBoxAllocation([])
         setRentalDatesNote(null)
       }
@@ -304,6 +301,14 @@ export function TenantContractDetailModal({
                     <dt className="text-xs uppercase tracking-wide text-slate-500">Ngày tạo</dt>
                     <dd className="text-slate-200">{formatDate(contract.createdAt)}</dd>
                   </div>
+                  {rentalRequestCode && (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-slate-500">
+                        Yêu cầu thuê (RR)
+                      </dt>
+                      <dd className="font-mono text-cyan-300">{rentalRequestCode}</dd>
+                    </div>
+                  )}
                 </dl>
               </section>
 
@@ -311,8 +316,7 @@ export function TenantContractDetailModal({
                 <section className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
                   <h3 className="text-sm font-semibold text-white">Kho phục vụ</h3>
                   <p className="mt-2 text-base font-medium text-cyan-300">
-                    {warehouse.warehouseName}{' '}
-                    <span className="font-mono text-sm text-slate-400">({warehouse.warehouseCode})</span>
+                    {warehouse.warehouseName}
                   </p>
                   <p className="mt-1 text-sm text-slate-400">
                     {warehouse.address ?? `${warehouse.district}, ${warehouse.city}`}
@@ -354,10 +358,7 @@ export function TenantContractDetailModal({
                         key={g.key}
                         className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm"
                       >
-                        <p className="font-medium text-white">
-                          {g.warehouseName} ·{' '}
-                          <span className="font-mono text-cyan-400">{g.zoneCode}</span>
-                        </p>
+                        <p className="font-medium text-cyan-300">{g.zoneLabel}</p>
                         {g.totalReservedCapacity > 0 && (
                           <p className="mt-1 text-xs text-slate-500">
                             {formatReservedCapacityLabel(g.totalReservedCapacity, boxAllocation)}
@@ -424,36 +425,6 @@ export function TenantContractDetailModal({
                   />
                 </div>
               </section>
-
-              {contract.status === 'ACTIVE' && (
-                <section className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold text-violet-200">Phụ lục hợp đồng</h3>
-                    {canTenantRequestAppendix(contract, isTenantAdmin) && (
-                      <button
-                        type="button"
-                        onClick={() => setShowAppendixRequestModal(true)}
-                        className="rounded-lg bg-violet-500/20 px-3 py-1.5 text-xs font-semibold text-violet-200 hover:bg-violet-500/30"
-                      >
-                        Yêu cầu phụ lục
-                      </button>
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Thuê thêm không gian trong phạm vi trần HĐ gốc — kho duyệt, bạn ký và thanh
-                    toán.
-                  </p>
-                  <div className="mt-3">
-                    <ContractAppendixListPanel
-                      contractId={contractId}
-                      isTenantAdmin={isTenantAdmin}
-                      onPayAppendix={onPayAppendix}
-                      payingAppendixId={payingAppendixId}
-                      onChanged={onAppendixChange}
-                    />
-                  </div>
-                </section>
-              )}
 
               {contract.status === 'ACTIVE' && (
                 <section className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
@@ -525,15 +496,6 @@ export function TenantContractDetailModal({
         />
       )}
 
-      {showAppendixRequestModal && contract && (
-        <ContractAppendixRequestModal
-          contract={contract}
-          onClose={() => setShowAppendixRequestModal(false)}
-          onSubmitted={() => {
-            onAppendixChange?.()
-          }}
-        />
-      )}
     </div>
   )
 }

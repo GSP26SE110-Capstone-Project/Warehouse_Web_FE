@@ -39,7 +39,14 @@ import {
 } from '../../utils/rentalRequestGuest'
 import { formatVnd, getZonePricePerM2 } from '../../data/pricing'
 import { recommendGuestContractType } from '../../utils/contractTypeRecommendation'
-import { buildProductKindMap, computeProductLinesSummary } from '../../utils/volumeUnits'
+import {
+  allocateBoxesUpTo,
+  buildProductKindMap,
+  computeProductLinesSummary,
+  dedicatedZoneBoxAllocationHint,
+  formatBoxAllocationVi,
+  maxBoxTypeForDedicatedZonePreference,
+} from '../../utils/volumeUnits'
 import { ContractTypeGuide } from './ContractTypeGuide'
 import { WarehouseUtilizationBar } from './WarehouseUtilizationBar'
 import {
@@ -162,6 +169,7 @@ function GuestStorageOption({
   title,
   description,
   zoneHint,
+  allocationPreview,
 }: {
   id: string
   checked: boolean
@@ -170,6 +178,7 @@ function GuestStorageOption({
   title: string
   description: string
   zoneHint?: string
+  allocationPreview?: string | null
 }) {
   return (
     <label
@@ -225,6 +234,24 @@ function GuestStorageOption({
           >
             <span className="material-symbols-outlined text-xs">location_on</span>
             {zoneHint}
+          </span>
+        )}
+        {allocationPreview && (
+          <span
+            className={[
+              'mt-2 flex items-start gap-1.5 rounded-lg border px-2.5 py-2 text-xs leading-snug',
+              checked
+                ? 'border-[#06edf9]/30 bg-[#06edf9]/10 text-[#c8f7fa]'
+                : 'border-white/10 bg-black/20 text-[#9bb9bb]',
+            ].join(' ')}
+          >
+            <span className="material-symbols-outlined shrink-0 text-base text-[#06edf9]">
+              inventory_2
+            </span>
+            <span>
+              <span className="font-medium text-white/90">Gợi ý phân bổ / tháng:</span>{' '}
+              <span className="tabular-nums">{allocationPreview}</span>
+            </span>
           </span>
         )}
       </span>
@@ -295,10 +322,40 @@ export function RentalRequestForm({
     [productLines]
   )
 
+  const dedicatedMaxBoxType = useMemo(() => {
+    if (contractType !== 'DEDICATED_ZONE') return undefined
+    return maxBoxTypeForDedicatedZonePreference(preferredZoneType)
+  }, [contractType, preferredZoneType])
+
+  const dedicatedBoxAllocationHint = useMemo(() => {
+    if (contractType !== 'DEDICATED_ZONE') return null
+    return (
+      dedicatedZoneBoxAllocationHint(preferredZoneType) ??
+      'Chọn Private hoặc Premium bên dưới để xem gợi ý phân bổ thùng theo loại khu'
+    )
+  }, [contractType, preferredZoneType])
+
   const productLinesSummary = useMemo(() => {
     if (!catalogTree.length || !sizeFactors.length) return null
-    return computeProductLinesSummary(readyDrafts, catalogByKind, sizeFactors)
-  }, [readyDrafts, catalogByKind, sizeFactors, catalogTree.length])
+    return computeProductLinesSummary(
+      readyDrafts,
+      catalogByKind,
+      sizeFactors,
+      dedicatedMaxBoxType
+    )
+  }, [readyDrafts, catalogByKind, sizeFactors, catalogTree.length, dedicatedMaxBoxType])
+
+  const dedicatedPrivateBoxPreview = useMemo(() => {
+    const totalU = productLinesSummary?.totalCommittedVolumeUnits
+    if (!totalU || totalU <= 0) return null
+    return formatBoxAllocationVi(allocateBoxesUpTo('EXTRA', totalU))
+  }, [productLinesSummary])
+
+  const dedicatedPremiumBoxPreview = useMemo(() => {
+    const totalU = productLinesSummary?.totalCommittedVolumeUnits
+    if (!totalU || totalU <= 0) return null
+    return formatBoxAllocationVi(allocateBoxesUpTo('LARGE', totalU))
+  }, [productLinesSummary])
 
   const requestedAreaNum = useMemo(() => {
     const n = Number(requestedAreaM2)
@@ -722,6 +779,11 @@ export function RentalRequestForm({
                   catalogTree={catalogTree}
                   sizeFactors={sizeFactors}
                   theme="guest"
+                  maxBoxType={dedicatedMaxBoxType}
+                  boxAllocationHint={
+                    contractType === 'DEDICATED_ZONE' ? dedicatedBoxAllocationHint : null
+                  }
+                  hideBoxAllocation={contractType === 'DEDICATED_ZONE'}
                 />
               </div>
             ) : (
@@ -754,6 +816,45 @@ export function RentalRequestForm({
               recommendation={recommendation}
             />
           </div>
+
+          {contractType === 'DEDICATED_ZONE' && (
+            <div className="mb-8 space-y-3">
+              <div>
+                <p className="text-sm font-medium text-gray-200 pl-1">Yêu cầu bố trí kho</p>
+                <p className="mt-1 text-xs text-[#9bb9bb] pl-1">
+                  Chọn loại khu — gợi ý phân bổ thùng hiển thị ngay trên từng lựa chọn (theo quy mô
+                  hàng bạn khai báo phía trên).
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <GuestStorageOption
+                  id="preferredZonePrivate"
+                  checked={preferredZoneType === 'PRIVATE'}
+                  onChange={(checked) => setPreferredZoneType(checked ? 'PRIVATE' : '')}
+                  icon="lock"
+                  title="Private Zone"
+                  description="Khu riêng tách biệt dành cho thương hiệu của bạn trong kho."
+                  zoneHint={`${formatVnd(getZonePricePerM2('PRIVATE'))}/m²/tháng · tối đa thùng Extra`}
+                  allocationPreview={dedicatedPrivateBoxPreview}
+                />
+                <GuestStorageOption
+                  id="preferredZonePremium"
+                  checked={preferredZoneType === 'PREMIUM'}
+                  onChange={(checked) => setPreferredZoneType(checked ? 'PREMIUM' : '')}
+                  icon="diamond"
+                  title="Premium Zone"
+                  description="Kiểm soát môi trường và bảo mật cao hơn khu private thường."
+                  zoneHint={`${formatVnd(getZonePricePerM2('PREMIUM'))}/m²/tháng · tối đa thùng Large`}
+                  allocationPreview={dedicatedPremiumBoxPreview}
+                />
+              </div>
+              {!dedicatedPrivateBoxPreview && !dedicatedPremiumBoxPreview && (
+                <p className="text-xs text-[#9bb9bb] pl-1">
+                  Nhập loại hàng và số lượng ở mục Quy mô hàng hóa để xem gợi ý phân bổ thùng.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {locationsError && (
@@ -922,35 +1023,6 @@ export function RentalRequestForm({
                 disabled
               />
             </div>
-
-            {contractType === 'DEDICATED_ZONE' && (
-              <div className="sm:col-span-2 space-y-3">
-                <p className="text-sm font-medium text-gray-200 pl-1">Yêu cầu bố trí kho</p>
-                <p className="text-xs text-[#9bb9bb] pl-1">
-                  Chọn loại khu bạn muốn thuê — warehouse admin sẽ ưu tiên zone phù hợp khi duyệt.
-                </p>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <GuestStorageOption
-                    id="preferredZonePrivate"
-                    checked={preferredZoneType === 'PRIVATE'}
-                    onChange={(checked) => setPreferredZoneType(checked ? 'PRIVATE' : '')}
-                    icon="lock"
-                    title="Private Zone"
-                    description="Khu riêng tách biệt dành cho thương hiệu của bạn trong kho."
-                    zoneHint={`${formatVnd(getZonePricePerM2('PRIVATE'))}/m²/tháng`}
-                  />
-                  <GuestStorageOption
-                    id="preferredZonePremium"
-                    checked={preferredZoneType === 'PREMIUM'}
-                    onChange={(checked) => setPreferredZoneType(checked ? 'PREMIUM' : '')}
-                    icon="diamond"
-                    title="Premium Zone"
-                    description="Kiểm soát môi trường và bảo mật cao hơn khu private thường."
-                    zoneHint={`${formatVnd(getZonePricePerM2('PREMIUM'))}/m²/tháng`}
-                  />
-                </div>
-              </div>
-            )}
 
             <div className="flex flex-col gap-2 sm:col-span-2">
               <FieldLabel htmlFor="notes">Ghi chú thêm</FieldLabel>

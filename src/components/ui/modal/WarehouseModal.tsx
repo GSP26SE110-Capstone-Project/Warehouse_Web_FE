@@ -8,6 +8,7 @@ import { listUsers } from '../../../api/users'
 import type { ApiUser, WarehouseStatus } from '../../../api/types'
 import type { WarehouseWhAdmin } from '../../../types/Warehouse'
 import { SearchableSelect } from '../SearchableSelect'
+import { formatPhoneForSubmit, validatePhone } from '../../../utils/formValidation'
 
 type Mode = 'create' | 'edit' | 'view'
 
@@ -226,12 +227,17 @@ export const WarehouseModal: React.FC<Props> = ({
           setValidationError('Mật khẩu xác nhận không khớp')
           return
         }
+        const whAdminPhoneError = validatePhone(whAdminPhone)
+        if (whAdminPhoneError) {
+          setValidationError(whAdminPhoneError)
+          return
+        }
         warehouseAdmin = {
           mode: 'create',
           fullName: whAdminFullName.trim(),
           email: whAdminEmail.trim().toLowerCase(),
           password: whAdminPassword,
-          phone: whAdminPhone.trim(),
+          phone: formatPhoneForSubmit(whAdminPhone),
         }
       }
     }
@@ -522,6 +528,9 @@ export const WarehouseModal: React.FC<Props> = ({
                           </label>
                           <input
                             id="wh-admin-phone"
+                            type="tel"
+                            inputMode="tel"
+                            placeholder="0901234567"
                             className={inputStyle}
                             value={whAdminPhone}
                             onChange={(e) => setWhAdminPhone(e.target.value)}

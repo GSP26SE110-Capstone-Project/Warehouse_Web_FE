@@ -1,6 +1,4 @@
 import type { ChangeEvent } from 'react'
-import { useAuth } from '../../../auth/AuthContext'
-import { BarcodeScanPanel } from '../../warehouse/BarcodeScanPanel'
 import { UserAvatarMenu } from './UserAvatarMenu'
 import { TransporterNotificationBell } from './TransporterNotificationBell'
 import { TenantNotificationBell } from './TenantNotificationBell'
@@ -15,9 +13,6 @@ export const StaffHeader: React.FC<StaffHeaderProps> = ({
   title = 'Staff Dashboard',
   onSearchChange,
 }) => {
-  const { user } = useAuth()
-  const isWhStaff = user?.role === 'WH_STAFF'
-
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     onSearchChange?.(event.target.value)
   }
@@ -33,11 +28,6 @@ export const StaffHeader: React.FC<StaffHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-4 lg:gap-6">
-        {isWhStaff && (
-          <div className="hidden max-w-md flex-1 xl:block">
-            <BarcodeScanPanel warehouseId={user?.warehouseId ?? undefined} compact />
-          </div>
-        )}
         {onSearchChange && (
           <div className="group relative hidden w-72 lg:block">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">

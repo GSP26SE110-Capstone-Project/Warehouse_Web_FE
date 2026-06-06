@@ -37,6 +37,8 @@ import {
   type MinZonesCapacityHint,
   estimateZoneLpnCapacity,
   formatZoneRackSummary,
+  isZoneEligibleForLpnDemand,
+  zoneLpnShortfallMessage,
 } from '../../../utils/warehouseCapacity'
 import { estimateMonthCount, resolveContractDatesFromApproval } from '../../../utils/rentalPeriod'
 import { formatDisplayDate, rentalRequestDateOnly } from '../../../utils/datePicker'
@@ -197,15 +199,6 @@ export function RentalOnboardingWizard({
     [zones, contractType]
   )
 
-  useEffect(() => {
-    setSelectedZoneIds((prev) =>
-      prev.filter((id) => {
-        const z = zones.find((x) => x.zoneId === id)
-        return z != null && isZoneEligibleForContract(contractType, z)
-      })
-    )
-  }, [contractType, zones])
-
   const tenantRequiredAreaNum = useMemo(() => {
     const n = Number(tenantRequiredAreaM2)
     return Number.isFinite(n) && n > 0 ? n : null
@@ -220,6 +213,19 @@ export function RentalOnboardingWizard({
     const n = Number(reservedCapacity)
     return Number.isFinite(n) && n > 0 ? n : null
   }, [reservedCapacity])
+
+  useEffect(() => {
+    setSelectedZoneIds((prev) =>
+      prev.filter((id) => {
+        const z = zones.find((x) => x.zoneId === id)
+        return (
+          z != null &&
+          isZoneEligibleForContract(contractType, z) &&
+          isZoneEligibleForLpnDemand(z, reservedCapacityNum, contractType)
+        )
+      })
+    )
+  }, [contractType, zones, reservedCapacityNum])
 
   const preAllocationPreviewAreaM2 = useMemo(
     () => selectedZones.reduce((sum, z) => sum + (Number(z.areaM2) || 0), 0),
@@ -1045,7 +1051,14 @@ export function RentalOnboardingWizard({
                       <div className="dark-scrollbar-inset mt-2 grid max-h-44 grid-cols-1 gap-2 overflow-y-auto rounded border border-white/10 p-2 pr-1">
                         {zones.map((z) => {
                           const checked = selectedZoneIds.includes(z.zoneId)
-                          const eligible = isZoneEligibleForContract(contractType, z)
+                          const typeEligible = isZoneEligibleForContract(contractType, z)
+                          const lpnEligible = isZoneEligibleForLpnDemand(
+                            z,
+                            reservedCapacityNum,
+                            contractType
+                          )
+                          const eligible = typeEligible && lpnEligible
+                          const zoneLpn = estimateZoneLpnCapacity(z)
                           return (
                             <label
                               key={z.zoneId}
@@ -1073,9 +1086,14 @@ export function RentalOnboardingWizard({
                               />
                               <span>
                                 {formatZoneOptionLabel(z)}
-                                {!eligible && (
+                                {!typeEligible && (
                                   <span className="mt-0.5 block text-[10px] text-slate-500">
                                     Không chọn — cần zone PRIVATE hoặc dedicated
+                                  </span>
+                                )}
+                                {typeEligible && !lpnEligible && reservedCapacityNum != null && (
+                                  <span className="mt-0.5 block text-[10px] text-amber-400/90">
+                                    {zoneLpnShortfallMessage(zoneLpn, reservedCapacityNum)}
                                   </span>
                                 )}
                               </span>
