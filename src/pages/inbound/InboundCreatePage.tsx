@@ -94,6 +94,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
   const [alert, setAlert] = useState<{
     open: boolean
     type?: 'success' | 'error' | 'warning'
+    title?: string
     message: string
   }>({
     open: false,
@@ -294,10 +295,15 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
         }
         const maxQty = remainingForSku(line.skuId, line.expectedQuantity)
         if (maxQty != null && line.expectedQuantity > maxQty) {
+          const commitmentLine = commitmentByKey.get(commitmentKey(sku.productKind, sku.size))
+          const lineLabel = commitmentLine
+            ? formatCommitmentLine(commitmentLine)
+            : sku.productName
           setAlert({
             open: true,
             type: 'warning',
-            message: `${sku.skuCode} vượt hạn mức còn lại (${Math.max(0, maxQty)} cái).`,
+            title: 'Vượt hạn mức rental request',
+            message: `Mã ${sku.skuCode} (${lineLabel}) chỉ còn được nhập tối đa ${Math.max(0, maxQty).toLocaleString('vi-VN')} cái theo cam kết thuê kho, nhưng bạn đã khai ${line.expectedQuantity.toLocaleString('vi-VN')} cái. Vui lòng giảm số lượng trước khi gửi yêu cầu.`,
           })
           return
         }
@@ -432,7 +438,11 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
             />
           )}
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-xl border border-white/10 bg-white/5 p-6">
+          <form
+            noValidate
+            onSubmit={handleSubmit}
+            className="flex flex-col gap-6 rounded-xl border border-white/10 bg-white/5 p-6"
+          >
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-slate-400">Hợp đồng (ACTIVE)</span>
               <select
@@ -651,6 +661,10 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                     const selectedCommitmentLine = selectedSku
                       ? commitmentByKey.get(commitmentKey(selectedSku.productKind, selectedSku.size))
                       : null
+                    const qtyOverLimit =
+                      commitmentApplies &&
+                      selectedMaxQty != null &&
+                      line.expectedQuantity > selectedMaxQty
                     return (
                       <div
                         key={idx}
@@ -713,7 +727,6 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                               id={qtyInputId}
                               type="number"
                               min={1}
-                              max={selectedMaxQty ?? undefined}
                               step={1}
                               required
                               inputMode="numeric"
@@ -727,7 +740,11 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                                   )
                                 )
                               }}
-                              className="w-full rounded-lg border border-white/10 bg-[#0f172a] py-2 pl-3 pr-14 text-sm tabular-nums"
+                              className={`w-full rounded-lg border bg-[#0f172a] py-2 pl-3 pr-14 text-sm tabular-nums transition-colors ${
+                                qtyOverLimit
+                                  ? 'border-amber-400/50 ring-1 ring-amber-400/25 focus:border-amber-400/70 focus:outline-none focus:ring-amber-400/30'
+                                  : 'border-white/10 focus:border-cyan-500/40 focus:outline-none focus:ring-1 focus:ring-cyan-500/20'
+                              }`}
                               placeholder="VD: 100"
                             />
                             <span
@@ -737,11 +754,35 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
                               đơn vị
                             </span>
                           </div>
-                          <span id={`${qtyInputId}-hint`} className="text-[11px] leading-snug text-slate-600">
-                            {commitmentApplies && selectedCommitmentLine
-                              ? `Còn được nhập tối đa ${Math.max(0, selectedMaxQty ?? 0)} cái cho ${formatCommitmentLine(selectedCommitmentLine)}.`
-                              : 'Tổng số cái/thùng/kiện bạn dự kiến giao cho mã này.'}
-                          </span>
+                          {qtyOverLimit && selectedCommitmentLine ? (
+                            <div id={`${qtyInputId}-hint`}>
+                            <InlineAlert
+                              compact
+                              hideTitle
+                              variant="warning"
+                              className="mt-0.5"
+                              message={
+                                <>
+                                  Bạn nhập{' '}
+                                  <strong className="font-semibold text-amber-100">
+                                    {line.expectedQuantity.toLocaleString('vi-VN')} cái
+                                  </strong>
+                                  , nhưng theo rental request chỉ còn được nhập tối đa{' '}
+                                  <strong className="font-semibold text-amber-100">
+                                    {Math.max(0, selectedMaxQty ?? 0).toLocaleString('vi-VN')} cái
+                                  </strong>{' '}
+                                  cho {formatCommitmentLine(selectedCommitmentLine)}.
+                                </>
+                              }
+                            />
+                            </div>
+                          ) : (
+                            <span id={`${qtyInputId}-hint`} className="text-[11px] leading-snug text-slate-600">
+                              {commitmentApplies && selectedCommitmentLine
+                                ? `Còn được nhập tối đa ${Math.max(0, selectedMaxQty ?? 0).toLocaleString('vi-VN')} cái cho ${formatCommitmentLine(selectedCommitmentLine)}.`
+                                : 'Tổng số cái/thùng/kiện bạn dự kiến giao cho mã này.'}
+                            </span>
+                          )}
                         </label>
 
                         <div className="flex items-end justify-end sm:justify-center sm:pt-7">
@@ -776,7 +817,7 @@ export function InboundCreatePage({ basePath }: { basePath: string }) {
 
       {alert.open && (
         <AlertModal
-          title={alert.type === 'error' ? 'Có lỗi xảy ra' : alert.type === 'warning' ? 'Lưu ý' : 'Thông báo'}
+          title={alert.title}
           message={alert.message}
           type={alert.type ?? 'success'}
           onClose={() => setAlert({ open: false, message: '' })}
