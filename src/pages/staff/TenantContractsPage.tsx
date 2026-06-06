@@ -25,7 +25,7 @@ import { CONTRACT_TYPE_LABELS, type ContractTypeValue } from '../../data/contrac
 
 import { formatVnd } from '../../data/pricing'
 
-import type { ApiContract } from '../../api/types'
+import type { ApiContract, ContractStatus } from '../../api/types'
 
 import {
 
@@ -71,6 +71,17 @@ function statusBadgeClass(status: ApiContract['status']) {
 
 const PAYOS_WINDOW_NAME = 'smartwarehouse_payos_checkout'
 
+const TENANT_CONTRACT_STATUS_FILTERS: { value: '' | ContractStatus; label: string }[] = [
+  { value: '', label: 'Tất cả trạng thái' },
+  { value: 'ACTIVE', label: 'Đang hiệu lực' },
+  { value: 'PENDING_APPROVAL', label: 'Chờ bạn ký' },
+  { value: 'PENDING_PAYMENT', label: 'Chờ thanh toán' },
+  { value: 'DRAFT', label: 'Nháp' },
+  { value: 'EXPIRED', label: 'Hết hạn' },
+  { value: 'TERMINATED', label: 'Chấm dứt' },
+  { value: 'CANCELLED', label: 'Đã hủy' },
+]
+
 export function TenantContractsPage() {
 
   const { user } = useAuth()
@@ -108,6 +119,8 @@ export function TenantContractsPage() {
   const [detailContractId, setDetailContractId] = useState<string | null>(null)
   const [terminationContractId, setTerminationContractId] = useState<string | null>(null)
   const [pendingTerminationIds, setPendingTerminationIds] = useState<Set<string>>(new Set())
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'' | ContractStatus>('')
 
   const load = useCallback(async () => {
 
@@ -242,6 +255,23 @@ export function TenantContractsPage() {
     () => contracts.filter((c) => c.status === 'PENDING_PAYMENT'),
     [contracts]
   )
+
+  const filteredContracts = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return contracts.filter((c) => {
+      if (statusFilter && c.status !== statusFilter) return false
+      if (!q) return true
+      const ct = c.contractType as ContractTypeValue
+      const typeLabel = (CONTRACT_TYPE_LABELS[ct] ?? c.contractType ?? '').toLowerCase()
+      const warehouseName = (warehouseNames.get(c.warehouseId) ?? '').toLowerCase()
+      return (
+        c.contractCode.toLowerCase().includes(q) ||
+        (c.contractName ?? '').toLowerCase().includes(q) ||
+        warehouseName.includes(q) ||
+        typeLabel.includes(q)
+      )
+    })
+  }, [contracts, search, statusFilter, warehouseNames])
 
   const handlePayWithPayOS = useCallback(
     async (contractId: string) => {
@@ -438,10 +468,55 @@ export function TenantContractsPage() {
 
         <section className="glass-panel overflow-hidden rounded-xl border border-white/5">
 
-          <div className="border-b border-white/5 px-6 py-4 text-sm font-semibold text-cyan-300">
-
-            Hợp đồng của tenant
-
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 bg-white/[0.02] px-6 py-4">
+            <div>
+              <h3 className="text-sm font-semibold text-cyan-300">Hợp đồng của tenant</h3>
+              {!loading && contracts.length > 0 && (
+                <p className="mt-1 text-xs text-slate-500">
+                  Hiển thị {filteredContracts.length.toLocaleString('vi-VN')} /{' '}
+                  {contracts.length.toLocaleString('vi-VN')} hợp đồng
+                </p>
+              )}
+            </div>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+              <div className="relative min-w-[12rem] flex-1 sm:max-w-xs">
+                <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-500">
+                  <span className="material-symbols-outlined text-lg">search</span>
+                </span>
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Tìm mã HĐ, tên, kho, loại..."
+                  aria-label="Tìm hợp đồng"
+                  className="w-full rounded-lg border border-white/10 bg-[#1a2333] py-2 pl-10 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30"
+                />
+              </div>
+              <select
+                aria-label="Lọc trạng thái hợp đồng"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as '' | ContractStatus)}
+                className="rounded-lg border border-white/10 bg-[#1a2333] px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30"
+              >
+                {TENANT_CONTRACT_STATUS_FILTERS.map((opt) => (
+                  <option key={opt.value || 'all'} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              {(search.trim() || statusFilter) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch('')
+                    setStatusFilter('')
+                  }}
+                  className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  Xóa lọc
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -476,7 +551,7 @@ export function TenantContractsPage() {
 
               <tbody className="divide-y divide-white/5">
 
-                {contracts.map((c) => {
+                {filteredContracts.map((c) => {
 
                   const ct = c.contractType as ContractTypeValue
 
@@ -621,17 +696,19 @@ export function TenantContractsPage() {
                 })}
 
                 {!loading && contracts.length === 0 && (
-
                   <tr>
-
                     <td colSpan={9} className="px-6 py-4 text-slate-500">
-
                       Chưa có hợp đồng nào.
-
                     </td>
-
                   </tr>
+                )}
 
+                {!loading && contracts.length > 0 && filteredContracts.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="px-6 py-8 text-center text-slate-500">
+                      Không tìm thấy hợp đồng phù hợp. Thử đổi từ khóa hoặc bộ lọc trạng thái.
+                    </td>
+                  </tr>
                 )}
 
               </tbody>
