@@ -6,7 +6,13 @@ import * as warehousesApi from '../../../api/warehouses'
 import * as tenantsApi from '../../../api/tenants'
 import type { ApiTenant } from '../../../api/tenants'
 import * as usersApi from '../../../api/users'
-import { requireEmail, requireMinPassword, requireTrimmed } from '../../../utils/formValidation'
+import {
+  formatPhoneForSubmit,
+  requireEmail,
+  requireMinPassword,
+  requireTrimmed,
+  validatePhone,
+} from '../../../utils/formValidation'
 import { MODAL_BODY_SCROLL_SPACE } from '../../../styles/scrollClasses'
 
 type Mode = 'view' | 'edit' | 'create'
@@ -104,7 +110,7 @@ export const AccountModal: React.FC<Props> = ({
     variant: FeedbackVariant
     title: string
     message: string
-    field?: 'password' | 'confirmPassword'
+    field?: 'password' | 'confirmPassword' | 'phone'
   } | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -247,6 +253,17 @@ export const AccountModal: React.FC<Props> = ({
       }
     }
 
+    const phoneError = validatePhone(form.phone)
+    if (phoneError) {
+      setFormError({
+        variant: 'warning',
+        title: phoneError.includes('email') ? 'Số điện thoại không hợp lệ' : 'Số điện thoại không đúng',
+        message: phoneError,
+        field: 'phone',
+      })
+      return
+    }
+
     if (isCreate) {
       const passwordError = requireMinPassword(form.password)
       if (passwordError) {
@@ -314,7 +331,7 @@ export const AccountModal: React.FC<Props> = ({
     onSubmit?.({
       fullName: form.fullName,
       email: form.email,
-      phone: form.phone,
+      phone: formatPhoneForSubmit(form.phone),
       role: form.role,
       password: form.password,
       status: form.status,
@@ -383,13 +400,38 @@ export const AccountModal: React.FC<Props> = ({
               <div>
                 <label className={labelStyle}>Số điện thoại</label>
                 <input
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
                   title="Số điện thoại"
-                  placeholder="090..."
+                  placeholder="0901234567"
                   disabled={isView}
-                  className={inputStyle}
+                  className={`${inputStyle}${
+                    formError?.field === 'phone'
+                      ? ' border-amber-400/50 ring-1 ring-amber-400/30'
+                      : ''
+                  }`}
                   value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  onChange={(e) => {
+                    setFormError(null)
+                    setForm({ ...form, phone: e.target.value })
+                  }}
                 />
+                {!isView && (
+                  <p className="mt-1 text-[10px] text-slate-500">
+                    Tùy chọn — 10 số, bắt đầu bằng 03/05/07/08/09
+                  </p>
+                )}
+                {formError?.field === 'phone' && (
+                  <InlineAlert
+                    compact
+                    hideTitle
+                    variant="warning"
+                    className="mt-2"
+                    message={formError.message}
+                    onDismiss={() => setFormError(null)}
+                  />
+                )}
               </div>
             </div>
 

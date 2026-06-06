@@ -70,12 +70,12 @@ export function buildFlatSizeOptions(sizeFactors: ApiSizeFactor[]) {
   return options
 }
 
-export function allocateBoxes(totalU: number): BoxAllocationRow[] {
+function allocateBoxesWithAllowed(allowed: BoxType[], totalU: number): BoxAllocationRow[] {
   let remaining = roundVolumeUnits(Number(totalU))
   if (!Number.isFinite(remaining) || remaining <= 0) return []
 
   const allocation: Partial<Record<BoxType, number>> = {}
-  const floorTypes = BOX_ORDER.filter((t) => t !== 'SMALL')
+  const floorTypes = allowed.filter((t) => t !== 'SMALL')
 
   for (const boxType of floorTypes) {
     const vol = BOX_VOLUME_UNITS[boxType]
@@ -87,7 +87,7 @@ export function allocateBoxes(totalU: number): BoxAllocationRow[] {
   }
 
   if (remaining > 0) {
-    const ascending: BoxType[] = ['SMALL', 'MEDIUM', 'LARGE', 'EXTRA']
+    const ascending = [...allowed].reverse()
     let picked = false
     for (const boxType of ascending) {
       const vol = BOX_VOLUME_UNITS[boxType]
@@ -97,7 +97,7 @@ export function allocateBoxes(totalU: number): BoxAllocationRow[] {
         break
       }
     }
-    if (!picked) {
+    if (!picked && allowed.includes('EXTRA')) {
       allocation.EXTRA = (allocation.EXTRA ?? 0) + 1
     }
   }
@@ -108,12 +108,32 @@ export function allocateBoxes(totalU: number): BoxAllocationRow[] {
   }))
 }
 
+export function allocateBoxes(totalU: number): BoxAllocationRow[] {
+  return allocateBoxesWithAllowed(BOX_ORDER, totalU)
+}
+
+/** Phân bổ thùng theo tổng U, chỉ dùng các loại ≤ maxBoxType (vd. Premium → tối đa Large). */
+export function allocateBoxesUpTo(maxBoxType: BoxType, totalU: number): BoxAllocationRow[] {
+  const maxIdx = BOX_ORDER.indexOf(maxBoxType)
+  const allowed = maxIdx >= 0 ? BOX_ORDER.slice(maxIdx) : [...BOX_ORDER]
+  return allocateBoxesWithAllowed(allowed, totalU)
+}
+
 export function formatBoxAllocation(
   allocation: Array<{ boxType: string; count: number }>,
   formatTypeName: (boxType: string) => string = (t) => t
 ) {
   if (!allocation.length) return '—'
   return allocation.map((row) => `${row.count} ${formatTypeName(row.boxType)}`).join(' + ')
+}
+
+export function formatBoxAllocationVi(allocation: Array<{ boxType: string; count: number }>) {
+  if (!allocation.length) return '—'
+  return allocation
+    .map(
+      (row) => `${row.count.toLocaleString('vi-VN')} thùng ${row.boxType.toLowerCase()}`
+    )
+    .join(' + ')
 }
 
 /** Số thùng nếu dùng duy nhất một loại box (làm tròn lên). */
@@ -222,10 +242,27 @@ export function buildProductKindMap(productKinds: ApiProductKind[]) {
   return map
 }
 
+export function maxBoxTypeForDedicatedZonePreference(
+  zoneType?: 'PRIVATE' | 'PREMIUM' | '' | null
+): BoxType | undefined {
+  if (zoneType === 'PRIVATE') return 'EXTRA'
+  if (zoneType === 'PREMIUM') return 'LARGE'
+  return undefined
+}
+
+export function dedicatedZoneBoxAllocationHint(
+  zoneType?: 'PRIVATE' | 'PREMIUM' | '' | null
+): string | null {
+  if (zoneType === 'PRIVATE') return 'Private Zone · tối đa thùng Extra'
+  if (zoneType === 'PREMIUM') return 'Premium Zone · tối đa thùng Large'
+  return null
+}
+
 export function computeProductLinesSummary(
   drafts: Array<{ productKind: string; size: string; quantity: number }>,
   catalogByKind: Map<string, ApiProductKind>,
-  sizeFactors: ApiSizeFactor[]
+  sizeFactors: ApiSizeFactor[],
+  maxBoxType?: BoxType | null
 ): ProductLinesSummary | null {
   if (!drafts.length) return null
 
@@ -272,7 +309,9 @@ export function computeProductLinesSummary(
   const totalCommittedVolumeUnits = roundVolumeUnits(
     lines.reduce((sum, line) => sum + line.lineVolumeUnits, 0)
   )
-  const boxAllocation = allocateBoxes(totalCommittedVolumeUnits)
+  const boxAllocation = maxBoxType
+    ? allocateBoxesUpTo(maxBoxType, totalCommittedVolumeUnits)
+    : allocateBoxes(totalCommittedVolumeUnits)
 
   return {
     lines,

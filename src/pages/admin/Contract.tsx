@@ -18,6 +18,7 @@ import { contractToRow } from '../../mappers'
 import { CONTRACT_TYPE_LABELS, type ContractTypeValue } from '../../data/contractTypes'
 import { ContractAppendixWhModal } from '../../components/contracts/ContractAppendixWhModal'
 import { countWhReviewAppendices } from '../../utils/contractAppendix'
+import { ContractStatusBadge } from '../../components/contracts/ContractStatusBadge'
 import { useAuth } from '../../auth/AuthContext'
 
 export const ContractManagement: React.FC = () => {
@@ -250,9 +251,7 @@ export const ContractManagement: React.FC = () => {
                           {c.startDate} → {c.endDate}
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`rounded px-2 py-1 text-xs ring-1 ${c.statusClassName}`}>
-                            {c.apiStatus ?? c.status}
-                          </span>
+                          <ContractStatusBadge status={c.apiStatus ?? c.status} />
                         </td>
                         <td className="px-6 py-4">
                           {whReviewCount > 0 ? (
