@@ -941,12 +941,23 @@ export const RackLayoutManagement = () => {
                   setAlert({
                     open: true,
                     type: 'confirm',
-                    message: `Xóa rack ${selectedRack.rackCode}? Toàn bộ tầng và bin thuộc rack sẽ bị xóa.`,
+                    message: `Xóa rack ${selectedRack.rackCode}? Chỉ xóa được khi mọi bin trống (không LPN, không hàng putaway). Tầng và bin trống sẽ bị xóa theo.`,
                     onConfirm: async () => {
-                      await racksApi.deleteRack(selectedRack.rackId)
-                      setSelectedRackId(null)
-                      await loadRacks()
-                      setAlert({ open: true, type: 'success', message: 'Đã xóa rack' })
+                      try {
+                        await racksApi.deleteRack(selectedRack.rackId)
+                        setSelectedRackId(null)
+                        await loadRacks()
+                        setAlert({ open: true, type: 'success', message: 'Đã xóa rack' })
+                      } catch (err) {
+                        setAlert({
+                          open: true,
+                          type: 'error',
+                          message:
+                            err instanceof ApiError
+                              ? err.message
+                              : 'Không xóa được rack — kiểm tra bin còn hàng/LPN',
+                        })
+                      }
                     },
                   })
                 }
