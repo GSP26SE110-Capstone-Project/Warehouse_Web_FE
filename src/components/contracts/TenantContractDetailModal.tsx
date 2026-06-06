@@ -4,7 +4,12 @@ import { ApiError } from '../../api/client'
 import * as contractItemsApi from '../../api/contractItems'
 import * as contractsApi from '../../api/contracts'
 import * as warehousesApi from '../../api/warehouses'
-import type { ApiContract, ApiContractTerminationRequest } from '../../api/types'
+import type {
+  ApiBoxAllocationRow,
+  ApiContract,
+  ApiContractTerminationRequest,
+} from '../../api/types'
+import * as rentalRequestsApi from '../../api/rentalRequests'
 import { ContractTerminationModal } from './ContractTerminationModal'
 import { TERMINATION_REQUEST_STATUS_LABELS } from '../../utils/contractTermination'
 import type { ApiStorageReservation } from '../../api/storageReservations'
@@ -30,6 +35,9 @@ import {
   type ContractSigningContext,
 } from '../../utils/contractSigning'
 import { groupReservationsForTenantView } from '../../utils/tenantReservationGroups'
+import { formatReservedCapacityLabel } from '../../utils/rentalCapacitySummary'
+import { resolveEffectiveContractDates } from '../../utils/rentalPeriod'
+import { formatDisplayDate, rentalRequestDateOnly } from '../../utils/datePicker'
 import { ContractPaymentSummary } from './ContractPaymentSummary'
 import { ContractAppendixListPanel } from './ContractAppendixListPanel'
 import { ContractAppendixRequestModal } from './ContractAppendixRequestModal'
@@ -112,7 +120,8 @@ export function TenantContractDetailModal({
   > | null>(null)
   const [items, setItems] = useState<contractItemsApi.ApiContractItem[]>([])
   const [activationDate, setActivationDate] = useState<string | null>(null)
-
+  const [boxAllocation, setBoxAllocation] = useState<ApiBoxAllocationRow[]>([])
+  const [rentalDatesNote, setRentalDatesNote] = useState<string | null>(null)
   const loadDetail = useCallback(async () => {
     setLoading(true)
     setError('')
@@ -125,6 +134,40 @@ export function TenantContractDetailModal({
       setContract(c)
       setWarehouse(wh)
       setItems(itemRes.items)
+
+      if (c.rentalRequestId) {
+        try {
+          const rr = await rentalRequestsApi.getRentalRequest(c.rentalRequestId)
+          setBoxAllocation(rr.boxAllocation ?? rr.boxAllocationJson ?? [])
+
+          const reqStart = rentalRequestDateOnly(rr.expectedStartDate)
+          const reqEnd = rentalRequestDateOnly(rr.expectedEndDate)
+          const contractStart = rentalRequestDateOnly(c.startDate)
+          const contractEnd = rentalRequestDateOnly(c.endDate)
+          if (reqStart && reqEnd && contractStart && contractEnd) {
+            const resolved = resolveEffectiveContractDates(reqStart, reqEnd)
+            if (
+              resolved.shifted &&
+              contractStart === resolved.startDate &&
+              contractEnd === resolved.endDate
+            ) {
+              setRentalDatesNote(
+                `Bạn yêu cầu ${formatDisplayDate(reqStart)} → ${formatDisplayDate(reqEnd)}. Do duyệt sau ngày bắt đầu dự kiến, HĐ áp dụng ${formatDisplayDate(contractStart)} → ${formatDisplayDate(contractEnd)} (giữ ${resolved.billingMonths} tháng thuê).`
+              )
+            } else {
+              setRentalDatesNote(null)
+            }
+          } else {
+            setRentalDatesNote(null)
+          }
+        } catch {
+          setBoxAllocation([])
+          setRentalDatesNote(null)
+        }
+      } else {
+        setBoxAllocation([])
+        setRentalDatesNote(null)
+      }
 
       if (c.status === 'ACTIVE' || c.status === 'PENDING_PAYMENT') {
         const invoices = await contractsApi.listContractInvoices(contractId)
@@ -247,6 +290,11 @@ export function TenantContractDetailModal({
                     <dt className="text-xs uppercase tracking-wide text-slate-500">Thời hạn</dt>
                     <dd className="text-slate-200">
                       {formatDate(contract.startDate)} → {formatDate(contract.endDate)}
+                      {rentalDatesNote && (
+                        <p className="mt-2 rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs font-normal text-amber-100">
+                          {rentalDatesNote}
+                        </p>
+                      )}
                     </dd>
                   </div>
                   <div>
@@ -299,7 +347,7 @@ export function TenantContractDetailModal({
                         </p>
                         {g.totalReservedCapacity > 0 && (
                           <p className="mt-1 text-xs text-slate-500">
-                            Giữ ~{g.totalReservedCapacity.toLocaleString('vi-VN')} LPN
+                            {formatReservedCapacityLabel(g.totalReservedCapacity, boxAllocation)}
                           </p>
                         )}
                       </div>

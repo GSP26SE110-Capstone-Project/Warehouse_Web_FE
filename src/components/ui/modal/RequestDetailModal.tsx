@@ -10,6 +10,11 @@ import {
 } from '../../../data/rentalRequestStatus'
 import type { RentalRequestRow } from '../../../mappers'
 import { MODAL_BODY_SCROLL_SPACE } from '../../../styles/scrollClasses'
+import {
+  formatRentalCapacitySummary,
+  formatRentalProductLineLabel,
+  hasRentalCapacityData,
+} from '../../../utils/rentalCapacitySummary'
 
 type Props = {
   data: RentalRequestRow
@@ -54,6 +59,9 @@ export const RequestDetailModal: React.FC<Props> = ({
     if (!trimmed || !onNotifyGuest) return
     void onNotifyGuest(trimmed)
   }
+
+  const capacitySummary = formatRentalCapacitySummary(data)
+  const showCapacity = hasRentalCapacityData(data)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -145,18 +153,38 @@ export const RequestDetailModal: React.FC<Props> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-xs text-slate-400">
-              {data.estimatedBoxCount != null && (
-                <p>Hộp ước tính: {data.estimatedBoxCount}</p>
-              )}
-              {data.estimatedInboundPerWeek != null && (
-                <p>Nhập/tuần: {data.estimatedInboundPerWeek}</p>
-              )}
-              {data.estimatedOutboundPerWeek != null && (
-                <p>Xuất/tuần: {data.estimatedOutboundPerWeek}</p>
-              )}
-              {data.requestedAreaM2 != null && <p>Diện tích: {data.requestedAreaM2} m²</p>}
-            </div>
+            {showCapacity && (
+              <div>
+                <label className={labelStyle}>Quy mô hàng hóa</label>
+                <div className="rounded-lg border border-cyan-400/20 bg-cyan-400/5 px-4 py-3 space-y-2 text-sm text-slate-300">
+                  {data.productLines && data.productLines.length > 0 && (
+                    <ul className="space-y-1.5">
+                      {data.productLines.map((line, index) => (
+                        <li key={line.lineId ?? `${line.productKind}-${line.size}-${index}`}>
+                          {formatRentalProductLineLabel(line)}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {capacitySummary !== '—' && (
+                    <p className={data.productLines?.length ? 'pt-1 border-t border-white/5 text-slate-400' : ''}>
+                      {capacitySummary}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {(data.estimatedInboundPerWeek != null || data.estimatedOutboundPerWeek != null) && (
+              <div className="grid grid-cols-2 gap-4 text-xs text-slate-400">
+                {data.estimatedInboundPerWeek != null && (
+                  <p>Nhập/tuần: {data.estimatedInboundPerWeek}</p>
+                )}
+                {data.estimatedOutboundPerWeek != null && (
+                  <p>Xuất/tuần: {data.estimatedOutboundPerWeek}</p>
+                )}
+              </div>
+            )}
 
             {data.notes && (
               <div>

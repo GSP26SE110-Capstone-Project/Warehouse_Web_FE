@@ -41,16 +41,16 @@ import {
 
 } from '../../utils/contractSigning'
 
+import { formatDisplayDate, rentalRequestDateOnly } from '../../utils/datePicker'
+
 
 
 function formatContractPeriod(start?: string, end?: string) {
-
-  const fmt = (iso?: string) =>
-
-    iso ? new Date(iso).toLocaleDateString('vi-VN') : '—'
-
+  const fmt = (iso?: string) => {
+    const dateOnly = rentalRequestDateOnly(iso)
+    return dateOnly ? formatDisplayDate(dateOnly) : '—'
+  }
   return `${fmt(start)} → ${fmt(end)}`
-
 }
 
 

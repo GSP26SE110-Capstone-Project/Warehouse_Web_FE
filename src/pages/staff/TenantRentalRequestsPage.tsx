@@ -16,7 +16,7 @@ import {
   estimateRentalDays,
 } from '../../utils/rentalPeriod'
 import { formatDisplayDate, rentalRequestDateOnly } from '../../utils/datePicker'
-import { formatBoxAllocation } from '../../utils/volumeUnits'
+import { formatRentalCapacitySummary } from '../../utils/rentalCapacitySummary'
 
 function RentalStatusBadge({ status }: { status: RentalRequestStatus }) {
   return (
@@ -35,13 +35,8 @@ function contractTypeLabel(value?: string | null) {
   return CONTRACT_TYPE_LABELS[value as keyof typeof CONTRACT_TYPE_LABELS] ?? value
 }
 
-function parsePiecesPerMonthFromNotes(notes?: string | null): number | null {
-  if (!notes) return null
-  const match = notes.match(/Tổng cái\/tháng \(ước tính\):\s*([\d.,]+)/i)
-  if (!match) return null
-  const normalized = match[1].replace(/\./g, '').replace(',', '.')
-  const n = Number(normalized)
-  return Number.isFinite(n) && n > 0 ? n : null
+function formatCapacitySummary(item: ApiRentalRequest): string {
+  return formatRentalCapacitySummary(item)
 }
 
 function formatRentalPeriod(start?: string | null, end?: string | null) {
@@ -57,35 +52,6 @@ function formatRentalPeriod(start?: string | null, end?: string | null) {
     months,
     days,
   }
-}
-
-function formatCapacitySummary(item: ApiRentalRequest): string {
-  const totalU = item.totalCommittedVolumeUnits != null ? Number(item.totalCommittedVolumeUnits) : 0
-  if (totalU > 0) {
-    const allocation =
-      item.boxAllocation ??
-      (Array.isArray(item.boxAllocationJson) ? item.boxAllocationJson : [])
-    const boxLabel = allocation.length ? formatBoxAllocation(allocation) : null
-    const parts = [`${totalU.toLocaleString('vi-VN')} U`]
-    if (item.estimatedBoxCount != null && item.estimatedBoxCount > 0) {
-      parts.push(`~${item.estimatedBoxCount} thùng`)
-    } else if (boxLabel) {
-      parts.push(boxLabel)
-    }
-    return parts.join(' · ')
-  }
-
-  const pieces =
-    parsePiecesPerMonthFromNotes(item.notes) ??
-    (item.estimatedSkuCount != null && item.estimatedSkuCount > 0 ? item.estimatedSkuCount : null)
-  const parts: string[] = []
-  if (pieces != null) {
-    parts.push(`${pieces.toLocaleString('vi-VN')} cái/tháng`)
-  }
-  if (item.requestedAreaM2 != null && item.requestedAreaM2 > 0) {
-    parts.push(`${item.requestedAreaM2.toLocaleString('vi-VN')} m²`)
-  }
-  return parts.length ? parts.join(' · ') : '—'
 }
 
 export function TenantRentalRequestsPage() {

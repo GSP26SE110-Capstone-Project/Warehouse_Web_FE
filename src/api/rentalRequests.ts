@@ -53,6 +53,10 @@ export function lookupRentalRequestByCode(code: string, email: string) {
   )
 }
 
+export function getRentalRequest(rentalRequestId: string) {
+  return apiRequest<ApiRentalRequest>(`/rental-requests/${rentalRequestId}`)
+}
+
 export function createRentalRequest(body: {
   tenantId: string
   city: string
@@ -117,12 +121,20 @@ export interface ApiContractPriceEstimate {
 
 export function getContractPriceEstimate(
   rentalRequestId: string,
-  params?: { warehouseId?: string; zoneIds?: string[]; contractType?: string }
+  params?: {
+    warehouseId?: string
+    zoneIds?: string[]
+    contractType?: string
+    startDate?: string
+    endDate?: string
+  }
 ) {
   const q: Record<string, string> = {}
   if (params?.warehouseId) q.warehouseId = params.warehouseId
   if (params?.zoneIds?.length) q.zoneIds = params.zoneIds.join(',')
   if (params?.contractType) q.contractType = params.contractType
+  if (params?.startDate) q.startDate = params.startDate
+  if (params?.endDate) q.endDate = params.endDate
   return apiRequest<ApiContractPriceEstimate>(
     `/rental-requests/${rentalRequestId}/price-estimate${buildQuery(q)}`
   )

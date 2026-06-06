@@ -1,20 +1,13 @@
-import type { ChangeEvent } from 'react'
 import { UserAvatarMenu } from './UserAvatarMenu'
 import { AdminNotificationBell } from './AdminNotificationBell'
 
 type AdminHeaderProps = {
   title?: string
-  onSearchChange?: (value: string) => void
 }
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({
   title = 'Admin Dashboard',
-  onSearchChange,
 }) => {
-  const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
-    onSearchChange?.(event.target.value)
-  }
-
   return (
     <header className="relative z-20 flex items-center justify-between overflow-visible border-b border-white/5 bg-[#0b101a]/40 px-8 py-5 backdrop-blur-md">
       <div className="flex flex-col">
@@ -26,20 +19,6 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-6">
-        <div className="group relative hidden w-96 md:block">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <span className="material-symbols-outlined text-slate-500 transition-colors group-focus-within:text-[#06edf9]">
-              search
-            </span>
-          </div>
-          <input
-            type="text"
-            placeholder="Search SKU, Serial, or Location..."
-            onChange={handleSearchChange}
-            className="block w-full rounded-lg border border-white/10 bg-[#1a2333]/60 py-2.5 pl-10 pr-3 font-mono text-sm text-white placeholder-slate-500 transition-all focus:border-[#06edf9]/50 focus:outline-none focus:ring-1 focus:ring-[#06edf9]"
-          />
-        </div>
-
         <AdminNotificationBell />
 
         <UserAvatarMenu />
