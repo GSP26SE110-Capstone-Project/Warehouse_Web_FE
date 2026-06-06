@@ -219,6 +219,15 @@ export const Router: React.FC = () => {
               />
               <Route path="/staff/my-deliveries" element={<MyDeliveriesPage />} />
               <Route
+                path="/staff/my-deliveries/outbound/:outboundRequestId"
+                element={
+                  <OutboundDetailPage
+                    mode="transporter"
+                    basePath="/staff/my-deliveries"
+                  />
+                }
+              />
+              <Route
                 path="/staff/my-deliveries/:inboundRequestId"
                 element={
                   <InboundDetailPage

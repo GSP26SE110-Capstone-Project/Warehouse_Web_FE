@@ -12,3 +12,17 @@ export const DELIVERY_MODE_OPTIONS: { value: DeliveryMode; label: string; hint: 
     hint: 'Warehouse sẽ điền thông tin xe sau khi duyệt',
   },
 ]
+
+/** Nhãn cho outbound (hướng ngược inbound). */
+export const OUTBOUND_DELIVERY_MODE_OPTIONS: { value: DeliveryMode; label: string; hint: string }[] = [
+  {
+    value: 'TENANT_SELF',
+    label: 'Tenant tự đến kho lấy hàng',
+    hint: 'Nhập biển số xe trước khi WH Admin xuất hàng (SHIPPED)',
+  },
+  {
+    value: 'WAREHOUSE_TRANSPORT',
+    label: 'Kho giao hàng ra',
+    hint: 'Nhập địa chỉ giao — sau SHIPPED WH Admin gán tài xế',
+  },
+]

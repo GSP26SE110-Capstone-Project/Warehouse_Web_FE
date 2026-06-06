@@ -7,6 +7,8 @@ import { DateTimePickerField } from '../../components/ui/DateTimePickerField'
 import { useAuth } from '../../auth/AuthContext'
 import { ApiError } from '../../api/client'
 import * as outboundApi from '../../api/outboundRequests'
+import * as deliveryApi from '../../api/outboundDeliveries'
+import { OUTBOUND_DELIVERY_MODE_OPTIONS, type DeliveryMode } from '../../data/deliveryMode'
 import * as contractsApi from '../../api/contracts'
 import * as skusApi from '../../api/skus'
 import * as warehousesApi from '../../api/warehouses'
@@ -30,6 +32,11 @@ export function OutboundCreatePage({ basePath }: { basePath: string }) {
 
   const [contractId, setContractId] = useState('')
   const [requestedShipDate, setRequestedShipDate] = useState('')
+  const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('TENANT_SELF')
+  const [vehiclePlate, setVehiclePlate] = useState('')
+  const [shipToAddress, setShipToAddress] = useState('')
+  const [shipToContactName, setShipToContactName] = useState('')
+  const [shipToContactPhone, setShipToContactPhone] = useState('')
   const [lines, setLines] = useState<LineDraft[]>([{ skuId: '', requestedQuantity: 1 }])
 
   const [alert, setAlert] = useState<{
@@ -82,6 +89,17 @@ export function OutboundCreatePage({ basePath }: { basePath: string }) {
       return
     }
 
+    if (deliveryMode === 'WAREHOUSE_TRANSPORT') {
+      if (!shipToAddress.trim() || !shipToContactName.trim() || !shipToContactPhone.trim()) {
+        setAlert({ open: true, type: 'warning', message: 'Nhập đầy đủ địa chỉ giao hàng' })
+        return
+      }
+    }
+    if (deliveryMode === 'TENANT_SELF' && !vehiclePlate.trim()) {
+      setAlert({ open: true, type: 'warning', message: 'Nhập biển số xe lấy hàng' })
+      return
+    }
+
     setSubmitting(true)
     setError('')
     try {
@@ -90,9 +108,21 @@ export function OutboundCreatePage({ basePath }: { basePath: string }) {
         contractId,
         warehouseId: selectedContract.warehouseId,
         requestedShipDate: requestedShipDate || undefined,
+        deliveryMode,
         status: 'PENDING',
         items: validLines,
       })
+      if (deliveryMode === 'WAREHOUSE_TRANSPORT') {
+        await deliveryApi.upsertOutboundDelivery(created.outboundRequestId, {
+          shipToAddress: shipToAddress.trim(),
+          shipToContactName: shipToContactName.trim(),
+          shipToContactPhone: shipToContactPhone.trim(),
+        })
+      } else {
+        await deliveryApi.upsertOutboundDelivery(created.outboundRequestId, {
+          vehiclePlate: vehiclePlate.trim().toUpperCase(),
+        })
+      }
       navigate(`${basePath}/${created.outboundRequestId}`)
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Tạo phiếu xuất thất bại'
@@ -146,6 +176,65 @@ export function OutboundCreatePage({ basePath }: { basePath: string }) {
             onChange={setRequestedShipDate}
             placeholder="Ngày xuất dự kiến"
           />
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+              Hình thức giao hàng *
+            </label>
+            <select
+              aria-label="Hình thức giao hàng"
+              value={deliveryMode}
+              onChange={(e) => setDeliveryMode(e.target.value as DeliveryMode)}
+              className="w-full rounded-lg border border-white/10 bg-[#1a2333] px-3 py-2 text-sm"
+            >
+              {OUTBOUND_DELIVERY_MODE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-slate-500">
+              {OUTBOUND_DELIVERY_MODE_OPTIONS.find((o) => o.value === deliveryMode)?.hint}
+            </p>
+          </div>
+
+          {deliveryMode === 'TENANT_SELF' && (
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+                Biển số xe lấy hàng *
+              </label>
+              <input
+                value={vehiclePlate}
+                onChange={(e) => setVehiclePlate(e.target.value)}
+                className="w-full rounded-lg border border-white/10 bg-[#1a2333] px-3 py-2 text-sm font-mono uppercase"
+                placeholder="51A-12345"
+              />
+            </div>
+          )}
+
+          {deliveryMode === 'WAREHOUSE_TRANSPORT' && (
+            <div className="space-y-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4">
+              <p className="text-xs font-semibold uppercase text-emerald-400/90">Địa chỉ giao hàng</p>
+              <input
+                value={shipToAddress}
+                onChange={(e) => setShipToAddress(e.target.value)}
+                placeholder="Địa chỉ nhận hàng *"
+                className="w-full rounded-lg border border-white/10 bg-[#1a2333] px-3 py-2 text-sm"
+              />
+              <input
+                value={shipToContactName}
+                onChange={(e) => setShipToContactName(e.target.value)}
+                placeholder="Tên người nhận *"
+                className="w-full rounded-lg border border-white/10 bg-[#1a2333] px-3 py-2 text-sm"
+              />
+              <input
+                value={shipToContactPhone}
+                onChange={(e) => setShipToContactPhone(e.target.value)}
+                placeholder="SĐT người nhận *"
+                className="w-full rounded-lg border border-white/10 bg-[#1a2333] px-3 py-2 text-sm"
+              />
+            </div>
+          )}
 
           <div>
             <div className="mb-2 flex items-center justify-between">

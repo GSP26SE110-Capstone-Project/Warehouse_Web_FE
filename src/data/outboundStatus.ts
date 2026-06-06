@@ -37,7 +37,7 @@ export const WH_OUTBOUND_NEXT_STATUS: Partial<
   PACKING: {
     label: 'Duyệt packing & xuất hàng',
     status: 'SHIPPED',
-    hint: 'WH Admin kiểm tra pick rồi trừ tồn',
+    hint: 'Trừ tồn ngay — sau đó gán tài xế (nếu kho giao ra)',
   },
   SHIPPED: { label: 'Hoàn tất phiếu', status: 'COMPLETED' },
 }

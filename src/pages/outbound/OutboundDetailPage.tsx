@@ -4,20 +4,25 @@ import { InlineAlert } from '../../components/ui/FeedbackAlert'
 import { LoadingOverlay } from '../../components/ui/LoadingOverlay'
 import { AlertModal } from '../../components/ui/modal/AlertModal'
 import { OutboundStatusBadge } from '../../components/outbound/OutboundStatusBadge'
+import { FifoAllocationTable } from '../../components/outbound/FifoAllocationTable'
 import { useAuth } from '../../auth/AuthContext'
 import { ApiError } from '../../api/client'
 import * as outboundApi from '../../api/outboundRequests'
+import * as deliveryApi from '../../api/outboundDeliveries'
+import type { ApiOutboundDelivery } from '../../api/outboundDeliveries'
 import * as usersApi from '../../api/users'
 import type { ApiUser } from '../../api/types'
 import type {
   ApiOutboundRequestWithItems,
+  OutboundFifoPreviewResponse,
   OutboundPickingTasksResponse,
   OutboundStatus,
 } from '../../api/outboundRequests'
+import { OUTBOUND_DELIVERY_MODE_OPTIONS } from '../../data/deliveryMode'
 import { getWhOutboundNextAction } from '../../data/outboundStatus'
 import { formatDate } from '../../mappers'
 
-type Mode = 'tenant' | 'warehouse'
+type Mode = 'tenant' | 'warehouse' | 'transporter'
 
 type Props = {
   mode: Mode
@@ -28,11 +33,21 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
   const { outboundRequestId = '' } = useParams()
   const { user } = useAuth()
   const isWarehouse = mode === 'warehouse'
+  const isTransporter = mode === 'transporter'
+  const isTenant = mode === 'tenant'
 
   const [outbound, setOutbound] = useState<ApiOutboundRequestWithItems | null>(null)
+  const [delivery, setDelivery] = useState<ApiOutboundDelivery | null>(null)
   const [picking, setPicking] = useState<OutboundPickingTasksResponse | null>(null)
+  const [fifoPreview, setFifoPreview] = useState<OutboundFifoPreviewResponse | null>(null)
   const [staffList, setStaffList] = useState<ApiUser[]>([])
+  const [transporters, setTransporters] = useState<ApiUser[]>([])
   const [assignedPickerUserId, setAssignedPickerUserId] = useState('')
+  const [assignedDriverUserId, setAssignedDriverUserId] = useState('')
+  const [vehiclePlate, setVehiclePlate] = useState('')
+  const [shipToAddress, setShipToAddress] = useState('')
+  const [shipToContactName, setShipToContactName] = useState('')
+  const [shipToContactPhone, setShipToContactPhone] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -41,38 +56,68 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
     message: '',
   })
 
+  const isWhAdmin =
+    isWarehouse && (user?.role === 'WH_ADMIN' || user?.role === 'SYSTEM_ADMIN')
+  const isWhStaff = isWarehouse && user?.role === 'WH_STAFF'
+
   const load = useCallback(async () => {
     if (!outboundRequestId) return
     setLoading(true)
     setError('')
     try {
-      const [ob, pick] = await Promise.all([
-        outboundApi.getOutboundRequest(outboundRequestId, { includeItems: true }),
-        outboundApi.listOutboundPickingTasks(outboundRequestId).catch(() => null),
+      const loadPreview =
+        isWhAdmin && !isTransporter
+          ? outboundApi.previewOutboundFifoAllocation(outboundRequestId).catch(() => null)
+          : Promise.resolve(null)
+
+      const [ob, pick, preview] = await Promise.all([
+        outboundApi.getOutboundRequest(outboundRequestId, {
+          includeItems: true,
+          includeDelivery: true,
+        }),
+        isTransporter
+          ? Promise.resolve(null)
+          : outboundApi.listOutboundPickingTasks(outboundRequestId).catch(() => null),
+        loadPreview,
       ])
       setOutbound(ob)
+      setDelivery(ob.delivery ?? null)
       setPicking(pick)
+      setFifoPreview(
+        preview && ['PENDING', 'APPROVED'].includes(ob.status) ? preview : null
+      )
+      if (ob.delivery) {
+        setAssignedDriverUserId(ob.delivery.assignedDriverUserId ?? '')
+        setVehiclePlate(ob.delivery.vehiclePlate ?? '')
+        setShipToAddress(ob.delivery.shipToAddress ?? '')
+        setShipToContactName(ob.delivery.shipToContactName ?? '')
+        setShipToContactPhone(ob.delivery.shipToContactPhone ?? '')
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không tải được phiếu xuất')
     } finally {
       setLoading(false)
     }
-  }, [outboundRequestId])
+  }, [outboundRequestId, isTransporter, isWhAdmin])
 
   useEffect(() => {
     void load()
   }, [load])
 
-  const isWhAdmin =
-    isWarehouse && (user?.role === 'WH_ADMIN' || user?.role === 'SYSTEM_ADMIN')
-  const isWhStaff = isWarehouse && user?.role === 'WH_STAFF'
-
   useEffect(() => {
     if (!isWhAdmin) return
-    void usersApi
-      .listUsers({ role: 'WH_STAFF', status: 'ACTIVE', limit: 100 })
-      .then((res) => setStaffList(res.items))
-      .catch(() => setStaffList([]))
+    void Promise.all([
+      usersApi.listUsers({ role: 'WH_STAFF', status: 'ACTIVE', limit: 100 }),
+      usersApi.listUsers({ role: 'WH_TRANSPORTER', status: 'ACTIVE', limit: 100 }),
+    ])
+      .then(([staff, trans]) => {
+        setStaffList(staff.items)
+        setTransporters(trans.items)
+      })
+      .catch(() => {
+        setStaffList([])
+        setTransporters([])
+      })
   }, [isWhAdmin])
 
   useEffect(() => {
@@ -129,19 +174,83 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
     }
   }
 
-  const handleCancel = () => patchStatus('CANCELLED')
+  const assignedPickerId = picking?.tasks[0]?.assignedTo
+  const assignedPickerName =
+    staffList.find((s) => s.userId === assignedPickerId)?.fullName ?? assignedPickerId
+
+  const reservedFifoRows =
+    picking?.tasks.flatMap((task) => task.items) ?? []
 
   const nextAction = (() => {
-    if (!outbound) return undefined
+    if (!outbound || isTransporter) return undefined
     const action = getWhOutboundNextAction(outbound.status, user?.role)
     if (isWhStaff && assignedPickerId && assignedPickerId !== user?.userId) {
       return undefined
     }
     return action
   })()
-  const assignedPickerId = picking?.tasks[0]?.assignedTo
-  const assignedPickerName =
-    staffList.find((s) => s.userId === assignedPickerId)?.fullName ?? assignedPickerId
+
+  const saveDelivery = async (body: Parameters<typeof deliveryApi.upsertOutboundDelivery>[1]) => {
+    if (!outboundRequestId) return
+    setBusy(true)
+    setError('')
+    try {
+      const saved = await deliveryApi.upsertOutboundDelivery(outboundRequestId, body)
+      setDelivery(saved)
+      setAlert({ open: true, type: 'success', message: 'Đã lưu thông tin giao hàng' })
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Lưu thất bại')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const saveTenantDelivery = () => {
+    if (outbound?.deliveryMode === 'WAREHOUSE_TRANSPORT') {
+      return saveDelivery({
+        shipToAddress,
+        shipToContactName,
+        shipToContactPhone,
+      })
+    }
+    return saveDelivery({
+      vehiclePlate,
+    })
+  }
+
+  const saveAdminDriver = () =>
+    saveDelivery({
+      assignedDriverUserId: assignedDriverUserId.trim() || null,
+      vehiclePlate: vehiclePlate.trim() || undefined,
+    })
+
+  const reportPickup = async () => {
+    setBusy(true)
+    try {
+      await deliveryApi.reportOutboundPickup(outboundRequestId)
+      await load()
+      setAlert({ open: true, type: 'success', message: 'Đã báo lấy hàng khỏi kho' })
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Thất bại')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const reportDelivered = async () => {
+    setBusy(true)
+    try {
+      await deliveryApi.reportOutboundDelivery(outboundRequestId)
+      await load()
+      setAlert({ open: true, type: 'success', message: 'Đã báo giao hàng thành công' })
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Thất bại')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleCancel = () => patchStatus('CANCELLED')
   const canWhAct = isWhAdmin || isWhStaff
   const canWhCancel =
     canWhAct && !['SHIPPED', 'COMPLETED', 'CANCELLED'].includes(outbound?.status ?? '')
@@ -176,10 +285,44 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
                   {outbound.actualShippedAt && (
                     <> · Thực xuất: {formatDate(outbound.actualShippedAt)}</>
                   )}
+                  {outbound.deliveryMode && (
+                    <>
+                      {' · '}
+                      {OUTBOUND_DELIVERY_MODE_OPTIONS.find((o) => o.value === outbound.deliveryMode)
+                        ?.label ?? outbound.deliveryMode}
+                    </>
+                  )}
                 </p>
+                {delivery?.deliveryStatus && outbound.deliveryMode === 'WAREHOUSE_TRANSPORT' && (
+                  <p className="mt-1 text-xs text-cyan-300/90">
+                    Giao hàng: {delivery.deliveryStatus}
+                  </p>
+                )}
               </div>
               <OutboundStatusBadge status={outbound.status} />
             </div>
+
+            {isWhAdmin && fifoPreview && ['PENDING', 'APPROVED'].includes(outbound.status) && (
+              <section className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-sm font-semibold text-cyan-200">
+                      Xem trước phân bổ FIFO
+                    </h2>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Danh sách LPN sẽ được reserve theo thứ tự nhập kho (
+                      {fifoPreview.fifoPolicy}) — gồm batch tương ứng.
+                    </p>
+                  </div>
+                  {!fifoPreview.sufficient && (
+                    <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-300 ring-1 ring-red-400/30">
+                      Thiếu tồn
+                    </span>
+                  )}
+                </div>
+                <FifoAllocationTable rows={fifoPreview.allocations} />
+              </section>
+            )}
 
             {isWhAdmin && outbound.status === 'PENDING' && (
               <section className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-4">
@@ -238,7 +381,154 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
               </section>
             )}
 
-            {canWhAct && nextAction && (
+            {isTenant &&
+              outbound.deliveryMode === 'WAREHOUSE_TRANSPORT' &&
+              ['PENDING', 'DRAFT'].includes(outbound.status) && (
+                <section className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+                  <p className="text-sm font-medium text-emerald-200">Địa chỉ giao hàng</p>
+                  <div className="mt-3 space-y-2">
+                    <input
+                      aria-label="Địa chỉ giao"
+                      value={shipToAddress}
+                      onChange={(e) => setShipToAddress(e.target.value)}
+                      placeholder="Địa chỉ nhận hàng *"
+                      className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm"
+                    />
+                    <input
+                      aria-label="Người nhận"
+                      value={shipToContactName}
+                      onChange={(e) => setShipToContactName(e.target.value)}
+                      placeholder="Tên người nhận *"
+                      className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm"
+                    />
+                    <input
+                      aria-label="SĐT người nhận"
+                      value={shipToContactPhone}
+                      onChange={(e) => setShipToContactPhone(e.target.value)}
+                      placeholder="SĐT người nhận *"
+                      className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm"
+                    />
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void saveTenantDelivery()}
+                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                    >
+                      Lưu địa chỉ giao
+                    </button>
+                  </div>
+                </section>
+              )}
+
+            {isTenant &&
+              outbound.deliveryMode === 'TENANT_SELF' &&
+              ['PENDING', 'DRAFT'].includes(outbound.status) && (
+                <section className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+                  <p className="text-sm font-medium text-emerald-200">Xe lấy hàng tại kho</p>
+                  <input
+                    aria-label="Biển số xe"
+                    value={vehiclePlate}
+                    onChange={(e) => setVehiclePlate(e.target.value)}
+                    placeholder="Biển số xe *"
+                    className="mt-3 w-full max-w-xs rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm font-mono uppercase"
+                  />
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void saveTenantDelivery()}
+                    className="mt-3 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                  >
+                    Lưu thông tin xe
+                  </button>
+                </section>
+              )}
+
+            {isWhAdmin &&
+              outbound.status === 'SHIPPED' &&
+              outbound.deliveryMode === 'WAREHOUSE_TRANSPORT' && (
+                <section className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4">
+                  <p className="text-sm font-medium text-cyan-200">Gán tài xế giao hàng</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Sau khi trừ tồn (SHIPPED) — tài xế sẽ lấy hàng tại kho và giao theo địa chỉ tenant.
+                  </p>
+                  {delivery?.shipToAddress && (
+                    <p className="mt-2 text-xs text-emerald-300/90">
+                      Giao đến: {delivery.shipToAddress}
+                    </p>
+                  )}
+                  <select
+                    aria-label="Chọn tài xế"
+                    value={assignedDriverUserId}
+                    onChange={(e) => setAssignedDriverUserId(e.target.value)}
+                    className="mt-3 w-full max-w-md rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm"
+                  >
+                    <option value="">— Chọn WH_TRANSPORTER —</option>
+                    {transporters.map((t) => (
+                      <option key={t.userId} value={t.userId}>
+                        {t.fullName}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={busy || !assignedDriverUserId.trim()}
+                    onClick={() => void saveAdminDriver()}
+                    className="mt-3 rounded-lg border border-cyan-400/40 px-4 py-2 text-sm font-semibold text-cyan-200 hover:bg-cyan-400/10 disabled:opacity-50"
+                  >
+                    Lưu gán tài xế
+                  </button>
+                </section>
+              )}
+
+            {isTransporter && delivery && (
+              <section className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4 space-y-3">
+                <p className="text-sm font-medium text-cyan-200">Chuyến giao xuất kho</p>
+                {delivery.shipToAddress && (
+                  <p className="text-sm text-slate-300">Giao đến: {delivery.shipToAddress}</p>
+                )}
+                <input
+                  aria-label="Biển số xe"
+                  value={vehiclePlate}
+                  onChange={(e) => setVehiclePlate(e.target.value)}
+                  placeholder="Biển số xe"
+                  className="w-full max-w-xs rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm font-mono uppercase"
+                />
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void saveDelivery({ vehiclePlate: vehiclePlate.trim() || undefined })
+                    }
+                    className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/5 disabled:opacity-50"
+                  >
+                    Lưu thông tin xe
+                  </button>
+                  {delivery.deliveryStatus === 'ASSIGNED' && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void reportPickup()}
+                      className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
+                    >
+                      Đã lấy hàng khỏi kho
+                    </button>
+                  )}
+                  {delivery.deliveryStatus === 'IN_TRANSIT' && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void reportDelivered()}
+                      className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
+                    >
+                      Đã giao hàng
+                    </button>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {canWhAct && !isTransporter && nextAction && (
               <section className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-4">
                 <p className="text-sm font-medium text-orange-200">Bước tiếp theo (kho)</p>
                 {nextAction.hint && (
@@ -324,17 +614,17 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
               )}
             </section>
 
-            {picking && (
+            {(picking || reservedFifoRows.length > 0) && (
               <section className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-                <h2 className="text-sm font-semibold text-white">Lệnh pick (FIFO)</h2>
-                {picking.hint && picking.tasks.length === 0 && (
+                <h2 className="text-sm font-semibold text-white">Lệnh pick (FIFO đã reserve)</h2>
+                {picking?.hint && picking.tasks.length === 0 && (
                   <p className="mt-2 text-xs text-amber-300/90">{picking.hint}</p>
                 )}
-                {picking.tasks.length === 0 && !picking.hint && (
+                {reservedFifoRows.length === 0 && !picking?.hint && (
                   <p className="mt-2 text-sm text-slate-500">Chưa có picking task</p>
                 )}
-                {picking.tasks.map((task) => (
-                  <div key={task.pickingTaskId} className="mt-4 space-y-2">
+                {picking?.tasks.map((task) => (
+                  <div key={task.pickingTaskId} className="mt-3">
                     <p className="text-xs text-slate-400">
                       Task {task.pickingTaskId.slice(0, 8)}… · {task.status}
                       {task.assignedTo && (
@@ -349,23 +639,11 @@ export function OutboundDetailPage({ mode, basePath }: Props) {
                         </>
                       )}
                     </p>
-                    <ul className="space-y-1 text-sm">
-                      {task.items.map((item) => (
-                        <li
-                          key={item.pickingTaskItemId}
-                          className="rounded-lg border border-white/5 bg-black/20 px-3 py-2"
-                        >
-                          <span className="font-mono text-cyan-300">{item.lpnCode}</span>
-                          {' · '}
-                          bin <span className="font-mono">{item.binCode}</span>
-                          {' · '}
-                          pick {item.quantityToPick}
-                          {item.pickedQuantity != null ? ` / picked ${item.pickedQuantity}` : ''}
-                        </li>
-                      ))}
-                    </ul>
                   </div>
                 ))}
+                {reservedFifoRows.length > 0 && (
+                  <FifoAllocationTable rows={reservedFifoRows} showPicked />
+                )}
               </section>
             )}
           </div>

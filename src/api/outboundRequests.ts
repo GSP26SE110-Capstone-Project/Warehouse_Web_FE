@@ -20,6 +20,7 @@ export interface ApiOutboundRequest {
   requestedShipDate?: string | null
   actualShippedAt?: string | null
   status: OutboundStatus
+  deliveryMode?: 'TENANT_SELF' | 'WAREHOUSE_TRANSPORT'
   createdBy?: string | null
   approvedBy?: string | null
   createdAt?: string | null
@@ -44,9 +45,11 @@ export interface ApiOutboundRequestItem {
 
 export type ApiOutboundRequestWithItems = ApiOutboundRequest & {
   items: ApiOutboundRequestItem[]
+  delivery?: import('./outboundDeliveries').ApiOutboundDelivery | null
 }
 
 export interface ApiPickingTaskItem {
+  fifoOrder?: number
   pickingTaskItemId: string
   pickingTaskId: string
   inventoryId: string
@@ -58,6 +61,49 @@ export interface ApiPickingTaskItem {
   lpnCode?: string
   binCode?: string
   batchCode?: string
+  skuId?: string
+  skuCode?: string
+  productName?: string
+  size?: string | null
+  color?: string | null
+}
+
+export interface OutboundFifoAllocationRow {
+  fifoOrder: number
+  outboundRequestItemId: string
+  skuId: string
+  skuCode?: string
+  productName?: string
+  size?: string | null
+  color?: string | null
+  inventoryId: string
+  lpnId: string
+  lpnCode?: string
+  binId: string
+  binCode?: string
+  batchId: string
+  batchCode?: string
+  quantityToPick: number
+  receivedAt?: string | null
+  warehouseReceivedAt?: string | null
+}
+
+export interface OutboundFifoPreviewResponse {
+  outboundRequestId: string
+  outboundStatus: OutboundStatus
+  fifoPolicy: string
+  sufficient: boolean
+  lines: {
+    outboundRequestItemId: string
+    skuId: string
+    skuCode?: string
+    productName?: string
+    requestedQuantity: number
+    allocatedQuantity: number
+    shortBy: number
+    allocations: OutboundFifoAllocationRow[]
+  }[]
+  allocations: OutboundFifoAllocationRow[]
 }
 
 export interface ApiPickingTask {
@@ -83,6 +129,7 @@ export function listOutboundRequests(params?: {
   contractId?: string
   status?: OutboundStatus
   assignedPickerMe?: boolean
+  assignedToMe?: boolean
   page?: number
   limit?: number
 }) {
@@ -90,17 +137,19 @@ export function listOutboundRequests(params?: {
     `/outbound-requests${buildQuery({
       ...params,
       assignedPickerMe: params?.assignedPickerMe ? 'true' : undefined,
+      assignedToMe: params?.assignedToMe ? 'true' : undefined,
     })}`
   )
 }
 
 export function getOutboundRequest(
   outboundRequestId: string,
-  options?: { includeItems?: boolean }
+  options?: { includeItems?: boolean; includeDelivery?: boolean }
 ) {
   return apiRequest<ApiOutboundRequestWithItems>(
     `/outbound-requests/${outboundRequestId}${buildQuery({
       includeItems: options?.includeItems ? 'true' : undefined,
+      includeDelivery: options?.includeDelivery ? 'true' : undefined,
     })}`
   )
 }
@@ -110,6 +159,7 @@ export function createOutboundRequest(body: {
   contractId: string
   warehouseId: string
   requestedShipDate?: string
+  deliveryMode?: 'TENANT_SELF' | 'WAREHOUSE_TRANSPORT'
   status?: OutboundStatus
   items?: { skuId: string; requestedQuantity: number }[]
 }) {
@@ -159,6 +209,12 @@ export function addOutboundItem(
 export function listOutboundPickingTasks(outboundRequestId: string) {
   return apiRequest<OutboundPickingTasksResponse>(
     `/outbound-requests/${outboundRequestId}/picking-tasks`
+  )
+}
+
+export function previewOutboundFifoAllocation(outboundRequestId: string) {
+  return apiRequest<OutboundFifoPreviewResponse>(
+    `/outbound-requests/${outboundRequestId}/fifo-preview`
   )
 }
 

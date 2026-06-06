@@ -1,4 +1,5 @@
 import { InlineAlert } from '../FeedbackAlert'
+import type { FeedbackVariant } from '../FeedbackAlert'
 import { useState, useEffect } from 'react'
 import type { ApiUser, UserRole } from '../../../api/types'
 import * as warehousesApi from '../../../api/warehouses'
@@ -97,6 +98,12 @@ export const AccountModal: React.FC<Props> = ({
   const [selectedTenant, setSelectedTenant] = useState<ApiTenant | null>(null)
   const [whAdminByWarehouse, setWhAdminByWarehouse] = useState<Map<string, ApiUser>>(new Map())
   const [tenantAdminByTenant, setTenantAdminByTenant] = useState<Map<string, ApiUser>>(new Map())
+  const [formError, setFormError] = useState<{
+    variant: FeedbackVariant
+    title: string
+    message: string
+    field?: 'password' | 'confirmPassword'
+  } | null>(null)
 
   const roleOptions =
     creatorRole === 'SYSTEM_ADMIN'
@@ -108,6 +115,7 @@ export const AccountModal: React.FC<Props> = ({
           : []
 
   useEffect(() => {
+    setFormError(null)
     if (isCreate) {
       const defaultRole = roleOptions[0]?.value ?? 'WH_ADMIN'
       setForm({ ...EMPTY_FORM, role: defaultRole })
@@ -206,37 +214,82 @@ export const AccountModal: React.FC<Props> = ({
       : undefined
 
   const handleSubmit = () => {
+    setFormError(null)
+
     if (isCreate && !form.email.trim()) {
-      alert('Vui lòng nhập email')
+      setFormError({
+        variant: 'warning',
+        title: 'Thiếu email',
+        message: 'Vui lòng nhập địa chỉ email để tạo tài khoản đăng nhập.',
+      })
       return
     }
+
+    if (isCreate && !form.password.trim()) {
+      setFormError({
+        variant: 'warning',
+        title: 'Thiếu mật khẩu',
+        message:
+          'Mật khẩu ban đầu là bắt buộc khi tạo tài khoản mới. Nhập mật khẩu tối thiểu 8 ký tự và xác nhận lại bên cạnh.',
+        field: 'password',
+      })
+      return
+    }
+
     if (isCreate && form.password.length < 8) {
-      alert('Mật khẩu tối thiểu 8 ký tự')
+      setFormError({
+        variant: 'warning',
+        title: 'Mật khẩu quá ngắn',
+        message: 'Mật khẩu phải có ít nhất 8 ký tự để đảm bảo an toàn.',
+        field: 'password',
+      })
       return
     }
-    if (!isView && form.password !== form.confirmPassword) {
-      alert('Mật khẩu không khớp')
+
+    if (
+      (isCreate || form.password.trim() || form.confirmPassword.trim()) &&
+      form.password !== form.confirmPassword
+    ) {
+      setFormError({
+        variant: 'warning',
+        title: 'Mật khẩu không khớp',
+        message: 'Hai ô mật khẩu phải giống nhau. Kiểm tra lại và thử lưu.',
+        field: 'confirmPassword',
+      })
       return
     }
+
     if (isCreate && creatorRole === 'SYSTEM_ADMIN') {
       if (form.role === 'WH_ADMIN' && !form.warehouseId) {
-        alert('Vui lòng chọn kho cho Warehouse Admin')
+        setFormError({
+          variant: 'warning',
+          title: 'Chưa chọn kho',
+          message: 'Warehouse Admin phải được gán với một kho cụ thể.',
+        })
         return
       }
       if (form.role === 'WH_ADMIN' && existingWhAdmin) {
-        alert(
-          `Kho này đã có Warehouse Admin: ${existingWhAdmin.fullName} (${existingWhAdmin.email}). Mỗi kho chỉ được một WH Admin.`
-        )
+        setFormError({
+          variant: 'warning',
+          title: 'Kho đã có quản trị',
+          message: `Kho này đã có Warehouse Admin: ${existingWhAdmin.fullName} (${existingWhAdmin.email}). Mỗi kho chỉ được một WH Admin.`,
+        })
         return
       }
       if (form.role === 'TENANT_ADMIN' && !form.tenantId) {
-        alert('Vui lòng chọn tenant cho Tenant Admin')
+        setFormError({
+          variant: 'warning',
+          title: 'Chưa chọn tenant',
+          message: 'Tenant Admin phải được gán với một tenant cụ thể.',
+        })
         return
       }
       if (form.role === 'TENANT_ADMIN' && existingTenantAdmin) {
-        alert(
-          `Tenant này đã có Tenant Admin: ${existingTenantAdmin.fullName} (${existingTenantAdmin.email}).`
-        )
+        setFormError({
+          variant: 'warning',
+          title: 'Tenant đã có quản trị',
+          message: `Tenant này đã có Tenant Admin: ${existingTenantAdmin.fullName} (${existingTenantAdmin.email}).`,
+        })
         return
       }
     }
@@ -504,6 +557,15 @@ export const AccountModal: React.FC<Props> = ({
               <h3 className="text-sm font-semibold text-emerald-400">
                 {isCreate ? 'MẬT KHẨU' : 'ĐỔI MẬT KHẨU'}
               </h3>
+              {formError && (
+                <InlineAlert
+                  compact
+                  variant={formError.variant}
+                  title={formError.title}
+                  message={formError.message}
+                  onDismiss={() => setFormError(null)}
+                />
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelStyle}>{isCreate ? 'Mật khẩu' : 'Mật khẩu mới'}</label>
@@ -511,10 +573,22 @@ export const AccountModal: React.FC<Props> = ({
                     type="password"
                     title="Mật khẩu"
                     placeholder="Tối thiểu 8 ký tự"
-                    className={inputStyle}
+                    className={`${inputStyle}${
+                      formError?.field === 'password'
+                        ? ' border-amber-400/50 ring-1 ring-amber-400/30'
+                        : ''
+                    }`}
                     value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    onChange={(e) => {
+                      setFormError(null)
+                      setForm({ ...form, password: e.target.value })
+                    }}
                   />
+                  {isCreate && (
+                    <p className="mt-1 text-[10px] text-slate-500">
+                      Bắt buộc — dùng để đăng nhập lần đầu
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className={labelStyle}>Xác nhận mật khẩu</label>
@@ -522,9 +596,16 @@ export const AccountModal: React.FC<Props> = ({
                     type="password"
                     title="Xác nhận mật khẩu"
                     placeholder="Nhập lại mật khẩu"
-                    className={inputStyle}
+                    className={`${inputStyle}${
+                      formError?.field === 'confirmPassword'
+                        ? ' border-amber-400/50 ring-1 ring-amber-400/30'
+                        : ''
+                    }`}
                     value={form.confirmPassword}
-                    onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                    onChange={(e) => {
+                      setFormError(null)
+                      setForm({ ...form, confirmPassword: e.target.value })
+                    }}
                   />
                 </div>
               </div>
