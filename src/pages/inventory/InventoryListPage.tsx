@@ -144,7 +144,11 @@ export function InventoryListPage({ scope }: Props) {
   }
 
   const inventoryBase =
-    scope === 'tenant' ? '/staff/inventory' : '/admin/inventory'
+    scope === 'tenant'
+      ? '/staff/inventory'
+      : user?.role === 'WH_STAFF'
+        ? '/staff/inventory-ops'
+        : '/admin/inventory'
 
   return (
     <div className="relative flex min-h-full flex-col bg-[#0b101a] p-6 text-slate-100 lg:p-8">

@@ -59,7 +59,6 @@ const WH_STAFF_NAV: NavItem[] = [
   { label: 'AI Putaway', icon: 'psychology', key: 'ai-putaway', href: '/staff/ai-putaway' },
   { label: 'Xuất kho', icon: 'outbound', key: 'outbound-ops', href: '/staff/outbound-ops' },
   { label: 'Tồn kho', icon: 'inventory_2', key: 'inventory-ops', href: '/staff/inventory-ops' },
-  { label: 'Quản lý vận chuyển', icon: 'local_shipping', key: 'requests', href: '/staff/requests' },
 ]
 
 const WH_TRANSPORTER_NAV: NavItem[] = [
@@ -97,10 +96,13 @@ type BottomAction = {
   className?: string
 }
 
-const bottomActions: BottomAction[] = [
-  { label: 'Settings', icon: 'settings', href: '/admin/settings' },
-  { label: 'Log Out', icon: 'logout', href: '/login', className: 'text-slate-500 hover:text-red-400' },
-]
+function bottomActionsForRole(_role?: ApiUser['role']): BottomAction[] {
+  const profileHref = '/profile'
+  return [
+    { label: 'Hồ sơ', icon: 'person', href: profileHref },
+    { label: 'Log Out', icon: 'logout', href: '/login', className: 'text-slate-500 hover:text-red-400' },
+  ]
+}
 
 interface SidebarProps {
   collapsed: boolean
@@ -119,6 +121,7 @@ export const StaffSidebarNav: React.FC<SidebarProps> = ({ collapsed, onToggle })
   const location = useLocation()
   const { logout, user } = useAuth()
   const visibleNav = navItemsForRole(user?.role)
+  const bottomActions = bottomActionsForRole(user?.role)
   const [orgLabel, setOrgLabel] = useState('')
 
   useEffect(() => {

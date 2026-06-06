@@ -1,4 +1,6 @@
 import type { ChangeEvent } from 'react'
+import { useAuth } from '../../../auth/AuthContext'
+import { BarcodeScanPanel } from '../../warehouse/BarcodeScanPanel'
 import { UserAvatarMenu } from './UserAvatarMenu'
 import { TransporterNotificationBell } from './TransporterNotificationBell'
 import { TenantTransportNotificationBell } from './TenantTransportNotificationBell'
@@ -12,21 +14,29 @@ export const StaffHeader: React.FC<StaffHeaderProps> = ({
   title = 'Staff Dashboard',
   onSearchChange,
 }) => {
+  const { user } = useAuth()
+  const isWhStaff = user?.role === 'WH_STAFF'
+
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     onSearchChange?.(event.target.value)
   }
 
   return (
     <header className="relative z-20 flex items-center justify-between overflow-visible border-b border-white/5 bg-[#0b101a]/40 px-8 py-5 backdrop-blur-md">
-      <div className="flex flex-col">
-        <h2 className="text-xl font-bold tracking-tight text-white">{title}</h2>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <h2 className="truncate text-xl font-bold tracking-tight text-white">{title}</h2>
         <p className="mt-1 flex items-center gap-2 font-mono text-xs text-slate-400">
-          <span className="size-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />
+          <span className="size-2 animate-pulse rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
           Intelligent Warehouse Orchestration System
         </p>
       </div>
 
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-4 lg:gap-6">
+        {isWhStaff && (
+          <div className="hidden max-w-md flex-1 xl:block">
+            <BarcodeScanPanel warehouseId={user?.warehouseId ?? undefined} compact />
+          </div>
+        )}
         {onSearchChange && (
           <div className="group relative hidden w-72 lg:block">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">

@@ -39,6 +39,7 @@ export function InboundListPage({ mode, basePath }: Props) {
   const [activeContractCount, setActiveContractCount] = useState<number | null>(null)
   const pageSize = 8
   const isTenantAdmin = user?.role === 'TENANT_ADMIN'
+  const isWhStaff = user?.role === 'WH_STAFF'
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -111,6 +112,7 @@ export function InboundListPage({ mode, basePath }: Props) {
     () => ({
       total: rows.length,
       pending: rows.filter((r) => r.status === 'PENDING').length,
+      arrived: rows.filter((r) => r.status === 'ARRIVED').length,
       receiving: rows.filter((r) => r.status === 'RECEIVING').length,
       completed: rows.filter((r) => r.status === 'COMPLETED').length,
     }),
@@ -134,7 +136,9 @@ export function InboundListPage({ mode, basePath }: Props) {
                 <p className="text-sm text-slate-400">
                   {mode === 'tenant'
                     ? 'Tạo và theo dõi đơn nhập hàng (cần hợp đồng ACTIVE)'
-                    : 'Duyệt, nhận hàng, putaway và hoàn tất inbound'}
+                    : isWhStaff
+                      ? 'Nhận hàng, tạo batch/LPN, putaway và hoàn tất inbound'
+                      : 'Duyệt, nhận hàng, putaway và hoàn tất inbound'}
                 </p>
               </div>
               {canCreate && (
@@ -185,6 +189,55 @@ export function InboundListPage({ mode, basePath }: Props) {
             )}
 
             {mode === 'warehouse' &&
+              isWhStaff &&
+              (stats.arrived > 0 || stats.receiving > 0) && (
+                <div className="flex flex-col gap-3 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-100 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-2">
+                    <span className="material-symbols-outlined shrink-0 text-cyan-300">inventory</span>
+                    <p>
+                      {stats.arrived > 0 && (
+                        <>
+                          <strong>{stats.arrived}</strong> phiếu đã đến kho (ARRIVED) — bắt đầu receiving.
+                          {stats.receiving > 0 ? ' ' : ''}
+                        </>
+                      )}
+                      {stats.receiving > 0 && (
+                        <>
+                          <strong>{stats.receiving}</strong> phiếu đang nhận hàng.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    {stats.arrived > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStatusFilter('ARRIVED')
+                          setCurrentPage(1)
+                        }}
+                        className="rounded-lg border border-cyan-400/40 bg-cyan-400/15 px-4 py-2 text-xs font-semibold"
+                      >
+                        Lọc ARRIVED
+                      </button>
+                    )}
+                    {stats.receiving > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStatusFilter('RECEIVING')
+                          setCurrentPage(1)
+                        }}
+                        className="rounded-lg border border-orange-400/40 bg-orange-400/15 px-4 py-2 text-xs font-semibold text-orange-100"
+                      >
+                        Lọc RECEIVING
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            {mode === 'warehouse' &&
               user?.role === 'WH_ADMIN' &&
               stats.pending > 0 && (
                 <div className="flex flex-col gap-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
@@ -210,8 +263,17 @@ export function InboundListPage({ mode, basePath }: Props) {
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
               <StatsCard title="Tổng" value={stats.total} icon="inventory_2" accentColor="emerald" />
-              <StatsCard title="Chờ duyệt" value={stats.pending} icon="pending" accentColor="primary" />
-              <StatsCard title="Đang nhận" value={stats.receiving} icon="input" accentColor="orange" />
+              {mode === 'warehouse' && isWhStaff ? (
+                <>
+                  <StatsCard title="Đã đến kho" value={stats.arrived} icon="local_shipping" accentColor="primary" />
+                  <StatsCard title="Đang nhận" value={stats.receiving} icon="input" accentColor="orange" />
+                </>
+              ) : (
+                <StatsCard title="Chờ duyệt" value={stats.pending} icon="pending" accentColor="primary" />
+              )}
+              {!(mode === 'warehouse' && isWhStaff) && (
+                <StatsCard title="Đang nhận" value={stats.receiving} icon="input" accentColor="orange" />
+              )}
               <StatsCard title="Hoàn tất" value={stats.completed} icon="check_circle" accentColor="purple" />
             </div>
 

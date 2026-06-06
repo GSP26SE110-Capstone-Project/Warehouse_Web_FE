@@ -67,6 +67,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const tenantId = user?.tenantId ?? ''
+  const isWhAdmin = user?.role === 'WH_ADMIN' || user?.role === 'SYSTEM_ADMIN'
   const isTransporter = mode === 'transporter'
   const isWarehouse = mode === 'warehouse'
   const isTenantAdmin = user?.role === 'TENANT_ADMIN'
@@ -250,7 +251,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
   useEffect(() => {
     if (
       !isWarehouse ||
-      (user?.role !== 'WH_ADMIN' && user?.role !== 'WH_STAFF')
+      !isWhAdmin
     ) {
       return
     }
@@ -266,7 +267,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
     return () => {
       cancelled = true
     }
-  }, [isWarehouse, user?.role])
+  }, [isWarehouse, isWhAdmin])
 
   useEffect(() => {
     if (!isWarehouse || isTransporter) return
@@ -380,6 +381,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
         !tenantDeliveryLocked
 
   const canAssignTransporter =
+    isWhAdmin &&
     isWarehouse &&
     isWarehouseTransport &&
     inbound &&
@@ -746,6 +748,13 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                 <InboundApprovalPanel readiness={readiness} />
               )}
 
+              {isWarehouse && user?.role === 'WH_STAFF' && inbound.status === 'PENDING' && (
+                <div className="mb-4 rounded-lg border border-slate-500/30 bg-slate-500/10 px-4 py-3 text-sm text-slate-300">
+                  Phiếu đang chờ WH Admin duyệt — nhân viên kho xử lý receiving sau khi{' '}
+                  <strong>APPROVED → ARRIVED</strong>.
+                </div>
+              )}
+
               <section className="mb-6 rounded-xl border border-white/10 bg-white/5 p-4">
                 <h2 className="mb-2 font-semibold">Vận chuyển đến kho</h2>
                 <p className="mb-3 text-xs text-slate-500">
@@ -966,7 +975,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
               {/* Warehouse workflow actions */}
               {isWarehouse && !isTransporter && (
                 <div className="mb-6 flex flex-wrap gap-2">
-                  {inbound.status === 'PENDING' && (
+                  {isWhAdmin && inbound.status === 'PENDING' && (
                     <>
                       <button
                         type="button"
@@ -992,7 +1001,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                       </button>
                     </>
                   )}
-                  {inbound.status === 'APPROVED' && !isWarehouseTransport && (
+                  {inbound.status === 'APPROVED' && !isWarehouseTransport && (isWhAdmin || user?.role === 'WH_STAFF') && (
                     <button
                       type="button"
                       onClick={() =>
@@ -1005,7 +1014,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                       Xe đã đến
                     </button>
                   )}
-                  {inbound.status === 'APPROVED' && (
+                  {isWhAdmin && inbound.status === 'APPROVED' && (
                     <>
                       {readiness?.canRevokeApproval && (
                         <button
@@ -1038,7 +1047,7 @@ export function InboundDetailPage({ mode, basePath }: Props) {
                   )}
                   {inbound.status === 'ARRIVED' && (
                     <>
-                      {readiness?.canWarehouseCancel && (
+                      {isWhAdmin && readiness?.canWarehouseCancel && (
                         <button
                           type="button"
                           onClick={confirmWarehouseCancel}

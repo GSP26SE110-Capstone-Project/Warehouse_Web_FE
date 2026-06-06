@@ -36,6 +36,7 @@ export function OutboundListPage({ mode, basePath }: Props) {
   const [statusFilter, setStatusFilter] = useState<OutboundStatus | 'all'>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 8
+  const isWhStaff = user?.role === 'WH_STAFF'
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -131,7 +132,9 @@ export function OutboundListPage({ mode, basePath }: Props) {
                 <p className="text-sm text-slate-400">
                   {mode === 'tenant'
                     ? 'Tạo phiếu xuất theo HĐ ACTIVE/TERMINATED (còn tồn khả dụng)'
-                    : 'Duyệt, pick, đóng gói và xuất hàng (FIFO)'}
+                    : isWhStaff
+                      ? 'Duyệt, pick, đóng gói và shipped (FIFO + scan OUT-*)'
+                      : 'Duyệt, pick, đóng gói và xuất hàng (FIFO)'}
                 </p>
               </div>
               {canCreate && (
@@ -146,6 +149,25 @@ export function OutboundListPage({ mode, basePath }: Props) {
             </div>
 
             {error && <InlineAlert message={error} onDismiss={() => setError('')} />}
+
+            {mode === 'warehouse' && isWhStaff && stats.inProgress > 0 && (
+              <div className="flex flex-col gap-3 rounded-lg border border-violet-400/30 bg-violet-400/10 px-4 py-3 text-sm text-violet-100 sm:flex-row sm:items-center sm:justify-between">
+                <p>
+                  <strong>{stats.inProgress}</strong> phiếu đang pick/đóng gói — mở chi tiết để cập nhật
+                  trạng thái (RESERVED → PICKING → PACKING → SHIPPED).
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter('PICKING')
+                    setCurrentPage(1)
+                  }}
+                  className="shrink-0 rounded-lg border border-violet-400/40 px-4 py-2 text-xs font-semibold hover:bg-violet-400/15"
+                >
+                  Lọc đang pick
+                </button>
+              </div>
+            )}
 
             {mode === 'warehouse' && stats.pending > 0 && (
               <div className="flex flex-col gap-3 rounded-lg border border-orange-400/30 bg-orange-400/10 px-4 py-3 text-sm text-orange-100 sm:flex-row sm:items-center sm:justify-between">
