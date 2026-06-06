@@ -54,6 +54,64 @@ export function meetsMinimumRentalMonths(startDate: string, endDate: string): bo
   return estimateRentalDays(startDate, endDate) >= MIN_RENTAL_DAYS
 }
 
+/** Số tháng lịch trong kỳ HĐ (cùng công thức BE `contractBillingMonths`). */
+export function contractBillingMonths(startDate: string, endDate: string): number {
+  const start = parseIsoDate(startDate) ?? parseDateOnly(startDate)
+  const end = parseIsoDate(endDate) ?? parseDateOnly(endDate)
+  if (!start || !end) return 1
+  let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+  if (end.getDate() < start.getDate()) {
+    months -= 1
+  }
+  return Math.max(1, months)
+}
+
+export type EffectiveContractDates = {
+  startDate: string
+  endDate: string
+  shifted: boolean
+  billingMonths: number
+  requestedStartDate?: string
+  requestedEndDate?: string
+}
+
+/**
+ * Khi WH duyệt muộn hơn ngày bắt đầu dự kiến: dịch start lên `effectiveFrom` (mặc định hôm nay),
+ * end = start + số tháng lịch khách đã chọn — giữ đủ thời hạn thuê.
+ */
+export function resolveEffectiveContractDates(
+  expectedStart: string,
+  expectedEnd: string,
+  effectiveFrom: string = minRentalStartDate()
+): EffectiveContractDates {
+  const start = expectedStart.trim()
+  const end = expectedEnd.trim()
+  if (!start || !end) {
+    return { startDate: start, endDate: end, shifted: false, billingMonths: 0 }
+  }
+
+  const billingMonths = contractBillingMonths(start, end)
+
+  if (start >= effectiveFrom) {
+    return { startDate: start, endDate: end, shifted: false, billingMonths }
+  }
+
+  const effectiveStart = effectiveFrom
+  const effectiveEnd = addCalendarMonthsToDateOnly(effectiveStart, billingMonths)
+  if (!effectiveEnd || !meetsMinimumRentalMonths(effectiveStart, effectiveEnd)) {
+    return { startDate: start, endDate: end, shifted: false, billingMonths }
+  }
+
+  return {
+    startDate: effectiveStart,
+    endDate: effectiveEnd,
+    shifted: true,
+    billingMonths,
+    requestedStartDate: start,
+    requestedEndDate: end,
+  }
+}
+
 /** Cộng số tháng lịch vào ngày bắt đầu (giữ nguyên ngày trong tháng). VD: 2026-06-05 + 2 → 2026-08-05 */
 export function addCalendarMonthsToDateOnly(startDate: string, monthCount: number): string {
   if (!startDate || monthCount <= 0) return ''

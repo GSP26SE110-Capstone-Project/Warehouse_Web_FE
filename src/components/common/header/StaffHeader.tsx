@@ -3,6 +3,7 @@ import { useAuth } from '../../../auth/AuthContext'
 import { BarcodeScanPanel } from '../../warehouse/BarcodeScanPanel'
 import { UserAvatarMenu } from './UserAvatarMenu'
 import { TransporterNotificationBell } from './TransporterNotificationBell'
+import { TenantNotificationBell } from './TenantNotificationBell'
 import { TenantTransportNotificationBell } from './TenantTransportNotificationBell'
 
 type StaffHeaderProps = {
@@ -53,6 +54,7 @@ export const StaffHeader: React.FC<StaffHeaderProps> = ({
           </div>
         )}
 
+        <TenantNotificationBell />
         <TenantTransportNotificationBell />
         <TransporterNotificationBell />
 

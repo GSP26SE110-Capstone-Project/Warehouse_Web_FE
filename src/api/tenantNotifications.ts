@@ -21,3 +21,44 @@ export interface TenantTransportAlerts {
 export function fetchTenantInboundTransportAlerts() {
   return apiRequest<TenantTransportAlerts>('/admin/notifications/tenant-inbound-transport')
 }
+
+export interface TenantRentalAlertItem {
+  rentalRequestId: string
+  requestCode: string
+  status: string
+  city?: string | null
+  district?: string | null
+  warehouseName?: string | null
+  rejectionReason?: string | null
+  reviewedAt?: string | null
+}
+
+export interface TenantRentalAlerts {
+  approvedCount: number
+  rejectedCount: number
+  recent: TenantRentalAlertItem[]
+}
+
+export function fetchTenantRentalStatusAlerts() {
+  return apiRequest<TenantRentalAlerts>('/admin/notifications/tenant-rental-status')
+}
+
+export interface TenantContractAlertItem {
+  contractId: string
+  contractCode: string
+  contractName?: string | null
+  status: string
+  estimatedTotalAmount?: number
+  warehouseName?: string | null
+  updatedAt?: string | null
+}
+
+export interface TenantContractAlerts {
+  needsSignCount: number
+  needsPaymentCount: number
+  recent: TenantContractAlertItem[]
+}
+
+export function fetchTenantContractActionAlerts() {
+  return apiRequest<TenantContractAlerts>('/admin/notifications/tenant-contract-actions')
+}

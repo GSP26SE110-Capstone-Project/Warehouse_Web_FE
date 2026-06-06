@@ -38,7 +38,8 @@ import {
   estimateZoneLpnCapacity,
   formatZoneRackSummary,
 } from '../../../utils/warehouseCapacity'
-import { estimateMonthCount } from '../../../utils/rentalPeriod'
+import { estimateMonthCount, resolveEffectiveContractDates } from '../../../utils/rentalPeriod'
+import { formatDisplayDate, rentalRequestDateOnly } from '../../../utils/datePicker'
 import {
   filterWarehousesForRentalClaim,
   type WarehouseWithRegion,
@@ -157,8 +158,21 @@ export function RentalOnboardingWizard({
   const [contractId, setContractId] = useState<string | null>(null)
   const [linkedContract, setLinkedContract] = useState<ApiContract | null>(null)
   const [contractLoading, setContractLoading] = useState(false)
-  const contractStart = toDateInput(row.expectedStartDate)
-  const contractEnd = toDateInput(row.expectedEndDate)
+  const effectiveDates = useMemo(() => {
+    const requestedStart = rentalRequestDateOnly(row.expectedStartDate)
+    const requestedEnd = rentalRequestDateOnly(row.expectedEndDate)
+    if (!requestedStart || !requestedEnd) {
+      return {
+        startDate: requestedStart,
+        endDate: requestedEnd,
+        shifted: false,
+        billingMonths: 0,
+      }
+    }
+    return resolveEffectiveContractDates(requestedStart, requestedEnd)
+  }, [row.expectedStartDate, row.expectedEndDate])
+  const contractStart = effectiveDates.startDate
+  const contractEnd = effectiveDates.endDate
   const [priceEstimate, setPriceEstimate] = useState<ApiContractPriceEstimate | null>(null)
   const [allocationPriceEstimate, setAllocationPriceEstimate] =
     useState<ApiContractPriceEstimate | null>(null)
@@ -426,9 +440,11 @@ export function RentalOnboardingWizard({
         warehouseId: wh,
         zoneIds: zoneIds.length > 0 ? zoneIds : undefined,
         contractType: contractTypeParam,
+        startDate: contractStart || undefined,
+        endDate: contractEnd || undefined,
       })
     },
-    [row.rentalRequestId, row.contractType, contractType]
+    [row.rentalRequestId, row.contractType, contractType, contractStart, contractEnd]
   )
 
   const resolveLinkedContract = useCallback(
@@ -529,7 +545,13 @@ export function RentalOnboardingWizard({
     }
     let cancelled = false
     setAllocationPriceLoading(true)
-    fetchContractPriceEstimate(loadWh, storagePlan.needsZone ? selectedZoneIds : [])
+    const zoneIdsForPrice =
+      contractType === 'SHARED_STORAGE'
+        ? []
+        : storagePlan.needsZone
+          ? selectedZoneIds
+          : []
+    fetchContractPriceEstimate(loadWh, zoneIdsForPrice)
       .then((est) => {
         if (!cancelled) setAllocationPriceEstimate(est)
       })
@@ -546,6 +568,7 @@ export function RentalOnboardingWizard({
     step,
     whId,
     warehouseId,
+    contractType,
     storagePlan.needsZone,
     selectedZoneIds,
     fetchContractPriceEstimate,
@@ -707,9 +730,15 @@ export function RentalOnboardingWizard({
 
       if (existing) {
         applyLinkedContract(existing)
-        if (!contractReadyForStorage(existing)) {
+        const existingStart = rentalRequestDateOnly(existing.startDate)
+        const existingEnd = rentalRequestDateOnly(existing.endDate)
+        const datesOutOfSync =
+          contractStart !== existingStart || contractEnd !== existingEnd
+        if (!contractReadyForStorage(existing) || datesOutOfSync) {
           const updated = await contractsApi.updateContract(existing.contractId, {
-            warehouseSignature: 'SIGNED_WH_ONBOARDING',
+            ...(!contractReadyForStorage(existing)
+              ? { warehouseSignature: 'SIGNED_WH_ONBOARDING' }
+              : {}),
             startDate: contractStart,
             endDate: contractEnd,
           })
@@ -797,8 +826,14 @@ export function RentalOnboardingWizard({
       }
       let contractAmount: number | undefined
       try {
-        const zoneIdsForPrice = storagePlan.needsZone ? selectedZoneIds : []
-        if (!storagePlan.needsZone || zoneIdsForPrice.length > 0) {
+        // SHARED_STORAGE tính theo thùng — không truyền zoneIds (tránh lỗi area zone).
+        const zoneIdsForPrice =
+          contractType === 'SHARED_STORAGE'
+            ? []
+            : storagePlan.needsZone
+              ? selectedZoneIds
+              : []
+        if (contractType === 'SHARED_STORAGE' || !storagePlan.needsZone || zoneIdsForPrice.length > 0) {
           const est = await fetchContractPriceEstimate(wh, zoneIdsForPrice)
           if (est.suggestedTotalAmount > 0) {
             contractAmount = est.suggestedTotalAmount
@@ -1136,9 +1171,32 @@ export function RentalOnboardingWizard({
                   />
                 </div>
               </div>
+              {effectiveDates.shifted && effectiveDates.requestedStartDate && effectiveDates.requestedEndDate && (
+                <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-xs text-amber-100">
+                  <p className="font-semibold text-amber-200">
+                    Ngày bắt đầu dự kiến đã qua — thời hạn HĐ được điều chỉnh
+                  </p>
+                  <p className="mt-1.5 leading-relaxed">
+                    Khách gửi:{' '}
+                    <strong className="text-white">
+                      {formatDisplayDate(effectiveDates.requestedStartDate)} →{' '}
+                      {formatDisplayDate(effectiveDates.requestedEndDate)}
+                    </strong>{' '}
+                    ({effectiveDates.billingMonths} tháng). HĐ áp dụng:{' '}
+                    <strong className="text-white">
+                      {formatDisplayDate(contractStart)} → {formatDisplayDate(contractEnd)}
+                    </strong>{' '}
+                    — giữ nguyên {effectiveDates.billingMonths} tháng thuê.
+                  </p>
+                </div>
+              )}
               <p className="text-xs text-slate-500">
-                Thời hạn: <strong className="text-slate-300">{row.startDate || '—'}</strong> →{' '}
-                <strong className="text-slate-300">{row.endDate || '—'}</strong> (từ yêu cầu khách).{' '}
+                Thời hạn HĐ:{' '}
+                <strong className="text-slate-300">
+                  {contractStart ? formatDisplayDate(contractStart) : '—'} →{' '}
+                  {contractEnd ? formatDisplayDate(contractEnd) : '—'}
+                </strong>
+                {effectiveDates.shifted ? ' (đã điều chỉnh)' : ' (từ yêu cầu khách)'}.{' '}
                 <strong className="text-slate-300">Giá trị HĐ</strong> không nhập ở bước này — hệ thống tính và ghi
                 khi <strong className="text-slate-300">cấp bin/zone (bước 3)</strong> theo diện tích zone thực tế. Sau
                 đó HĐ chuyển <strong className="text-slate-300">Chờ tenant ký</strong>.

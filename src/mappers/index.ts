@@ -1,4 +1,12 @@
-import type { ApiContract, ApiRentalRequest, ApiUser, ApiWarehouse, UserRole } from '../api/types'
+import type {
+  ApiBoxAllocationRow,
+  ApiContract,
+  ApiRentalProductLine,
+  ApiRentalRequest,
+  ApiUser,
+  ApiWarehouse,
+  UserRole,
+} from '../api/types'
 import type { WarehouseWhAdmin } from '../types/Warehouse'
 import type { ApiTenant } from '../api/tenants'
 import type { Account } from '../types/Account'
@@ -119,6 +127,8 @@ export type RentalRequestRow = {
   billingCycle?: string | null
   estimatedBoxCount?: number | null
   totalCommittedVolumeUnits?: number | null
+  boxAllocation?: ApiBoxAllocationRow[]
+  productLines?: ApiRentalProductLine[]
   estimatedSkuCount?: number | null
   estimatedInboundPerWeek?: number | null
   estimatedOutboundPerWeek?: number | null
@@ -170,6 +180,8 @@ export function rentalRequestToRow(
     estimatedBoxCount: r.estimatedBoxCount,
     totalCommittedVolumeUnits:
       r.totalCommittedVolumeUnits != null ? Number(r.totalCommittedVolumeUnits) : null,
+    boxAllocation: r.boxAllocation ?? r.boxAllocationJson ?? undefined,
+    productLines: r.productLines,
     estimatedSkuCount: r.estimatedSkuCount,
     estimatedInboundPerWeek: r.estimatedInboundPerWeek,
     estimatedOutboundPerWeek: r.estimatedOutboundPerWeek,

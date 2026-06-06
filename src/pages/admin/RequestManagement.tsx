@@ -67,9 +67,14 @@ export const RequestManagement = () => {
           rentalRequestsApi.listRentalRequests({
             warehouseId: whId,
             regionMatch: true,
+            includeProductLines: true,
             limit: 100,
           }),
-          rentalRequestsApi.listRentalRequests({ warehouseId: whId, limit: 100 }),
+          rentalRequestsApi.listRentalRequests({
+            warehouseId: whId,
+            includeProductLines: true,
+            limit: 100,
+          }),
         ])
         const byId = new Map<string, (typeof inbox.items)[0]>()
         for (const r of [...inbox.items, ...mine.items]) {
@@ -77,7 +82,10 @@ export const RequestManagement = () => {
         }
         rentalItems = [...byId.values()]
       } else {
-        const res = await rentalRequestsApi.listRentalRequests({ limit: 100 })
+        const res = await rentalRequestsApi.listRentalRequests({
+          includeProductLines: true,
+          limit: 100,
+        })
         rentalItems = res.items
       }
 
