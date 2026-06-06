@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { InlineAlert } from '../FeedbackAlert'
 import { AlertModal } from './AlertModal'
 import type { ApiBin } from '../../../api/bins'
+import { MODAL_PANEL_SCROLL } from '../../../styles/scrollClasses'
 
 type LevelOption = { rackLevelId: string; levelNumber: number }
 
@@ -105,7 +106,7 @@ export function BulkBinDeleteModal({
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
+          <div className={MODAL_PANEL_SCROLL}>
             {error && (
               <InlineAlert compact hideTitle message={error} onDismiss={() => setError('')} />
             )}

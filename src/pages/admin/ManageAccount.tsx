@@ -165,10 +165,13 @@ export const AccountManagement: React.FC = () => {
 
       await loadAccounts()
     } catch (err) {
+      const apiErr = err instanceof ApiError ? err : null
       setAlert({
         open: true,
-        type: 'error',
-        message: err instanceof ApiError ? err.message : 'Thao tác thất bại',
+        type: apiErr?.code === 'ADMIN_HAS_ACTIVE_CONTRACT' ? 'warning' : 'error',
+        title:
+          apiErr?.code === 'ADMIN_HAS_ACTIVE_CONTRACT' ? 'Không thể vô hiệu hóa' : 'Thông báo',
+        message: apiErr?.message ?? 'Thao tác thất bại',
       })
     }
   }
@@ -209,11 +212,15 @@ export const AccountManagement: React.FC = () => {
           })
           await loadAccounts()
         } catch (err) {
+          const apiErr = err instanceof ApiError ? err : null
           setAlert({
             open: true,
-            type: 'error',
-            title: 'Có lỗi xảy ra',
-            message: err instanceof ApiError ? err.message : 'Cập nhật trạng thái thất bại',
+            type: apiErr?.code === 'ADMIN_HAS_ACTIVE_CONTRACT' ? 'warning' : 'error',
+            title:
+              apiErr?.code === 'ADMIN_HAS_ACTIVE_CONTRACT'
+                ? 'Không thể vô hiệu hóa'
+                : 'Có lỗi xảy ra',
+            message: apiErr?.message ?? 'Cập nhật trạng thái thất bại',
           })
         } finally {
           setToggleBusyId(null)

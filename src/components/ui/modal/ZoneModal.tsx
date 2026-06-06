@@ -166,6 +166,10 @@ export function ZoneModal({
       setError('Mã zone là bắt buộc')
       return
     }
+    if (!form.zoneName.trim()) {
+      setError('Tên zone là bắt buộc')
+      return
+    }
     const area = areaInput.trim() ? Number(areaInput) : null
     if (areaInput.trim() && (!Number.isFinite(area) || area! < 0)) {
       setError('Diện tích không hợp lệ')
@@ -218,7 +222,7 @@ export function ZoneModal({
           </button>
         </div>
 
-        <div className="dark-scrollbar space-y-4 overflow-y-auto p-6">
+        <div className="dark-scrollbar space-y-4 overflow-y-auto p-6 pr-5 [scrollbar-gutter:stable]">
           <div>
             <label className={labelStyle} htmlFor="zone-warehouse">
               Kho (warehouse)

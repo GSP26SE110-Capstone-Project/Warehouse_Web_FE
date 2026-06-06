@@ -10,6 +10,7 @@ import { ApiError } from '../../../api/client'
 import { DarkDropdownSelect } from '../DarkDropdownSelect'
 import { buildFlatSizeOptions, buildSizeToGroupMap, roundVolumeUnits } from '../../../utils/volumeUnits'
 import { MOVEMENT_CATEGORY_OPTIONS, SKU_STATUS_OPTIONS } from '../../../data/skuOptions'
+import { MODAL_BODY_SCROLL } from '../../../styles/scrollClasses'
 
 type Mode = 'create' | 'edit' | 'view'
 
@@ -278,7 +279,7 @@ export function SkuModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto overflow-x-visible p-6 space-y-4">
+        <form onSubmit={handleSubmit} className={`${MODAL_BODY_SCROLL} space-y-4 overflow-x-visible`}>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelStyle} htmlFor="sku-code">

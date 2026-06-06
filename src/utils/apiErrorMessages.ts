@@ -49,6 +49,8 @@ const CODE_MESSAGES: Record<string, string> = {
   INSUFFICIENT_INVENTORY:
     'Không đủ tồn khả dụng cho SKU này (đã trừ các phiếu xuất đang mở).',
   INVALID_OUTBOUND_STATUS: 'Không thể chuyển trạng thái phiếu xuất ở bước hiện tại.',
+  ADMIN_HAS_ACTIVE_CONTRACT:
+    'Không thể vô hiệu hóa quản trị — còn hợp đồng đang hiệu lực. HĐ phải hết hạn hoặc được chấm dứt (TERMINATED) trước.',
 }
 
 export function translateApiErrorMessage(message?: string | null, code?: string | null): string {

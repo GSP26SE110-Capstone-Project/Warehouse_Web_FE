@@ -1,5 +1,6 @@
 import React from 'react'
 import type { RequestTransportation } from '../../../types/Transportation'
+import { MODAL_BODY_SCROLL_SPACE } from '../../../styles/scrollClasses'
 
 type Props = {
     mode?: 'view' | 'edit'
@@ -60,7 +61,7 @@ export const RequestShipmentModal: React.FC<Props> = ({
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className={MODAL_BODY_SCROLL_SPACE}>
 
                     <div className="p-4 rounded-lg bg-white/[0.02] border border-white/5 space-y-4">
                         <h3 className="text-sm font-semibold text-cyan-400">

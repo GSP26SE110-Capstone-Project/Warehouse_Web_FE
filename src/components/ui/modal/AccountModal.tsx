@@ -6,6 +6,8 @@ import * as warehousesApi from '../../../api/warehouses'
 import * as tenantsApi from '../../../api/tenants'
 import type { ApiTenant } from '../../../api/tenants'
 import * as usersApi from '../../../api/users'
+import { requireEmail, requireMinPassword, requireTrimmed } from '../../../utils/formValidation'
+import { MODAL_BODY_SCROLL_SPACE } from '../../../styles/scrollClasses'
 
 type Mode = 'view' | 'edit' | 'create'
 
@@ -104,6 +106,8 @@ export const AccountModal: React.FC<Props> = ({
     message: string
     field?: 'password' | 'confirmPassword'
   } | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const roleOptions =
     creatorRole === 'SYSTEM_ADMIN'
@@ -116,6 +120,8 @@ export const AccountModal: React.FC<Props> = ({
 
   useEffect(() => {
     setFormError(null)
+    setShowPassword(false)
+    setShowConfirmPassword(false)
     if (isCreate) {
       const defaultRole = roleOptions[0]?.value ?? 'WH_ADMIN'
       setForm({ ...EMPTY_FORM, role: defaultRole })
@@ -216,34 +222,45 @@ export const AccountModal: React.FC<Props> = ({
   const handleSubmit = () => {
     setFormError(null)
 
-    if (isCreate && !form.email.trim()) {
+    const fullNameError = requireTrimmed(form.fullName, 'Họ và tên')
+    if (fullNameError) {
       setFormError({
         variant: 'warning',
-        title: 'Thiếu email',
-        message: 'Vui lòng nhập địa chỉ email để tạo tài khoản đăng nhập.',
+        title: 'Thiếu họ tên',
+        message: 'Vui lòng nhập họ tên người dùng.',
       })
       return
     }
 
-    if (isCreate && !form.password.trim()) {
-      setFormError({
-        variant: 'warning',
-        title: 'Thiếu mật khẩu',
-        message:
-          'Mật khẩu ban đầu là bắt buộc khi tạo tài khoản mới. Nhập mật khẩu tối thiểu 8 ký tự và xác nhận lại bên cạnh.',
-        field: 'password',
-      })
-      return
+    if (isCreate) {
+      const emailError = requireEmail(form.email)
+      if (emailError) {
+        setFormError({
+          variant: 'warning',
+          title: emailError.includes('hợp lệ') ? 'Email không hợp lệ' : 'Thiếu email',
+          message:
+            emailError === 'Email là bắt buộc'
+              ? 'Vui lòng nhập địa chỉ email để tạo tài khoản đăng nhập.'
+              : 'Địa chỉ email không đúng định dạng (vd: user@example.com).',
+        })
+        return
+      }
     }
 
-    if (isCreate && form.password.length < 8) {
-      setFormError({
-        variant: 'warning',
-        title: 'Mật khẩu quá ngắn',
-        message: 'Mật khẩu phải có ít nhất 8 ký tự để đảm bảo an toàn.',
-        field: 'password',
-      })
-      return
+    if (isCreate) {
+      const passwordError = requireMinPassword(form.password)
+      if (passwordError) {
+        setFormError({
+          variant: 'warning',
+          title: !form.password.trim() ? 'Thiếu mật khẩu' : 'Mật khẩu quá ngắn',
+          message:
+            passwordError === 'Mật khẩu là bắt buộc'
+              ? 'Mật khẩu ban đầu là bắt buộc khi tạo tài khoản mới. Nhập mật khẩu tối thiểu 8 ký tự và xác nhận lại bên cạnh.'
+              : passwordError,
+          field: 'password',
+        })
+        return
+      }
     }
 
     if (
@@ -334,7 +351,7 @@ export const AccountModal: React.FC<Props> = ({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className={MODAL_BODY_SCROLL_SPACE}>
           <div className="p-4 rounded-lg bg-white/[0.02] border border-white/5 space-y-4">
             <h3 className="text-sm font-semibold text-cyan-400">THÔNG TIN CÁ NHÂN</h3>
 
@@ -437,6 +454,23 @@ export const AccountModal: React.FC<Props> = ({
                     )}
                   </select>
                 )}
+                {!isView &&
+                  !isCreate &&
+                  creatorRole === 'SYSTEM_ADMIN' &&
+                  ['WH_ADMIN', 'TENANT_ADMIN'].includes(form.role) &&
+                  form.status !== 'Active' && (
+                    <InlineAlert
+                      compact
+                      variant="info"
+                      title="Vô hiệu hóa quản trị"
+                      className="mt-2"
+                      message={
+                        form.role === 'TENANT_ADMIN'
+                          ? 'Chỉ khóa Tenant Admin khi tenant không còn hợp đồng đang hiệu lực. Sau khi tenant chấm dứt HĐ (TERMINATED), System Admin có thể vô hiệu hóa tài khoản.'
+                          : 'Chỉ khóa Warehouse Admin khi kho không còn hợp đồng đang hiệu lực — HĐ phải hết hạn hoặc được chấm dứt trước.'
+                      }
+                    />
+                  )}
               </div>
             </div>
 
@@ -569,21 +603,33 @@ export const AccountModal: React.FC<Props> = ({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelStyle}>{isCreate ? 'Mật khẩu' : 'Mật khẩu mới'}</label>
-                  <input
-                    type="password"
-                    title="Mật khẩu"
-                    placeholder="Tối thiểu 8 ký tự"
-                    className={`${inputStyle}${
-                      formError?.field === 'password'
-                        ? ' border-amber-400/50 ring-1 ring-amber-400/30'
-                        : ''
-                    }`}
-                    value={form.password}
-                    onChange={(e) => {
-                      setFormError(null)
-                      setForm({ ...form, password: e.target.value })
-                    }}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      title="Mật khẩu"
+                      placeholder="Tối thiểu 8 ký tự"
+                      className={`${inputStyle} pr-11${
+                        formError?.field === 'password'
+                          ? ' border-amber-400/50 ring-1 ring-amber-400/30'
+                          : ''
+                      }`}
+                      value={form.password}
+                      onChange={(e) => {
+                        setFormError(null)
+                        setForm({ ...form, password: e.target.value })
+                      }}
+                    />
+                    <button
+                      type="button"
+                      aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 transition-colors hover:text-white"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">
+                        {showPassword ? 'visibility' : 'visibility_off'}
+                      </span>
+                    </button>
+                  </div>
                   {isCreate && (
                     <p className="mt-1 text-[10px] text-slate-500">
                       Bắt buộc — dùng để đăng nhập lần đầu
@@ -592,21 +638,33 @@ export const AccountModal: React.FC<Props> = ({
                 </div>
                 <div>
                   <label className={labelStyle}>Xác nhận mật khẩu</label>
-                  <input
-                    type="password"
-                    title="Xác nhận mật khẩu"
-                    placeholder="Nhập lại mật khẩu"
-                    className={`${inputStyle}${
-                      formError?.field === 'confirmPassword'
-                        ? ' border-amber-400/50 ring-1 ring-amber-400/30'
-                        : ''
-                    }`}
-                    value={form.confirmPassword}
-                    onChange={(e) => {
-                      setFormError(null)
-                      setForm({ ...form, confirmPassword: e.target.value })
-                    }}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      title="Xác nhận mật khẩu"
+                      placeholder="Nhập lại mật khẩu"
+                      className={`${inputStyle} pr-11${
+                        formError?.field === 'confirmPassword'
+                          ? ' border-amber-400/50 ring-1 ring-amber-400/30'
+                          : ''
+                      }`}
+                      value={form.confirmPassword}
+                      onChange={(e) => {
+                        setFormError(null)
+                        setForm({ ...form, confirmPassword: e.target.value })
+                      }}
+                    />
+                    <button
+                      type="button"
+                      aria-label={showConfirmPassword ? 'Ẩn mật khẩu xác nhận' : 'Hiện mật khẩu xác nhận'}
+                      onClick={() => setShowConfirmPassword((v) => !v)}
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 transition-colors hover:text-white"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">
+                        {showConfirmPassword ? 'visibility' : 'visibility_off'}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

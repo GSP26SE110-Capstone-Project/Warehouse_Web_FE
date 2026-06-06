@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { InlineAlert } from '../FeedbackAlert'
+import { MODAL_BODY_SCROLL_SPACE } from '../../../styles/scrollClasses'
 import { fetchLocationTree, type LocationCity } from '../../../api/locations'
 import { listUsers } from '../../../api/users'
 import type { ApiUser, WarehouseStatus } from '../../../api/types'
@@ -277,7 +278,7 @@ export const WarehouseModal: React.FC<Props> = ({ mode, data, onClose, onSubmit 
           </button>
         </div>
 
-        <div className="flex-1 space-y-6 overflow-y-auto p-6">
+        <div className={MODAL_BODY_SCROLL_SPACE}>
           {validationError && (
             <InlineAlert compact hideTitle message={validationError} onDismiss={() => setValidationError('')} />
           )}

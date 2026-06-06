@@ -1,4 +1,5 @@
 import React from 'react';
+import { MODAL_BODY_SCROLL_SPACE } from '../../../styles/scrollClasses';
 
 export type Report = {
   id: string;
@@ -72,7 +73,7 @@ export const ReportViewModal: React.FC<Props> = ({ report, onClose }) => {
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className={MODAL_BODY_SCROLL_SPACE}>
 
           {/* INFO GRID */}
           <div className="grid grid-cols-3 gap-6">

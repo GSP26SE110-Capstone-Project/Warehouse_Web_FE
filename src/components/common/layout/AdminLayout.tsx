@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { SidebarNav } from '../SidebarNav';
 import { AdminHeader } from '../header/AdminHeader';
 import { ScrollToTopButton } from '../ScrollToTopButton';
+import { APP_MAIN_SCROLL } from '../../../styles/scrollClasses';
 
 export const AdminLayout: React.FC = () => {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -27,7 +28,7 @@ export const AdminLayout: React.FC = () => {
                     <AdminHeader />
                 </div>
                 {/* Main Content */}
-                <main ref={mainRef} className="flex-1 mt-16 overflow-auto bg-black-500">
+                <main ref={mainRef} className={`flex-1 mt-16 bg-black-500 ${APP_MAIN_SCROLL}`}>
                     <Outlet />
                 </main>
                 <ScrollToTopButton scrollTargetRef={mainRef} className="bg-[#0b101a]/95" />

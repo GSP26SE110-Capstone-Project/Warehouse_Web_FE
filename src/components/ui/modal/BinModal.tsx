@@ -260,7 +260,7 @@ export function BinModal({
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       <button type="button" className="absolute inset-0 bg-black/70" onClick={onClose} aria-label="Đóng" />
-      <div className="relative z-10 flex max-h-[90vh] w-full max-w-md flex-col overflow-y-auto rounded-xl border border-white/5 bg-[#0b101a] p-6 shadow-2xl">
+      <div className="relative z-10 flex max-h-[90vh] w-full max-w-md flex-col dark-scrollbar overflow-y-auto rounded-xl border border-white/5 bg-[#0b101a] p-6 pr-5 shadow-2xl [scrollbar-gutter:stable]">
         <h2 className="text-lg font-bold text-white">
           {mode === 'create' ? 'Tạo bin' : 'Cấu hình bin'}
         </h2>
