@@ -40,10 +40,15 @@ export function toRentalRequestDateIso(dateOnly: string): string {
   return `${dateOnly}T12:00:00.000Z`
 }
 
-/** Lấy YYYY-MM-DD từ ISO/datetime API. */
+/** Lấy YYYY-MM-DD từ ISO/datetime API (theo lịch local, không slice UTC). */
 export function rentalRequestDateOnly(value?: string | null): string {
   if (!value) return ''
-  return String(value).slice(0, 10)
+  const s = String(value).trim()
+  if (ISO_DATE_RE.test(s)) return s
+  const d = new Date(s)
+  if (!Number.isNaN(d.getTime())) return toIsoDate(d)
+  const prefix = s.match(/^(\d{4}-\d{2}-\d{2})/)
+  return prefix?.[1] ?? ''
 }
 
 export function startOfMonth(date: Date): Date {
